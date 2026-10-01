@@ -29,7 +29,6 @@
     if (!TOUCH) {
       scale = forced > 0 ? forced : (Math.floor(fit) >= 1 ? Math.floor(fit) : fit);
     } else if (vw >= vh) {
-      // landscape: largest integer scale (>=3), else non-integer CSS fallback
       scale = forced > 0 ? forced : (Math.floor(fit) >= 3 ? Math.floor(fit) : fit);
       mode = (vw - W * scale) / 2 >= 96 ? 'outside' : 'overlay';
     } else {
@@ -37,6 +36,7 @@
       const pf = Math.min(vw / W, (vh * 0.5) / H);
       scale = forced > 0 ? forced : (Math.floor(pf) >= 3 ? Math.floor(pf) : pf);
     }
+    scale = Math.max(0.5, Math.min(scale, fit));
     const cw = Math.round(W * scale), ch = Math.round(H * scale);
     const left = Math.floor((vw - cw) / 2);
     const top = mode === 'portrait' ? Math.max(12, Math.floor(vh * 0.06)) : Math.floor((vh - ch) / 2);
@@ -138,7 +138,8 @@
 
   // ---------- utils ----------
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const rand = Math.random;
+  let netRng = null;
+  function rand() { return netRng ? netRng() : Math.random(); }
   let DT = 1 / 60;
   function* wait(sec) { let t = 0; while (t < sec) { t += DT; yield; } }
   function* tween(set, from, to, dur, ease = e => 1 - (1 - e) * (1 - e)) {
@@ -641,14 +642,16 @@
       }));
     }
     if (!G.party.length) G.party = [newMember('goririn')];
-    G.vs = { mine: Math.min(G.active || 0, G.party.length - 1), opp: 0, focus: 0 };
+    G.vs = { mine: Math.min(G.active || 0, G.party.length - 1), opp: 0, focus: 0, friend: false };
     G.state = 'versus';
     G.battle = null;
   }
   function versusKey(code) {
     const V = G.vs; if (!V) return;
+    if (code === 'KeyO') { openNet(true); return; }
+    if (code === 'KeyJ') { openNet(false); return; }
     if (code === 'Escape' || code === 'KeyN') { G.state = 'title'; return; }
-    if (code === 'ArrowUp' || code === 'KeyW') V.focus = 0;
+    if (code === 'KeyF') { V.friend = !V.friend; return; }
     if (code === 'ArrowDown' || code === 'KeyS') V.focus = 1;
     const dir = (code === 'ArrowRight' || code === 'KeyD') ? 1 : (code === 'ArrowLeft' || code === 'KeyA') ? -1 : 0;
     if (dir) {
@@ -660,7 +663,9 @@
   function versusTap(x, y) {
     const V = G.vs; if (!V) return;
     if (y < 28) { V.focus = 0; V.mine = (V.mine + 1) % G.party.length; }
-    else if (y < 42) { V.focus = 1; V.opp = (V.opp + 1) % VS_LIST.length; }
+    else if (y < 38) { V.focus = 1; V.opp = (V.opp + 1) % VS_LIST.length; }
+    else if (y < 48) V.friend = !V.friend;
+    else if (x > 96) openNet(true);
     else launchVersus();
   }
   function launchVersus() {
@@ -674,8 +679,72 @@
     player.x = 36; comp.x = 58; player.face = 1; comp.face = 1;
     G.cam = G.camT = 0;
     G.versus = true;
+    G.friend = !!V.friend || G.netRole === 'host';
+    if (G.netRole !== 'host') G.netRole = null;
+    G.wilds.forEach(w => { w.alpha = 0; });
     G.state = 'field';
     startBattle(w);
+  }
+  const NET = { peer: null, conn: null, code: '', status: '' };
+  function netSend(msg) { try { if (NET.conn && NET.conn.open) NET.conn.send(msg); } catch (e) {} }
+  function netCode() { return Math.random().toString(36).slice(2, 6); }
+  function onNet(msg) {
+    if (!msg || !msg.t) return;
+    if (msg.t === 'pick') {
+      NET.opp = msg;
+      NET.status = msg.name + ' が きた';
+      if (G.netRole === 'host' && NET.mine) beginNetBattle();
+    } else if (msg.t === 'start') {
+      G.netRole = 'guest';
+      G.friend = true;
+      G.versus = true;
+      const sp = NET.mine.sp;
+      G.party = [newMember(sp)];
+      G.active = 0;
+      const w = Object.assign(newActor(110, -1, SPECIES[msg.sp].sprite), newMember(msg.sp), { alive: true, home: 110, spawnX: 110 });
+      player.x = 36; comp.x = 58;
+      G.wilds.forEach(a => { a.alpha = 0; });
+      G.state = 'field';
+      startBattle(w);
+    } else if (msg.t === 'cmd' && G.battle && G.battle.phase === 'input' && G.battle.who === 'opp') {
+      choose(COMMANDS.findIndex(c => c.kind === msg.kind));
+    } else if (msg.t === 'bye') {
+      banner('あいてが きれた', 1.6);
+    }
+  }
+  function beginNetBattle() {
+    const opp = NET.opp; if (!opp) return;
+    const i = VS_LIST.indexOf(opp.sp);
+    G.vs.opp = i >= 0 ? i : 0;
+    G.vs.friend = true;
+    G.netRole = 'host';
+    launchVersus();
+    netSend({ t: 'start', sp: G.party[G.active].sp, name: ally().name });
+  }
+  function openNet(host) {
+    if (typeof Peer === 'undefined') { banner('つうしんの よみこみに しっぱい', 2); return; }
+    SFX.start();
+    const mine = G.party[G.vs.mine] || G.party[0];
+    NET.mine = { sp: mine.sp, name: mine.name };
+    if (host) {
+      NET.code = netCode();
+      G.netRole = 'host';
+      NET.status = 'へや ' + NET.code;
+      NET.peer = new Peer('nmg-' + NET.code);
+      NET.peer.on('connection', c => { NET.conn = c; c.on('data', onNet); c.on('open', () => netSend({ t: 'pick', sp: mine.sp, name: mine.name })); });
+    } else {
+      const code = (window.prompt('あいての へやコード') || '').trim().toLowerCase();
+      if (!code) return;
+      G.netRole = 'guest';
+      NET.status = code + ' に せつぞく中';
+      NET.peer = new Peer();
+      NET.peer.on('open', () => {
+        NET.conn = NET.peer.connect('nmg-' + code);
+        NET.conn.on('data', onNet);
+        NET.conn.on('open', () => netSend({ t: 'pick', sp: mine.sp, name: mine.name }));
+      });
+    }
+    G.state = 'netroom';
   }
   function clearStage() {
     const i = G.stage;
@@ -819,13 +888,17 @@
       w, side, phase: 'intro', q: [], cur: null, sel: 0, runTries: 0, result: null, msg: '',
       allyTX: player.x + side * 26, enemyTX: clamp(player.x + side * 90, 20, WORLD_W - 20),
     };
+    if (G.netRole) {
+      let s = 12345;
+      netRng = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+    }
     G.state = 'battle';
     SFX.battleStart();
     player.moving = false; player.face = side; player.ox = 0;
     ally().hp = Math.floor(ally().hp);
     ally().st = 25; w.st = 5 + rand() * 30; w.wdir = 0;
     G.camT = clamp(player.x + side * 45 - W / 2, 0, WORLD_W - W);
-    banner(SPECIES[w.sp].boss ? `${w.name}が たちはだかった！` : `やせいの ${w.name}が あらわれた！`, 2.0);
+    banner(G.friend ? `たいせん！ ${w.name} が むかってきた！` : (SPECIES[w.sp].boss ? `${w.name}が たちはだかった！` : `やせいの ${w.name}が あらわれた！`), 2.0);
     B.q.push(introAction());
   }
   function* walkTo(a, x, speed) {
@@ -854,8 +927,11 @@
       banner(kind === 'recruit' ? 'ボスは なかまに できない！' : 'ボスからは にげられない！', 1.4);
       return;
     }
+    if (G.friend && (kind === 'recruit' || kind === 'run')) { banner('たいせんでは つかえない', 1.1); return; }
+    if (G.netRole && (!B.who || B.who === 'me')) netSend({ t: 'cmd', kind });
     B.phase = 'run';
-    B.q.push(kind === 'recruit' ? recruitAction() : kind === 'run' ? runAction() : allyAttack(kind));
+    if (B.who === 'opp') B.q.push(enemyAttack(kind));
+    else B.q.push(kind === 'recruit' ? recruitAction() : kind === 'run' ? runAction() : allyAttack(kind));
   }
   function aiChoose(e, a) {
     const strong = SPECIES[e.sp].moves.strong;
@@ -889,6 +965,15 @@
     yield* strike(comp, a, e, e, mv, kind);
     if (e.hp <= 0) yield* enemyFaint();
   }
+  function* enemyAttack(kind) {
+    const B = G.battle, e = B.w, a = ally();
+    const mv = SPECIES[e.sp].moves[kind];
+    e.st -= COST[kind];
+    B.msg = `${e.name}の ${mv.name}！`;
+    banner('あいての ' + B.msg, 1.3);
+    yield* strike(e, e, comp, a, mv, kind);
+    if (a.hp <= 0) yield* allyFaint();
+  }
   function* enemyTurn() {
     const B = G.battle, e = B.w, a = ally();
     const kind = aiChoose(e, a), mv = SPECIES[e.sp].moves[kind];
@@ -916,7 +1001,13 @@
   }
   function* allyFaint() {
     const B = G.battle, a = ally();
-    banner(`${a.name}は つかれて うごけない…`, 1.8);
+    if (G.versus) {
+      B.phase = 'end'; B.result = 'lose';
+      banner(`${a.name}は たおれた…`, 1.8);
+      yield* wait(1.2);
+      endBattle();
+      return;
+    }
     for (let i = 0; i < 8; i++) { comp.alpha = i % 2 ? 1 : 0.25; yield* wait(0.08); }
     comp.alpha = 0;
     yield* wait(0.8);
@@ -1048,6 +1139,8 @@
     if (G.versus) {
       const result = B.result;
       G.versus = false;
+      G.friend = false;
+      G.wilds.forEach(w => { w.alpha = 1; });
       G.battle = null;
       G.state = 'title';
       persist();
@@ -1079,8 +1172,11 @@
     if (busy || (waiting && G.waitMode)) return;
     if (!waiting) a.st = Math.min(100, a.st + stRate(a) * dt);
     e.st = Math.min(100, e.st + stRate(e) * dt);
-    if (!waiting && a.st >= 100) { B.phase = 'input'; burst(comp.x, GROUND - 30, 'spark', 5, '#ffe24a'); }
-    else if (e.st >= 100) B.q.push(enemyTurn());
+    if (!waiting && a.st >= 100) { B.phase = 'input'; B.who = 'me'; burst(comp.x, GROUND - 30, 'spark', 5, '#ffe24a'); }
+    else if (e.st >= 100) {
+      if (G.friend) { B.phase = 'input'; B.who = 'opp'; burst(e.x, GROUND - 30, 'spark', 5, '#ff9ac8'); }
+      else B.q.push(enemyTurn());
+    }
   }
 
   // ---------- update ----------
@@ -1322,10 +1418,10 @@
     }
     else if (B.phase === 'input') {
       const c = COMMANDS[B.sel];
-      l1 = `${c.label} ST${COST[c.kind]}`;
-      const boss = SPECIES[B.w.sp].boss;
-      if (c.kind === 'recruit') l2 = boss ? 'ボスは なかまに できない' : `せいこう ${Math.round(recruitChance(B.w) * 100)}%`;
-      else if (c.kind === 'run' && boss) l2 = 'ボスからは にげられない';
+      l1 = (B.who === 'opp' ? 'あいて ' : '') + `${c.label}`;
+      if (B.who === 'opp') l2 = SPECIES[B.w.sp].moves[c.kind].name;
+      else if (c.kind === 'recruit') l2 = SPECIES[B.w.sp].boss ? 'ボスは なかまに できない' : `せいこう ${Math.round(recruitChance(B.w) * 100)}%`;
+      else if (c.kind === 'run' && SPECIES[B.w.sp].boss) l2 = 'ボスからは にげられない';
       else if (c.kind === 'run') l2 = `にげる ${Math.round(runChance(a, B.w, B.runTries) * 100)}%`;
       else l2 = SPECIES[a.sp].moves[c.kind].name;
     } else if (B.cur || B.phase === 'end') { [l1, l2] = wrap2(B.msg, 12); }
@@ -1372,8 +1468,18 @@
     const opp = SPECIES[VS_LIST[V.opp]];
     T((V.focus === 0 ? '▶ ' : '  ') + 'じぶん  ' + (mine ? mine.name : '?') + ' Lv' + ((mine && mine.lv) || 1), 16, 24, { size: 4, c: '#5a3418' });
     T((V.focus === 1 ? '▶ ' : '  ') + 'あいて  ' + (opp ? opp.name : '?'), 16, 32, { size: 4, c: '#5a3418' });
-    T(TOUCH ? 'うえ/したタップで えらぶ  まんなかで かくてい' : '↑↓ えらぶ  ←→ きりかえ  ENTER かくてい', 16, 44, { size: 4, c: '#7a5a38' });
-    T('N で タイトルへ', 16, 52, { size: 4, c: '#7a5a38' });
+    T(V.friend ? 'F ともだち対戦' : 'F コンピュータ', 16, 40, { size: 4, c: V.friend ? '#e84878' : '#7a5a38' });
+    T(TOUCH ? 'したをタップで開始' : 'ENTER で開始', 16, 48, { size: 4, c: '#7a5a38' });
+    T('O オンライン', 100, 48, { size: 4, c: '#3c6ad8' });
+    const mineSp = mine && mine.sp;
+    const oppSp = VS_LIST[V.opp];
+    const blit = (sp, x, face) => {
+      const s = SPR[SPECIES[sp] && SPECIES[sp].sprite];
+      if (!s) return;
+      g.drawImage(face < 0 ? s.f : s.n, x, 18, 16, 16);
+    };
+    if (mineSp) blit(mineSp, 118, 1);
+    if (oppSp) blit(oppSp, 136, -1);
   }
   function render() {
     if (G.state === 'map') {
@@ -1388,12 +1494,23 @@
       vctx.drawImage(low, 0, 0, W * S, H * S); flushText();
       return;
     }
+    if (G.state === 'netroom') {
+      BG.draw(g, G.bg, 0, G.t, W);
+      rect(8, 16, 144, 40, '#5a3418');
+      rect(10, 18, 140, 36, '#fff6e4');
+      T('オンラインたいせん', 80, 22, { size: 4, c: '#3c6ad8', al: 'center' });
+      T(NET.status || 'せつぞく中', 80, 32, { size: 8, c: '#5a3418', al: 'center' });
+      T('コードを ともだちに つたえて', 80, 44, { size: 4, c: '#7a5a38', al: 'center' });
+      vctx.drawImage(low, 0, 0, W * S, H * S); flushText();
+      return;
+    }
     let cam = Math.round(G.cam);
     const shake = G.shakeT > 0 ? (Math.floor(G.t * 60) % 2 ? 1 : -1) : 0;
     cam += shake;
     BG.draw(g, G.bg, cam, G.t, W);
     drawRoadProps(cam); drawSign(cam); drawBench(cam);
-    for (const w of G.wilds) if (w.alive) drawActor(w, cam);
+    for (const w of G.wilds) if (w.alive && w.alpha > 0) drawActor(w, cam);
+    if (G.battle && G.battle.w) drawActor(G.battle.w, cam);
     drawActor(comp, cam);
     drawActor(player, cam);
     if (G.battle && G.battle.phase !== 'done') { drawBars(G.battle.w, G.battle.w, cam); if (comp.alpha > 0) drawBars(comp, ally(), cam); }
@@ -1408,7 +1525,7 @@
           G.chip = { x: 0, y: 0, w: cw + 6, h: 10 };   // generous tap area
           rect(1, 1, cw + 2, 7, '#5a3418'); rect(2, 2, cw, 5, G.waitMode ? '#fff8e0' : '#ffd23a');
           T(lab, 4, 2.5, { size: 4, c: '#5a3418' });
-          T('←タップで きりかえ ／ コマンドは ボタンを タップ', cw + 5, 2.5, { size: 4, c: '#ffffff', ol: '#1a3a5a' });
+          T('ボタンをタップ', cw + 5, 2.5, { size: 4, c: '#ffffff', ol: '#1a3a5a' });
         } else T('ボタンで あるく・ジャンプ・いれかえ', 2, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a' });
       } else {
         const help = G.state === 'battle' ? '1-4/クリック:コマンド ←→+Enter:えらぶ T:' + (G.waitMode ? 'WAIT' : 'ACTIVE') + ' M:おと'
