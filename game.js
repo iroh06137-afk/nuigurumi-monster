@@ -249,7 +249,7 @@
     banner: null, fade: 0, fadeSpeed: 0, battle: null, waitMode: true,
     hoverBtn: -1, bg: null, signNear: false, forceRecruit: null,
     stage: 0, unlocked: 1, cleared: [], mapSel: 0, mapPos: null, benchUsed: false, benchNear: false, bgCache: {},
-    hasSave: false, muted: false,
+    hasSave: false, muted: false, versus: false, vs: null, saveFlash: 0,
   };
   const SAVE_KEY = 'nm_save_v1';
   function persist() {
@@ -266,8 +266,10 @@
         cleared: G.cleared,
         stage: G.stage,
         px: Math.round(player.x),
+        savedAt: Date.now(),
       }));
       G.hasSave = true;
+      G.saveFlash = 1.2;
     } catch (e) { /* ignore quota / private mode */ }
   }
   function readSave() {
@@ -515,9 +517,11 @@
   function onKey(code) {
     if (G.state === 'title') {
       if (code === 'KeyN') { wipeSave(); startGame(false); return; }
-      if (['Enter', 'Space', 'NumpadEnter'].includes(code)) { startGame(G.hasSave); return; }
+      if (code === 'Digit2' || code === 'KeyV') { startVersus(); return; }
+      if (['Enter', 'Space', 'NumpadEnter', 'Digit1'].includes(code)) { startGame(G.hasSave); return; }
       return;
     }
+    if (G.state === 'versus') { versusKey(code); return; }
     if (code === 'KeyT') { G.waitMode = !G.waitMode; banner(G.waitMode ? 'WAITモード：えらぶ あいだ じかんが とまる' : 'ACTIVEモード：えらぶ あいだも あいては うごく', 1.6); return; }
     if (code === 'KeyM') {
       G.muted = !G.muted; persist(); SFX.setMuted(); SFX.start();
@@ -561,13 +565,20 @@
     if (active && i >= 0) G.battle.sel = i;
     view.style.cursor = (active && i >= 0) || G.state === 'title' ? 'pointer' : 'default';
   });
-  window.addEventListener('pointerdown', e => { if (G.state === 'title') { e.preventDefault(); startGame(G.hasSave); } });
+  window.addEventListener('pointerdown', e => {
+    if (G.state === 'title') {
+      e.preventDefault();
+      const y = logicalPos(e)[1];
+      if (y > 48) startVersus();
+      else startGame(G.hasSave);
+    }
+  });
   view.addEventListener('pointerdown', e => {
     e.preventDefault();
     if (e.pointerType === 'mouse') view.focus();
     if (G.state === 'title') return;
     const [x, y] = logicalPos(e);
-    if (G.state === 'map') { mapTap(x, y); return; }
+    if (G.state === 'versus') { versusTap(x, y); return; }
     if (G.chip && inRect(x, y, G.chip)) { onKey('KeyT'); return; }
     const i = btnAt(x, y);
     if (G.state === 'battle' && G.battle && G.battle.phase === 'swap') {
@@ -617,8 +628,54 @@
     Object.assign(comp, { x: sx - 22, face: 1, ox: 0, y: 0, vy: 0, alpha: 1, moving: false });
     G.cam = G.camT = clamp(sx - 70, 0, Math.max(0, WORLD_W - W)); G.benchUsed = false; G.battle = null;
     G.state = 'field'; G.fade = 1; G.fadeSpeed = -2;
-    banner(st.name, 2.2);
+    banner(st.name + '  セーブした', 1.6);
     persist();
+  }
+  const VS_LIST = Object.keys(SPECIES).filter(k => !SPECIES[k].boss);
+  function startVersus() {
+    SFX.start();
+    const s = readSave();
+    if (s && Array.isArray(s.party) && s.party.length) {
+      G.party = s.party.filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.maxHp || m.hp, {
+        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: m.lv || 1, xp: m.xp || 0,
+      }));
+    }
+    if (!G.party.length) G.party = [newMember('goririn')];
+    G.vs = { mine: Math.min(G.active || 0, G.party.length - 1), opp: 0, focus: 0 };
+    G.state = 'versus';
+    G.battle = null;
+  }
+  function versusKey(code) {
+    const V = G.vs; if (!V) return;
+    if (code === 'Escape' || code === 'KeyN') { G.state = 'title'; return; }
+    if (code === 'ArrowUp' || code === 'KeyW') V.focus = 0;
+    if (code === 'ArrowDown' || code === 'KeyS') V.focus = 1;
+    const dir = (code === 'ArrowRight' || code === 'KeyD') ? 1 : (code === 'ArrowLeft' || code === 'KeyA') ? -1 : 0;
+    if (dir) {
+      if (V.focus === 0) V.mine = (V.mine + dir + G.party.length) % G.party.length;
+      else V.opp = (V.opp + dir + VS_LIST.length) % VS_LIST.length;
+    }
+    if (['Enter', 'Space', 'NumpadEnter', 'Digit1'].includes(code)) launchVersus();
+  }
+  function versusTap(x, y) {
+    const V = G.vs; if (!V) return;
+    if (y < 28) { V.focus = 0; V.mine = (V.mine + 1) % G.party.length; }
+    else if (y < 42) { V.focus = 1; V.opp = (V.opp + 1) % VS_LIST.length; }
+    else launchVersus();
+  }
+  function launchVersus() {
+    const V = G.vs; if (!V) return;
+    G.active = V.mine;
+    for (const m of G.party) { m.hp = m.maxHp; m.st = 0; }
+    const sp = VS_LIST[V.opp];
+    const w = Object.assign(newActor(110, -1, SPECIES[sp].sprite), newMember(sp), {
+      alive: true, home: 110, spawnX: 110, cool: false,
+    });
+    player.x = 36; comp.x = 58; player.face = 1; comp.face = 1;
+    G.cam = G.camT = 0;
+    G.versus = true;
+    G.state = 'field';
+    startBattle(w);
   }
   function clearStage() {
     const i = G.stage;
@@ -987,8 +1044,17 @@
     player.ox = comp.ox = 0; player.moving = comp.moving = false; comp.alpha = 1;
     for (const m of G.party) m.st = 0;
     B.phase = 'done';
-    G.state = 'field';
     G.lastResult = B.result;
+    if (G.versus) {
+      const result = B.result;
+      G.versus = false;
+      G.battle = null;
+      G.state = 'title';
+      persist();
+      banner(result === 'win' ? 'たいせん かった！ けいけんを セーブした' : result === 'lose' ? 'たいせん まけ… セーブした' : 'たいせん おわり', 2.2);
+      return;
+    }
+    G.state = 'field';
     G.battle = null;
   }
   function whiteoutReset() {
@@ -1286,16 +1352,40 @@
     T('Plush Monsters Adventure', 80, 31, { size: 4, c: '#ffffff', ol: '#2a2a3a', al: 'center' });
     if ((G.t % 1.2) < 0.85) {
       const line = G.hasSave
-        ? (TOUCH ? 'タップで つづきから ／ Nではじめから' : 'ENTER つづきから ／ N はじめから')
-        : (TOUCH ? 'タップで スタート' : 'ENTER / クリックで スタート');
+        ? (TOUCH ? 'うえタップ つづきから' : 'ENTER つづきから ／ N はじめから')
+        : (TOUCH ? 'うえタップで スタート' : 'ENTER で スタート');
       T(line, 80, 38, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
     }
+    T(TOUCH ? 'したタップで たいせん' : 'V / 2 で たいせん', 80, 46, { size: 4, c: '#ffd0e4', ol: '#5a2040', al: 'center' });
+    if (G.hasSave) {
+      const s = readSave();
+      const st = STAGES[s && s.stage || 0];
+      T(`セーブ: ${st ? st.name : ''}  Lv${(s && s.party && s.party[0] && s.party[0].lv) || 1}`, 80, 54, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
+    }
+  }
+  function drawVersus() {
+    const V = G.vs || { mine: 0, opp: 0, focus: 0 };
+    rect(8, 6, 144, 58, '#5a3418');
+    rect(10, 8, 140, 54, '#fff6e4');
+    T('たいせん', 80, 10, { size: 8, c: '#e84878', ol: '#ffffff', al: 'center' });
+    const mine = G.party[V.mine] || G.party[0];
+    const opp = SPECIES[VS_LIST[V.opp]];
+    T((V.focus === 0 ? '▶ ' : '  ') + 'じぶん  ' + (mine ? mine.name : '?') + ' Lv' + ((mine && mine.lv) || 1), 16, 24, { size: 4, c: '#5a3418' });
+    T((V.focus === 1 ? '▶ ' : '  ') + 'あいて  ' + (opp ? opp.name : '?'), 16, 32, { size: 4, c: '#5a3418' });
+    T(TOUCH ? 'うえ/したタップで えらぶ  まんなかで かくてい' : '↑↓ えらぶ  ←→ きりかえ  ENTER かくてい', 16, 44, { size: 4, c: '#7a5a38' });
+    T('N で タイトルへ', 16, 52, { size: 4, c: '#7a5a38' });
   }
   function render() {
     if (G.state === 'map') {
       drawMap(); drawBanner();
       vctx.drawImage(low, 0, 0, W * S, H * S); flushText();
       if (G.fade > 0) { vctx.globalAlpha = G.fade; vctx.fillStyle = '#ffffff'; vctx.fillRect(0, 0, view.width, view.height); vctx.globalAlpha = 1; }
+      return;
+    }
+    if (G.state === 'versus') {
+      BG.draw(g, G.bg, 0, G.t, W);
+      drawVersus();
+      vctx.drawImage(low, 0, 0, W * S, H * S); flushText();
       return;
     }
     let cam = Math.round(G.cam);
