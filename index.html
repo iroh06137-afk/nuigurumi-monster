@@ -8,8 +8,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#14161f">
 <title>ぬいぐるみモンスター（プロトタイプ v0.2）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
 <style>
-  @font-face { font-family: 'Misaki'; src: url('assets/misaki_gothic.ttf') format('truetype'); }
+  @font-face { font-family: 'Misaki'; src: url('assets/misaki_gothic.ttf') format('truetype'); font-display: swap; }
   html, body { margin: 0; height: 100%; background: #14161f; overflow: hidden; overscroll-behavior: none; }
   body { position: fixed; inset: 0; touch-action: none; -webkit-user-select: none; user-select: none;
          -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
@@ -22,7 +25,7 @@
   .btn { position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center;
          background: #f4e4b8; border: 3px solid #5a3418; border-radius: 14px; color: #5a3418;
          box-shadow: inset 0 -5px 0 #d8bf8a, 0 3px 0 rgba(0,0,0,.35);
-         font-family: 'Misaki', monospace; font-size: 16px; line-height: 1; white-space: nowrap; letter-spacing: -1px; touch-action: none; }
+         font-family: 'Misaki', 'DotGothic16', monospace; font-size: 16px; line-height: 1; white-space: nowrap; letter-spacing: -1px; touch-action: none; }
   .btn.on { background: #ffd23a; transform: translateY(2px); box-shadow: inset 0 -2px 0 #d8a82a, 0 1px 0 rgba(0,0,0,.35); }
   .btn.round { border-radius: 50%; }
   .btn svg { width: 46%; height: 46%; shape-rendering: crispEdges; }
@@ -33,7 +36,7 @@
   #swap.on { background: #ffc0dc; }
   body.overlay .ctl { opacity: 0.62; }
   #rotate { position: absolute; display: none; left: 0; right: 0; text-align: center; color: #fff6b0; z-index: 4;
-            font-family: 'Misaki', monospace; font-size: 16px; line-height: 24px; pointer-events: none; }
+            font-family: 'Misaki', 'DotGothic16', monospace; font-size: 16px; line-height: 24px; pointer-events: none; }
   body.portrait #rotate { display: block; }
   #rotate .ph { display: inline-block; font-size: 28px; animation: rot 2.4s infinite ease-in-out; }
   @keyframes rot { 0%, 30% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
@@ -51,16 +54,9 @@
 </div>
 <div id="rotate"><span class="ph">📱</span><br>横向きにしてね</div>
 <div id="err"></div>
-<script src="assets-b64.js"></script>
-<script>
-if (typeof ASSET_DATA !== 'undefined' && ASSET_DATA['assets/misaki_gothic.ttf']) {
-  const s = document.createElement('style');
-  s.textContent = "@font-face{font-family:'Misaki';src:url('"+ASSET_DATA['assets/misaki_gothic.ttf']+"') format('truetype')}";
-  document.head.appendChild(s);
-}
-</script>
-<script src="data.js?v=6"></script>
-<script src="bg.js?v=3"></script>
-<script src="game.js?v=6"></script>
+<script src="assets-img.js"></script>
+<script src="data.js?v=7"></script>
+<script src="bg.js?v=7"></script>
+<script src="game.js?v=7"></script>
 </body>
 </html>
