@@ -45,13 +45,15 @@
   #colors { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
   #colors button, #go, #cont { font-size: 18px; padding: 14px 8px; border: 3px solid #5a3418; border-radius: 10px; background: #fff; color: #5a3418; }
   #colors button.on { background: #ffd23a; }
-  #go, #cont { width: 100%; margin-top: 6px; background: #6cc547; color: #fff; border-color: #1f4a18; }
+  #goname, #go, #cont { width: 100%; margin-top: 6px; font-size: 18px; padding: 14px 8px; border: 3px solid #5a3418; border-radius: 10px; background: #fff; color: #5a3418; }
   #cont { background: #ff9ac8; border-color: #7a2a4c; display: none; }
   body.pick .ctl, body.pick #rotate { display: none !important; }
   body.pick #rotate, body.pick .ctl { display: none !important; }
   #rotate { position: absolute; display: none; left: 0; right: 0; text-align: center; color: #fff6b0; z-index: 4;
             font-family: 'Misaki', 'DotGothic16', monospace; font-size: 16px; line-height: 24px; pointer-events: none; }
-  body.portrait #rotate { display: block; }
+  body.has-setup canvas, body.has-setup .ctl, body.has-setup #rotate { pointer-events: none !important; }
+  body.has-setup { touch-action: manipulation; -webkit-user-select: auto; user-select: auto; }
+  #rotate { display: none !important; }
   #rotate .ph { display: inline-block; font-size: 28px; animation: rot 2.4s infinite ease-in-out; }
   @keyframes rot { 0%, 30% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
 </style>
@@ -68,7 +70,7 @@
 </div>
 <div id="setup">
   <p>なまえ</p>
-  <input id="heroname" maxlength="8" placeholder="ここに なまえ" enterkeyhint="done" autocomplete="off">
+  <button id="goname" type="button">なまえをいれる</button>
   <p>いろ</p>
   <div id="colors">
     <button type="button" data-i="0">あお</button>
@@ -85,6 +87,6 @@
 <script src="assets-img.js"></script>
 <script src="data.js?v=7"></script>
 <script src="bg.js?v=7"></script>
-<script src="game.js?v=24"></script>
+<script src="game.js?v=25"></script>
 </body>
 </html>

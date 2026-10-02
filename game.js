@@ -291,7 +291,20 @@
     applyHero();
     persist();
   }));
-  document.getElementById('go').addEventListener('click', () => { if ($name) G.heroName = $name.value.trim().slice(0, 8); wipeSave(); startGame(false); });
+  document.body.classList.add('has-setup');
+  document.getElementById('goname').addEventListener('click', () => {
+    const n = window.prompt('なまえを いれてね', G.heroName || '');
+    if (n == null) return;
+    G.heroName = n.trim().slice(0, 8);
+    document.getElementById('goname').textContent = G.heroName || 'なまえをいれる';
+  });
+  document.getElementById('go').addEventListener('click', () => {
+    G.state = 'title';
+    wipeSave();
+    startGame(false);
+    document.body.classList.remove('has-setup');
+    document.getElementById('setup').style.display = 'none';
+  });
   document.getElementById('cont').addEventListener('click', () => startGame(true));
   // walk cycle: horizontal sheet of 32x32 frames (right-facing), mirrored for left
   function prepWalk(key, img, def) {
