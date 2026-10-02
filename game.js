@@ -278,6 +278,10 @@
     G.heroName = n.trim().slice(0, 8);
     persist();
   }
+  const $name = document.getElementById('heroname');
+  const $color = document.getElementById('herocolor');
+  if ($name) $name.addEventListener('input', () => { G.heroName = $name.value.trim().slice(0, 8); });
+  if ($color) $color.addEventListener('click', () => { G.hero = (G.hero + 1) % HEROES.length; applyHero(); $color.textContent = hero().label; });
   // walk cycle: horizontal sheet of 32x32 frames (right-facing), mirrored for left
   function prepWalk(key, img, def) {
     const frames = [];
@@ -620,7 +624,8 @@
     if (G.state === 'title') {
       e.preventDefault();
       const [x, y] = logicalPos(e);
-      if (y > 48) { if (x > 100) askName(); else { G.hero = (G.hero + 1) % HEROES.length; applyHero(); } }
+      if (y >= 64) return;
+      else if (y >= 36) { G.hero = (G.hero + (x < 80 ? -1 : 1) + HEROES.length) % HEROES.length; applyHero(); }
       else startGame(G.hasSave);
     }
   });
@@ -1249,6 +1254,8 @@
     else if (G.state === 'battle') { physics(player, dt); physics(comp, dt); updateBattle(dt); }
     else if (G.state === 'title') { for (const w of G.wilds) w.face = -1; }
     else if (G.state === 'map') updateMap(dt);
+    document.body.classList.toggle('title', G.state === 'title');
+    if ($color) $color.textContent = hero().label;
     animActor(player, dt); animActor(comp, dt);
     for (const w of G.wilds) animActor(w, dt);
     G.cam += (G.camT - G.cam) * Math.min(1, dt * 6);
@@ -1506,9 +1513,7 @@
         : (TOUCH ? 'うえタップで スタート' : 'ENTER で スタート');
       T(line, 80, 38, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
     }
-    T(TOUCH ? 'ひだりで いろ  みぎで なまえ' : '←→ いろ  C なまえ', 80, 46, { size: 4, c: '#ffd0e4', ol: '#5a2040', al: 'center' });
-    T(G.heroName || 'なまえなし', 80, 52, { size: 8, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
-    T(hero().label, 80, 62, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
+    T(hero().label + '  ' + (G.heroName || 'なまえなし'), 80, 54, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
     if (G.hasSave) {
       const s = readSave();
       const st = STAGES[s && s.stage || 0];
