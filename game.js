@@ -232,6 +232,46 @@
     for (let y = 0; y < 32; y++) for (let X = 0; X < 32; X++) if (d[(y * 32 + X) * 4 + 3] > 0) { top = Math.min(top, y); minX = Math.min(minX, X); maxX = Math.max(maxX, X); }
     SPR[key] = { n, f, wn: silhouette(n), wf: silhouette(f), native: SPRITES[key].native, top, w: maxX - minX + 1 };
   }
+  const HEROES = [
+    { id: 'shota', name: 'しょうた', key: 'player' },
+    { id: 'aoi', name: 'あおい', key: 'hero_aoi', hair: [40, 90, 180], shirt: [30, 70, 150] },
+    { id: 'hina', name: 'ひな', key: 'hero_hina', hair: [220, 90, 140], shirt: [190, 50, 70] },
+    { id: 'ren', name: 'れん', key: 'hero_ren', hair: [40, 36, 34], shirt: [210, 170, 50] },
+  ];
+  function recolorHero(src, hair, shirt) {
+    const [c, x] = mk(src.width, src.height); x.drawImage(src, 0, 0);
+    const img = x.getImageData(0, 0, c.width, c.height), d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 20) continue;
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const green = g > r + 8 && g > b;
+      const brown = r > g + 10 && g > b && r > 70 && r < 210;
+      const col = green ? shirt : brown ? hair : null;
+      if (!col) continue;
+      const lum = (r + g + b) / 3 / 140;
+      d[i] = Math.min(255, col[0] * lum);
+      d[i + 1] = Math.min(255, col[1] * lum);
+      d[i + 2] = Math.min(255, col[2] * lum);
+    }
+    x.putImageData(img, 0, 0);
+    return c;
+  }
+  function makeHeroes() {
+    const base = SPR.player; if (!base) return;
+    for (const h of HEROES) {
+      if (!h.hair) continue;
+      const n = recolorHero(base.n, h.hair, h.shirt);
+      const f = recolorHero(base.f, h.hair, h.shirt);
+      const frames = (base.walk ? base.walk.frames : []).map(fr => {
+        const nn = recolorHero(fr.n, h.hair, h.shirt);
+        const ff = recolorHero(fr.f, h.hair, h.shirt);
+        return { n: nn, f: ff, wn: silhouette(nn), wf: silhouette(ff) };
+      });
+      SPR[h.key] = { n, f, wn: silhouette(n), wf: silhouette(f), native: 1, top: base.top, w: base.w, walk: frames.length ? { frames, ms: base.walk.ms } : null };
+    }
+  }
+  function hero() { return HEROES[G.hero] || HEROES[0]; }
+  function applyHero() { player.key = hero().key; }
   // walk cycle: horizontal sheet of 32x32 frames (right-facing), mirrored for left
   function prepWalk(key, img, def) {
     const frames = [];
@@ -250,7 +290,7 @@
     banner: null, fade: 0, fadeSpeed: 0, battle: null, waitMode: true,
     hoverBtn: -1, bg: null, signNear: false, forceRecruit: null,
     stage: 0, unlocked: 1, cleared: [], mapSel: 0, mapPos: null, benchUsed: false, benchNear: false, bgCache: {},
-    hasSave: false, muted: false, versus: false, vs: null, saveFlash: 0,
+    hasSave: false, muted: false, versus: false, vs: null, saveFlash: 0, hero: 0,
   };
   const SAVE_KEY = 'nm_save_v1';
   function persist() {
@@ -267,6 +307,7 @@
         cleared: G.cleared,
         stage: G.stage,
         px: Math.round(player.x),
+        hero: G.hero || 0,
         savedAt: Date.now(),
       }));
       G.hasSave = true;
@@ -518,7 +559,8 @@
   function onKey(code) {
     if (G.state === 'title') {
       if (code === 'KeyN') { wipeSave(); startGame(false); return; }
-      if (code === 'Digit2' || code === 'KeyV') { startVersus(); return; }
+      if (code === 'ArrowLeft' || code === 'KeyA') { G.hero = (G.hero + HEROES.length - 1) % HEROES.length; applyHero(); return; }
+      if (code === 'ArrowRight' || code === 'KeyD' || code === 'Digit2') { G.hero = (G.hero + 1) % HEROES.length; applyHero(); return; }
       if (['Enter', 'Space', 'NumpadEnter', 'Digit1'].includes(code)) { startGame(G.hasSave); return; }
       return;
     }
@@ -570,7 +612,7 @@
     if (G.state === 'title') {
       e.preventDefault();
       const y = logicalPos(e)[1];
-      if (y > 48) startVersus();
+      if (y > 48) { G.hero = (G.hero + 1) % HEROES.length; applyHero(); }
       else startGame(G.hasSave);
     }
   });
@@ -603,11 +645,14 @@
       G.unlocked = Math.max(1, s.unlocked | 0);
       G.cleared = Array.isArray(s.cleared) ? s.cleared.slice() : [];
       if (s.muted != null) G.muted = !!s.muted;
+      if (s.hero != null) G.hero = Math.max(0, Math.min(s.hero | 0, HEROES.length - 1));
+      applyHero();
       const i = Math.max(0, Math.min(s.stage | 0, STAGES.length - 1));
       enterStage(i, { heal: false, startX: s.px });
       return;
     }
     G.state = 'field';
+    applyHero();
     G.wilds[0].toHome = true;   // the title-screen Oguri trots off to its spot
     banner(STAGES[0].name, 2.2);
     persist();
@@ -1452,7 +1497,8 @@
         : (TOUCH ? 'うえタップで スタート' : 'ENTER で スタート');
       T(line, 80, 38, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
     }
-    T(TOUCH ? 'したタップで たいせん' : 'V / 2 で たいせん', 80, 46, { size: 4, c: '#ffd0e4', ol: '#5a2040', al: 'center' });
+    T(TOUCH ? 'したタップで なかまを きりかえ' : '←→ で なかまを きりかえ', 80, 46, { size: 4, c: '#ffd0e4', ol: '#5a2040', al: 'center' });
+    T(hero().name, 80, 54, { size: 8, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
     if (G.hasSave) {
       const s = readSave();
       const st = STAGES[s && s.stage || 0];
@@ -1551,6 +1597,8 @@
     resize();
     await Promise.all(Object.entries(SPRITES).map(([k, s]) => loadImg(s.src).then(img => prepSprite(k, img))));
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.walk).map(([k, s]) => loadImg(s.walk.src).then(img => prepWalk(k, img, s.walk)).catch(() => {})));
+    makeHeroes();
+    applyHero();
     await Promise.all(Object.entries(PROP_IMGS).map(([k, src]) => loadImg(src).then(img => { PROPS[k] = img; }).catch(e => console.warn(e))));
     try { await document.fonts.load('8px Misaki'); await document.fonts.load("8px 'DotGothic16'"); } catch (e) { console.warn('font load failed', e); }
     G.bg = G.bgCache.oka = BG.build(WORLD_W, STAGES[0].theme);
