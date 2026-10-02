@@ -94,7 +94,7 @@
       const dj = bs + 8, ds = bs - 6;
       place($jump, vw - dj - 16, y - 4, dj, dj);
       place($swap, vw - dj - ds - 16 - m - 4, y + 4, ds, ds);
-      $rot.style.top = (top + ch + 18) + 'px';
+      $rot && ($rot.style.top = (top + ch + 18) + 'px');
     }
     fitLabels();
   }
