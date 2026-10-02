@@ -233,10 +233,10 @@
     SPR[key] = { n, f, wn: silhouette(n), wf: silhouette(f), native: SPRITES[key].native, top, w: maxX - minX + 1 };
   }
   const HEROES = [
-    { id: 'shota', name: 'しょうた', key: 'player' },
-    { id: 'aoi', name: 'あおい', key: 'hero_aoi', hair: [40, 90, 180], shirt: [30, 70, 150] },
-    { id: 'hina', name: 'ひな', key: 'hero_hina', hair: [220, 90, 140], shirt: [190, 50, 70] },
-    { id: 'ren', name: 'れん', key: 'hero_ren', hair: [40, 36, 34], shirt: [210, 170, 50] },
+    { id: 'blue', label: 'あお', key: 'player' },
+    { id: 'green', label: 'みどり', key: 'hero_green', hair: [70, 48, 36], shirt: [60, 150, 70] },
+    { id: 'red', label: 'あか', key: 'hero_red', hair: [150, 70, 50], shirt: [190, 55, 60] },
+    { id: 'yellow', label: 'きいろ', key: 'hero_yellow', hair: [40, 36, 34], shirt: [220, 180, 50] },
   ];
   function recolorHero(src, hair, shirt) {
     const [c, x] = mk(src.width, src.height); x.drawImage(src, 0, 0);
@@ -244,11 +244,11 @@
     for (let i = 0; i < d.length; i += 4) {
       if (d[i + 3] < 20) continue;
       const r = d[i], g = d[i + 1], b = d[i + 2];
-      const green = g > r + 8 && g > b;
-      const brown = r > g + 10 && g > b && r > 70 && r < 210;
-      const col = green ? shirt : brown ? hair : null;
+      const shirtPx = b > r + 25 && b > g + 10;
+      const hairPx = Math.max(r, g, b) < 120 && Math.abs(r - b) < 40;
+      const col = shirtPx ? shirt : hairPx ? hair : null;
       if (!col) continue;
-      const lum = (r + g + b) / 3 / 140;
+      const lum = Math.max(0.45, (r + g + b) / 3 / 110);
       d[i] = Math.min(255, col[0] * lum);
       d[i + 1] = Math.min(255, col[1] * lum);
       d[i + 2] = Math.min(255, col[2] * lum);
@@ -272,6 +272,12 @@
   }
   function hero() { return HEROES[G.hero] || HEROES[0]; }
   function applyHero() { player.key = hero().key; }
+  function askName() {
+    const n = window.prompt('なまえを つけてね', G.heroName || '');
+    if (n == null) return;
+    G.heroName = n.trim().slice(0, 8);
+    persist();
+  }
   // walk cycle: horizontal sheet of 32x32 frames (right-facing), mirrored for left
   function prepWalk(key, img, def) {
     const frames = [];
@@ -290,7 +296,7 @@
     banner: null, fade: 0, fadeSpeed: 0, battle: null, waitMode: true,
     hoverBtn: -1, bg: null, signNear: false, forceRecruit: null,
     stage: 0, unlocked: 1, cleared: [], mapSel: 0, mapPos: null, benchUsed: false, benchNear: false, bgCache: {},
-    hasSave: false, muted: false, versus: false, vs: null, saveFlash: 0, hero: 0,
+    hasSave: false, muted: false, versus: false, vs: null, saveFlash: 0, hero: 0, heroName: '',
   };
   const SAVE_KEY = 'nm_save_v1';
   function persist() {
@@ -308,6 +314,7 @@
         stage: G.stage,
         px: Math.round(player.x),
         hero: G.hero || 0,
+        heroName: G.heroName || '',
         savedAt: Date.now(),
       }));
       G.hasSave = true;
@@ -561,6 +568,7 @@
       if (code === 'KeyN') { wipeSave(); startGame(false); return; }
       if (code === 'ArrowLeft' || code === 'KeyA') { G.hero = (G.hero + HEROES.length - 1) % HEROES.length; applyHero(); return; }
       if (code === 'ArrowRight' || code === 'KeyD' || code === 'Digit2') { G.hero = (G.hero + 1) % HEROES.length; applyHero(); return; }
+      if (code === 'KeyC') { askName(); return; }
       if (['Enter', 'Space', 'NumpadEnter', 'Digit1'].includes(code)) { startGame(G.hasSave); return; }
       return;
     }
@@ -611,8 +619,8 @@
   window.addEventListener('pointerdown', e => {
     if (G.state === 'title') {
       e.preventDefault();
-      const y = logicalPos(e)[1];
-      if (y > 48) { G.hero = (G.hero + 1) % HEROES.length; applyHero(); }
+      const [x, y] = logicalPos(e);
+      if (y > 48) { if (x > 100) askName(); else { G.hero = (G.hero + 1) % HEROES.length; applyHero(); } }
       else startGame(G.hasSave);
     }
   });
@@ -646,6 +654,7 @@
       G.cleared = Array.isArray(s.cleared) ? s.cleared.slice() : [];
       if (s.muted != null) G.muted = !!s.muted;
       if (s.hero != null) G.hero = Math.max(0, Math.min(s.hero | 0, HEROES.length - 1));
+      if (s.heroName) G.heroName = String(s.heroName).slice(0, 8);
       applyHero();
       const i = Math.max(0, Math.min(s.stage | 0, STAGES.length - 1));
       enterStage(i, { heal: false, startX: s.px });
@@ -1497,8 +1506,9 @@
         : (TOUCH ? 'うえタップで スタート' : 'ENTER で スタート');
       T(line, 80, 38, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
     }
-    T(TOUCH ? 'したタップで なかまを きりかえ' : '←→ で なかまを きりかえ', 80, 46, { size: 4, c: '#ffd0e4', ol: '#5a2040', al: 'center' });
-    T(hero().name, 80, 54, { size: 8, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
+    T(TOUCH ? 'ひだりで いろ  みぎで なまえ' : '←→ いろ  C なまえ', 80, 46, { size: 4, c: '#ffd0e4', ol: '#5a2040', al: 'center' });
+    T(G.heroName || 'なまえなし', 80, 52, { size: 8, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
+    T(hero().label, 80, 62, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
     if (G.hasSave) {
       const s = readSave();
       const st = STAGES[s && s.stage || 0];
