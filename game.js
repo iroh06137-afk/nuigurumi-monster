@@ -271,41 +271,7 @@
     }
   }
   function hero() { return HEROES[G.hero] || HEROES[0]; }
-  function applyHero() { player.key = hero().key; }
-  function askName() {
-    const n = window.prompt('なまえを つけてね', G.heroName || '');
-    if (n == null) return;
-    G.heroName = n.trim().slice(0, 8);
-    persist();
-  }
-  const $name = document.getElementById('heroname');
-  if ($name) {
-    $name.addEventListener('pointerdown', e => e.stopPropagation());
-    $name.addEventListener('input', () => { G.heroName = $name.value.trim().slice(0, 8); persist(); });
-  }
-  document.getElementById('setup').addEventListener('pointerdown', e => e.stopPropagation(), true);
-  document.querySelectorAll('#colors button').forEach(btn => btn.addEventListener('pointerup', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    G.hero = Number(btn.dataset.i);
-    applyHero();
-    persist();
-  }));
-  document.body.classList.add('has-setup');
-  document.getElementById('goname').addEventListener('click', () => {
-    const n = window.prompt('なまえを いれてね', G.heroName || '');
-    if (n == null) return;
-    G.heroName = n.trim().slice(0, 8);
-    document.getElementById('goname').textContent = G.heroName || 'なまえをいれる';
-  });
-  document.getElementById('go').addEventListener('click', () => {
-    G.state = 'title';
-    wipeSave();
-    startGame(false);
-    document.body.classList.remove('has-setup');
-    document.getElementById('setup').style.display = 'none';
-  });
-  document.getElementById('cont').addEventListener('click', () => startGame(true));
+  function applyHero() { player.key = 'player'; }
   // walk cycle: horizontal sheet of 32x32 frames (right-facing), mirrored for left
   function prepWalk(key, img, def) {
     const frames = [];
@@ -597,7 +563,7 @@
       if (code === 'ArrowLeft' || code === 'KeyA') { G.hero = (G.hero + HEROES.length - 1) % HEROES.length; applyHero(); return; }
       if (code === 'ArrowRight' || code === 'KeyD' || code === 'Digit2') { G.hero = (G.hero + 1) % HEROES.length; applyHero(); return; }
       if (code === 'KeyC') { askName(); return; }
-      if (['Enter', 'Space', 'NumpadEnter', 'Digit1'].includes(code)) { startPick(); return; }
+      if (['Enter', 'Space', 'NumpadEnter', 'Digit1'].includes(code)) { startGame(G.hasSave); return; }
       return;
     }
     if (G.state === 'versus') { versusKey(code); return; }
@@ -645,10 +611,9 @@
     view.style.cursor = (active && i >= 0) || G.state === 'title' ? 'pointer' : 'default';
   });
   window.addEventListener('pointerdown', e => {
-    if (e.target && e.target.closest && e.target.closest('#setup')) return;
     if (G.state !== 'title') return;
-    startPick();
-  }, true);
+    startGame(G.hasSave);
+  });
   view.addEventListener('pointerdown', e => {
     if (G.state === 'pick' || G.state === 'title') return;
     e.preventDefault();
@@ -664,21 +629,10 @@
   });
 
   // ---------- field ----------
-  function startPick() {
-    G.state = 'pick';
-    player.x = 80; player.face = 1;
-    applyHero();
-    const setup = document.getElementById('setup');
-    if (setup) { setup.classList.add('open'); setup.style.display = 'block'; }
-    if ($name && !$name.value && G.heroName) $name.value = G.heroName;
-  }
-  function closePick() {
-    const setup = document.getElementById('setup');
-    if (setup) { setup.classList.remove('open'); setup.style.display = 'none'; }
-  }
+  function closePick() {}
   function startGame(fromSave) {
-    closePick();
     SFX.start();
+    if (!G.heroName) G.heroName = 'しょうた';
     if (G.state !== 'title' && G.state !== 'pick') return;
     const s = fromSave ? readSave() : null;
     if (s && Array.isArray(s.party) && s.party.length) {
@@ -1547,7 +1501,6 @@
         : (TOUCH ? 'うえタップで スタート' : 'ENTER で スタート');
       T(line, 80, 38, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
     }
-    T(TOUCH ? 'タップで キャラをえらぶ' : 'ENTER で キャラをえらぶ', 80, 46, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
     if (G.hasSave) {
       const s = readSave();
       const st = STAGES[s && s.stage || 0];

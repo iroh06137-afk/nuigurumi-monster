@@ -35,24 +35,8 @@
   #swap { background: #ff9ac8; color: #fff; border-color: #7a2a4c; box-shadow: inset 0 -5px 0 #d4588c, 0 3px 0 rgba(0,0,0,.35); text-shadow: 0 2px 0 #7a2a4c; }
   #swap.on { background: #ffc0dc; }
   body.overlay .ctl { opacity: 0.62; }
-  #setup { position: fixed; z-index: 80; left: 12px; right: 12px; bottom: 12px; padding: 14px;
-           background: #fff6e4; border: 4px solid #5a3418; border-radius: 16px; }
-  #setup, #setup * { pointer-events: auto; touch-action: manipulation; -webkit-user-select: text; user-select: text; }
-  #setup p { margin: 0 0 6px; color: #5a3418; font: 16px 'DotGothic16', sans-serif; }
-  #heroname { width: 100%; box-sizing: border-box; font-size: 18px; padding: 12px; margin-bottom: 10px;
-              border: 3px solid #5a3418; border-radius: 10px; background: #fff; color: #111;
-              touch-action: manipulation; -webkit-user-select: text; user-select: text; }
-  #colors { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-  #colors button, #go, #cont { font-size: 18px; padding: 14px 8px; border: 3px solid #5a3418; border-radius: 10px; background: #fff; color: #5a3418; }
-  #colors button.on { background: #ffd23a; }
-  #goname, #go, #cont { width: 100%; margin-top: 6px; font-size: 18px; padding: 14px 8px; border: 3px solid #5a3418; border-radius: 10px; background: #fff; color: #5a3418; }
-  #cont { background: #ff9ac8; border-color: #7a2a4c; display: none; }
-  body.pick .ctl, body.pick #rotate { display: none !important; }
-  body.pick #rotate, body.pick .ctl { display: none !important; }
   #rotate { position: absolute; display: none; left: 0; right: 0; text-align: center; color: #fff6b0; z-index: 4;
             font-family: 'Misaki', 'DotGothic16', monospace; font-size: 16px; line-height: 24px; pointer-events: none; }
-  body.has-setup canvas, body.has-setup .ctl, body.has-setup #rotate { pointer-events: none !important; }
-  body.has-setup { touch-action: manipulation; -webkit-user-select: auto; user-select: auto; }
   #rotate { display: none !important; }
   #rotate .ph { display: inline-block; font-size: 28px; animation: rot 2.4s infinite ease-in-out; }
   @keyframes rot { 0%, 30% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
@@ -68,25 +52,11 @@
   <div class="btn round" id="swap">いれかえ</div>
   <div class="btn round" id="jump">ジャンプ</div>
 </div>
-<div id="setup">
-  <p>なまえ</p>
-  <button id="goname" type="button">なまえをいれる</button>
-  <p>いろ</p>
-  <div id="colors">
-    <button type="button" data-i="0">あお</button>
-    <button type="button" data-i="1">みどり</button>
-    <button type="button" data-i="2">あか</button>
-    <button type="button" data-i="3">きいろ</button>
-  </div>
-  <button id="go" type="button">このキャラではじめる</button>
-  <button id="cont" type="button">つづきから</button>
-</div>
-<div id="rotate"><span class="ph">📱</span><br>横向きにしてね</div>
 <div id="err"></div>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="assets-img.js"></script>
 <script src="data.js?v=7"></script>
 <script src="bg.js?v=7"></script>
-<script src="game.js?v=25"></script>
+<script src="game.js?v=26"></script>
 </body>
 </html>
