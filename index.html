@@ -35,9 +35,9 @@
   #swap { background: #ff9ac8; color: #fff; border-color: #7a2a4c; box-shadow: inset 0 -5px 0 #d4588c, 0 3px 0 rgba(0,0,0,.35); text-shadow: 0 2px 0 #7a2a4c; }
   #swap.on { background: #ffc0dc; }
   body.overlay .ctl { opacity: 0.62; }
-  #setup { position: fixed; z-index: 50; display: none; inset: 0; padding: 24px 16px;
-           background: #fff6e4; touch-action: manipulation; pointer-events: auto; }
-  #setup.open { display: block; }
+  #setup { position: fixed; z-index: 80; left: 12px; right: 12px; bottom: 12px; padding: 14px;
+           background: #fff6e4; border: 4px solid #5a3418; border-radius: 16px; }
+  #setup, #setup * { pointer-events: auto; touch-action: manipulation; -webkit-user-select: text; user-select: text; }
   #setup p { margin: 0 0 6px; color: #5a3418; font: 16px 'DotGothic16', sans-serif; }
   #heroname { width: 100%; box-sizing: border-box; font-size: 18px; padding: 12px; margin-bottom: 10px;
               border: 3px solid #5a3418; border-radius: 10px; background: #fff; color: #111;
@@ -85,6 +85,6 @@
 <script src="assets-img.js"></script>
 <script src="data.js?v=7"></script>
 <script src="bg.js?v=7"></script>
-<script src="game.js?v=23"></script>
+<script src="game.js?v=24"></script>
 </body>
 </html>

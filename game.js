@@ -283,7 +283,7 @@
     $name.addEventListener('pointerdown', e => e.stopPropagation());
     $name.addEventListener('input', () => { G.heroName = $name.value.trim().slice(0, 8); persist(); });
   }
-  document.getElementById('setup').addEventListener('pointerdown', e => e.stopPropagation());
+  document.getElementById('setup').addEventListener('pointerdown', e => e.stopPropagation(), true);
   document.querySelectorAll('#colors button').forEach(btn => btn.addEventListener('pointerup', e => {
     e.preventDefault();
     e.stopPropagation();
@@ -632,10 +632,10 @@
     view.style.cursor = (active && i >= 0) || G.state === 'title' ? 'pointer' : 'default';
   });
   window.addEventListener('pointerdown', e => {
-    if (G.state !== 'title') return;
     if (e.target && e.target.closest && e.target.closest('#setup')) return;
+    if (G.state !== 'title') return;
     startPick();
-  });
+  }, true);
   view.addEventListener('pointerdown', e => {
     if (G.state === 'pick' || G.state === 'title') return;
     e.preventDefault();
