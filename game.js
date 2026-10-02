@@ -580,7 +580,7 @@
       if (code === 'ArrowLeft' || code === 'KeyA') { G.hero = (G.hero + HEROES.length - 1) % HEROES.length; applyHero(); return; }
       if (code === 'ArrowRight' || code === 'KeyD' || code === 'Digit2') { G.hero = (G.hero + 1) % HEROES.length; applyHero(); return; }
       if (code === 'KeyC') { askName(); return; }
-      if (['Enter', 'Space', 'NumpadEnter', 'Digit1'].includes(code)) { startGame(G.hasSave); return; }
+      if (['Enter', 'Space', 'NumpadEnter', 'Digit1'].includes(code)) { startPick(); return; }
       return;
     }
     if (G.state === 'versus') { versusKey(code); return; }
@@ -634,7 +634,7 @@
       const [x, y] = logicalPos(e);
       if (y >= 64) return;
       else if (y >= 36) { G.hero = (G.hero + (x < 80 ? -1 : 1) + HEROES.length) % HEROES.length; applyHero(); }
-      else startGame(G.hasSave);
+      else startPick();
     }
   });
   view.addEventListener('pointerdown', e => {
@@ -653,9 +653,13 @@
   });
 
   // ---------- field ----------
+  function startPick() {
+    G.state = 'pick';
+    if ($name && !$name.value && G.heroName) $name.value = G.heroName;
+  }
   function startGame(fromSave) {
     SFX.start();
-    if (G.state !== 'title') return;
+    if (G.state !== 'title' && G.state !== 'pick') return;
     const s = fromSave ? readSave() : null;
     if (s && Array.isArray(s.party) && s.party.length) {
       G.party = s.party.filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.hp, {
@@ -1263,6 +1267,7 @@
     else if (G.state === 'title') { for (const w of G.wilds) w.face = -1; }
     else if (G.state === 'map') updateMap(dt);
     document.body.classList.toggle('title', G.state === 'title');
+    document.body.classList.toggle('pick', G.state === 'pick');
     document.body.classList.toggle('has-save', !!G.hasSave);
     document.querySelectorAll('#colors button').forEach(btn => btn.classList.toggle('on', Number(btn.dataset.i) === G.hero));
     animActor(player, dt); animActor(comp, dt);
@@ -1522,7 +1527,7 @@
         : (TOUCH ? 'うえタップで スタート' : 'ENTER で スタート');
       T(line, 80, 38, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
     }
-    T(hero().label + '  ' + (G.heroName || 'なまえなし'), 80, 54, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
+    T(TOUCH ? 'タップで キャラをえらぶ' : 'ENTER で キャラをえらぶ', 80, 46, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
     if (G.hasSave) {
       const s = readSave();
       const st = STAGES[s && s.stage || 0];
@@ -1585,7 +1590,7 @@
     drawActor(player, cam);
     if (G.battle && G.battle.phase !== 'done') { drawBars(G.battle.w, G.battle.w, cam); if (comp.alpha > 0) drawBars(comp, ally(), cam); }
     drawParticles(cam);
-    if (G.state !== 'title') {
+    if (G.state !== 'title' && G.state !== 'pick') {
       drawHUD(); drawBanner();
       // help + party (hi-res text)
       G.chip = null;
