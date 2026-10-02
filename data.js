@@ -10,6 +10,9 @@ const SPRITES = {
   tsumaguro: { src: 'assets/tsumaguro.png', native: 1, walk: { src: 'assets/tsumaguro_walk.png', frames: 4, ms: 150 } }, // blacktip shark (hops on pectoral fins)
   kitsunen: { src: 'assets/kitsunen.png', native: 1 }, // fox plush (zako). no walk sheet yet: bobs while moving
   usagin:  { src: 'assets/usagin.png',   native: 1 }, // lop-eared rabbit plush (zako). no walk sheet yet
+  kaerun:  { src: 'assets/kaerun.png',   native: 1 }, // frog plush (zako). no walk sheet yet
+  fukuron: { src: 'assets/fukuron.png',  native: 1 }, // owl plush (zako). no walk sheet yet
+  tanukin: { src: 'assets/tanukin.png',  native: 1 }, // tanuki plush (zako). no walk sheet yet
   oguri:   { src: 'assets/oguri-cap.png', native: -1, walk: { src: 'assets/oguri_walk.png', frames: 4, ms: 150 } }, // faces left; flipped for right
 };
 
@@ -52,6 +55,30 @@ const SPECIES = {
     moves: {
       attack: { name: 'ぴょんキック',     power: 9,  acc: 0.97 },
       strong: { name: 'たれみみビンタ',   power: 19, acc: 0.86 },
+    },
+  },
+  kaerun: {  // ★ provisional: road zako (frog), sturdy but slow-ish
+    name: 'カエルン', sprite: 'kaerun',
+    hp: 30, atk: 6, def: 5, spd: 9, recruitBase: 0.20,
+    moves: {
+      attack: { name: 'したペチン',       power: 9,  acc: 0.97 },
+      strong: { name: 'ケロケロジャンプ', power: 20, acc: 0.85 },
+    },
+  },
+  fukuron: {  // ★ provisional: road zako (owl), quick
+    name: 'フクロン', sprite: 'fukuron',
+    hp: 27, atk: 6, def: 5, spd: 11, recruitBase: 0.18,
+    moves: {
+      attack: { name: 'つばさはたき',     power: 9,  acc: 0.97 },
+      strong: { name: 'ホーホーおんぱ',   power: 20, acc: 0.86 },
+    },
+  },
+  tanukin: {  // ★ provisional: road zako (tanuki), tanky and slow
+    name: 'タヌキン', sprite: 'tanukin',
+    hp: 32, atk: 7, def: 5, spd: 7, recruitBase: 0.18,
+    moves: {
+      attack: { name: 'ぽんぽこパンチ',   power: 10, acc: 0.96 },
+      strong: { name: 'ばけばけアタック', power: 21, acc: 0.84 },
     },
   },
   kaido_boss: {  // ★ placeholder boss for ぬいぐるみ街道
@@ -122,8 +149,7 @@ const STAGES = [
   },
   {
     id: 'kaido', name: 'ぬいぐるみ街道', width: 1400, theme: 'road', bench: 680,
-    // ★ カエルン/フクロン/タヌキン have no art yet: their slots use キツネン/ウサギン for now
-    spawns: [ { sp: 'kitsunen', x: 260 }, { sp: 'usagin', x: 400 }, { sp: 'kitsunen', x: 540 }, { sp: 'usagin', x: 820 }, { sp: 'kitsunen', x: 960 }, { sp: 'usagin', x: 1100 }, { sp: 'kaido_boss', x: 1260 } ],
+    spawns: [ { sp: 'kitsunen', x: 260 }, { sp: 'usagin', x: 400 }, { sp: 'kaerun', x: 540 }, { sp: 'fukuron', x: 820 }, { sp: 'tanukin', x: 960 }, { sp: 'kitsunen', x: 1100 }, { sp: 'kaido_boss', x: 1260 } ],
     exit: ['このさき', '夕方の草地'],
     // decorations stand on the far edge of the road (screen row 63), behind the characters
     decor: [ { k: 'tree', x: 110 }, { k: 'bush', x: 185 }, { k: 'lamp', x: 320 }, { k: 'tree', x: 465 }, { k: 'bush', x: 610 }, { k: 'lamp', x: 750 },
