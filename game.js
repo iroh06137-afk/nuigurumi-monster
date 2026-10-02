@@ -284,8 +284,12 @@
     $name.addEventListener('input', () => { G.heroName = $name.value.trim().slice(0, 8); persist(); });
   }
   document.getElementById('setup').addEventListener('pointerdown', e => e.stopPropagation());
-  document.querySelectorAll('#colors button').forEach(btn => btn.addEventListener('click', () => {
-    G.hero = Number(btn.dataset.i); applyHero(); persist();
+  document.querySelectorAll('#colors button').forEach(btn => btn.addEventListener('pointerup', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    G.hero = Number(btn.dataset.i);
+    applyHero();
+    persist();
   }));
   document.getElementById('go').addEventListener('click', () => { if ($name) G.heroName = $name.value.trim().slice(0, 8); wipeSave(); startGame(false); });
   document.getElementById('cont').addEventListener('click', () => startGame(true));
@@ -628,19 +632,13 @@
     view.style.cursor = (active && i >= 0) || G.state === 'title' ? 'pointer' : 'default';
   });
   window.addEventListener('pointerdown', e => {
-    if (e.target && e.target.closest && e.target.closest('#namebar')) return;
-    if (G.state === 'title') {
-      e.preventDefault();
-      const [x, y] = logicalPos(e);
-      if (y >= 64) return;
-      else if (y >= 36) { G.hero = (G.hero + (x < 80 ? -1 : 1) + HEROES.length) % HEROES.length; applyHero(); }
-      else startPick();
-    }
+    if (G.state !== 'title') return;
+    if (e.target && e.target.closest && e.target.closest('#setup')) return;
+    startPick();
   });
   view.addEventListener('pointerdown', e => {
+    if (G.state === 'pick' || G.state === 'title') return;
     e.preventDefault();
-    if (e.pointerType === 'mouse') view.focus();
-    if (G.state === 'title') return;
     const [x, y] = logicalPos(e);
     if (G.state === 'versus') { versusTap(x, y); return; }
     if (G.chip && inRect(x, y, G.chip)) { onKey('KeyT'); return; }
@@ -655,9 +653,18 @@
   // ---------- field ----------
   function startPick() {
     G.state = 'pick';
+    player.x = 80; player.face = 1;
+    applyHero();
+    const setup = document.getElementById('setup');
+    if (setup) { setup.classList.add('open'); setup.style.display = 'block'; }
     if ($name && !$name.value && G.heroName) $name.value = G.heroName;
   }
+  function closePick() {
+    const setup = document.getElementById('setup');
+    if (setup) { setup.classList.remove('open'); setup.style.display = 'none'; }
+  }
   function startGame(fromSave) {
+    closePick();
     SFX.start();
     if (G.state !== 'title' && G.state !== 'pick') return;
     const s = fromSave ? readSave() : null;
