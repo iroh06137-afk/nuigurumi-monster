@@ -35,10 +35,20 @@
   #swap { background: #ff9ac8; color: #fff; border-color: #7a2a4c; box-shadow: inset 0 -5px 0 #d4588c, 0 3px 0 rgba(0,0,0,.35); text-shadow: 0 2px 0 #7a2a4c; }
   #swap.on { background: #ffc0dc; }
   body.overlay .ctl { opacity: 0.62; }
-  #namebar { position: fixed; z-index: 20; display: none; left: 8px; right: 8px; bottom: 16px; gap: 8px; touch-action: manipulation; }
-  body.title #namebar { display: flex; }
-  #heroname { flex: 1; font-size: 16px; padding: 12px; border: 3px solid #5a3418; border-radius: 10px; background: #fff; color: #111; touch-action: manipulation; -webkit-user-select: text; user-select: text; }
-  #herocolor { font-size: 18px; padding: 10px 16px; border: 3px solid #5a3418; border-radius: 10px; background: #ffd0e4; color: #5a2040; touch-action: auto; }
+  #setup { position: fixed; z-index: 30; display: none; left: 12px; right: 12px; bottom: 12px; padding: 14px;
+           background: #fff6e4; border: 4px solid #5a3418; border-radius: 16px; touch-action: manipulation; }
+  body.title #setup { display: block; }
+  #setup p { margin: 0 0 6px; color: #5a3418; font: 16px 'DotGothic16', sans-serif; }
+  #heroname { width: 100%; box-sizing: border-box; font-size: 18px; padding: 12px; margin-bottom: 10px;
+              border: 3px solid #5a3418; border-radius: 10px; background: #fff; color: #111;
+              touch-action: manipulation; -webkit-user-select: text; user-select: text; }
+  #colors { display: flex; gap: 6px; margin-bottom: 10px; }
+  #colors button, #go, #cont { font-size: 16px; padding: 12px 8px; border: 3px solid #5a3418; border-radius: 10px; background: #fff; color: #5a3418; }
+  #colors button { flex: 1; }
+  #colors button.on { background: #ffd23a; }
+  #go, #cont { width: 100%; margin-top: 6px; background: #6cc547; color: #fff; border-color: #1f4a18; }
+  #cont { background: #ff9ac8; border-color: #7a2a4c; display: none; }
+  body.title.has-save #cont { display: block; }
   #rotate { position: absolute; display: none; left: 0; right: 0; text-align: center; color: #fff6b0; z-index: 4;
             font-family: 'Misaki', 'DotGothic16', monospace; font-size: 16px; line-height: 24px; pointer-events: none; }
   body.portrait #rotate { display: block; }
@@ -56,9 +66,18 @@
   <div class="btn round" id="swap">いれかえ</div>
   <div class="btn round" id="jump">ジャンプ</div>
 </div>
-<div id="namebar">
-  <input id="heroname" maxlength="8" placeholder="なまえ" enterkeyhint="done" autocomplete="off">
-  <button id="herocolor" type="button">いろ</button>
+<div id="setup">
+  <p>なまえ</p>
+  <input id="heroname" maxlength="8" placeholder="ここに なまえ" enterkeyhint="done" autocomplete="off">
+  <p>いろ</p>
+  <div id="colors">
+    <button type="button" data-i="0">あお</button>
+    <button type="button" data-i="1">みどり</button>
+    <button type="button" data-i="2">あか</button>
+    <button type="button" data-i="3">きいろ</button>
+  </div>
+  <button id="go" type="button">このキャラではじめる</button>
+  <button id="cont" type="button">つづきから</button>
 </div>
 <div id="rotate"><span class="ph">📱</span><br>横向きにしてね</div>
 <div id="err"></div>
@@ -66,6 +85,6 @@
 <script src="assets-img.js"></script>
 <script src="data.js?v=7"></script>
 <script src="bg.js?v=7"></script>
-<script src="game.js?v=18"></script>
+<script src="game.js?v=19"></script>
 </body>
 </html>

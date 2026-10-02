@@ -279,12 +279,16 @@
     persist();
   }
   const $name = document.getElementById('heroname');
-  const $color = document.getElementById('herocolor');
   if ($name) {
     $name.addEventListener('pointerdown', e => e.stopPropagation());
     $name.addEventListener('input', () => { G.heroName = $name.value.trim().slice(0, 8); persist(); });
   }
-  if ($color) $color.addEventListener('click', () => { G.hero = (G.hero + 1) % HEROES.length; applyHero(); $color.textContent = hero().label; });
+  document.getElementById('setup').addEventListener('pointerdown', e => e.stopPropagation());
+  document.querySelectorAll('#colors button').forEach(btn => btn.addEventListener('click', () => {
+    G.hero = Number(btn.dataset.i); applyHero(); persist();
+  }));
+  document.getElementById('go').addEventListener('click', () => { if ($name) G.heroName = $name.value.trim().slice(0, 8); wipeSave(); startGame(false); });
+  document.getElementById('cont').addEventListener('click', () => startGame(true));
   // walk cycle: horizontal sheet of 32x32 frames (right-facing), mirrored for left
   function prepWalk(key, img, def) {
     const frames = [];
@@ -1259,7 +1263,8 @@
     else if (G.state === 'title') { for (const w of G.wilds) w.face = -1; }
     else if (G.state === 'map') updateMap(dt);
     document.body.classList.toggle('title', G.state === 'title');
-    if ($color) $color.textContent = hero().label;
+    document.body.classList.toggle('has-save', !!G.hasSave);
+    document.querySelectorAll('#colors button').forEach(btn => btn.classList.toggle('on', Number(btn.dataset.i) === G.hero));
     animActor(player, dt); animActor(comp, dt);
     for (const w of G.wilds) animActor(w, dt);
     G.cam += (G.camT - G.cam) * Math.min(1, dt * 6);
