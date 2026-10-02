@@ -232,46 +232,6 @@
     for (let y = 0; y < 32; y++) for (let X = 0; X < 32; X++) if (d[(y * 32 + X) * 4 + 3] > 0) { top = Math.min(top, y); minX = Math.min(minX, X); maxX = Math.max(maxX, X); }
     SPR[key] = { n, f, wn: silhouette(n), wf: silhouette(f), native: SPRITES[key].native, top, w: maxX - minX + 1 };
   }
-  const HEROES = [
-    { id: 'blue', label: 'あお', key: 'player' },
-    { id: 'green', label: 'みどり', key: 'hero_green', hair: [70, 48, 36], shirt: [60, 150, 70] },
-    { id: 'red', label: 'あか', key: 'hero_red', hair: [150, 70, 50], shirt: [190, 55, 60] },
-    { id: 'yellow', label: 'きいろ', key: 'hero_yellow', hair: [40, 36, 34], shirt: [220, 180, 50] },
-  ];
-  function recolorHero(src, hair, shirt) {
-    const [c, x] = mk(src.width, src.height); x.drawImage(src, 0, 0);
-    const img = x.getImageData(0, 0, c.width, c.height), d = img.data;
-    for (let i = 0; i < d.length; i += 4) {
-      if (d[i + 3] < 20) continue;
-      const r = d[i], g = d[i + 1], b = d[i + 2];
-      const shirtPx = b > r + 25 && b > g + 10;
-      const hairPx = Math.max(r, g, b) < 120 && Math.abs(r - b) < 40;
-      const col = shirtPx ? shirt : hairPx ? hair : null;
-      if (!col) continue;
-      const lum = Math.max(0.45, (r + g + b) / 3 / 110);
-      d[i] = Math.min(255, col[0] * lum);
-      d[i + 1] = Math.min(255, col[1] * lum);
-      d[i + 2] = Math.min(255, col[2] * lum);
-    }
-    x.putImageData(img, 0, 0);
-    return c;
-  }
-  function makeHeroes() {
-    const base = SPR.player; if (!base) return;
-    for (const h of HEROES) {
-      if (!h.hair) continue;
-      const n = recolorHero(base.n, h.hair, h.shirt);
-      const f = recolorHero(base.f, h.hair, h.shirt);
-      const frames = (base.walk ? base.walk.frames : []).map(fr => {
-        const nn = recolorHero(fr.n, h.hair, h.shirt);
-        const ff = recolorHero(fr.f, h.hair, h.shirt);
-        return { n: nn, f: ff, wn: silhouette(nn), wf: silhouette(ff) };
-      });
-      SPR[h.key] = { n, f, wn: silhouette(n), wf: silhouette(f), native: 1, top: base.top, w: base.w, walk: frames.length ? { frames, ms: base.walk.ms } : null };
-    }
-  }
-  function hero() { return HEROES[G.hero] || HEROES[0]; }
-  function applyHero() { player.key = 'player'; }
   // walk cycle: horizontal sheet of 32x32 frames (right-facing), mirrored for left
   function prepWalk(key, img, def) {
     const frames = [];
@@ -290,7 +250,7 @@
     banner: null, fade: 0, fadeSpeed: 0, battle: null, waitMode: true,
     hoverBtn: -1, bg: null, signNear: false, forceRecruit: null,
     stage: 0, unlocked: 1, cleared: [], mapSel: 0, mapPos: null, benchUsed: false, benchNear: false, bgCache: {},
-    hasSave: false, muted: false, versus: false, vs: null, saveFlash: 0, hero: 0, heroName: '',
+    hasSave: false, muted: false, versus: false, vs: null, saveFlash: 0, 
   };
   const SAVE_KEY = 'nm_save_v1';
   function persist() {
@@ -307,8 +267,6 @@
         cleared: G.cleared,
         stage: G.stage,
         px: Math.round(player.x),
-        hero: G.hero || 0,
-        heroName: G.heroName || '',
         savedAt: Date.now(),
       }));
       G.hasSave = true;
@@ -560,9 +518,6 @@
   function onKey(code) {
     if (G.state === 'title') {
       if (code === 'KeyN') { wipeSave(); startGame(false); return; }
-      if (code === 'ArrowLeft' || code === 'KeyA') { G.hero = (G.hero + HEROES.length - 1) % HEROES.length; applyHero(); return; }
-      if (code === 'ArrowRight' || code === 'KeyD' || code === 'Digit2') { G.hero = (G.hero + 1) % HEROES.length; applyHero(); return; }
-      if (code === 'KeyC') { askName(); return; }
       if (['Enter', 'Space', 'NumpadEnter', 'Digit1'].includes(code)) { startGame(G.hasSave); return; }
       return;
     }
@@ -615,7 +570,7 @@
     startGame(G.hasSave);
   });
   view.addEventListener('pointerdown', e => {
-    if (G.state === 'pick' || G.state === 'title') return;
+    if (G.state === 'title') return;
     e.preventDefault();
     const [x, y] = logicalPos(e);
     if (G.state === 'versus') { versusTap(x, y); return; }
@@ -629,11 +584,9 @@
   });
 
   // ---------- field ----------
-  function closePick() {}
   function startGame(fromSave) {
     SFX.start();
-    if (!G.heroName) G.heroName = 'しょうた';
-    if (G.state !== 'title' && G.state !== 'pick') return;
+    if (G.state !== 'title') return;
     const s = fromSave ? readSave() : null;
     if (s && Array.isArray(s.party) && s.party.length) {
       G.party = s.party.filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.hp, {
@@ -644,15 +597,11 @@
       G.unlocked = Math.max(1, s.unlocked | 0);
       G.cleared = Array.isArray(s.cleared) ? s.cleared.slice() : [];
       if (s.muted != null) G.muted = !!s.muted;
-      if (s.hero != null) G.hero = Math.max(0, Math.min(s.hero | 0, HEROES.length - 1));
-      if (s.heroName) G.heroName = String(s.heroName).slice(0, 8);
-      applyHero();
       const i = Math.max(0, Math.min(s.stage | 0, STAGES.length - 1));
       enterStage(i, { heal: false, startX: s.px });
       return;
     }
     G.state = 'field';
-    applyHero();
     G.wilds[0].toHome = true;   // the title-screen Oguri trots off to its spot
     banner(STAGES[0].name, 2.2);
     persist();
@@ -1241,9 +1190,7 @@
     else if (G.state === 'title') { for (const w of G.wilds) w.face = -1; }
     else if (G.state === 'map') updateMap(dt);
     document.body.classList.toggle('title', G.state === 'title');
-    document.body.classList.toggle('pick', G.state === 'pick');
     document.body.classList.toggle('has-save', !!G.hasSave);
-    document.querySelectorAll('#colors button').forEach(btn => btn.classList.toggle('on', Number(btn.dataset.i) === G.hero));
     animActor(player, dt); animActor(comp, dt);
     for (const w of G.wilds) animActor(w, dt);
     G.cam += (G.camT - G.cam) * Math.min(1, dt * 6);
@@ -1563,7 +1510,7 @@
     drawActor(player, cam);
     if (G.battle && G.battle.phase !== 'done') { drawBars(G.battle.w, G.battle.w, cam); if (comp.alpha > 0) drawBars(comp, ally(), cam); }
     drawParticles(cam);
-    if (G.state !== 'title' && G.state !== 'pick') {
+    if (G.state !== 'title') {
       drawHUD(); drawBanner();
       // help + party (hi-res text)
       G.chip = null;
@@ -1599,8 +1546,6 @@
     resize();
     await Promise.all(Object.entries(SPRITES).map(([k, s]) => loadImg(s.src).then(img => prepSprite(k, img))));
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.walk).map(([k, s]) => loadImg(s.walk.src).then(img => prepWalk(k, img, s.walk)).catch(() => {})));
-    makeHeroes();
-    applyHero();
     await Promise.all(Object.entries(PROP_IMGS).map(([k, src]) => loadImg(src).then(img => { PROPS[k] = img; }).catch(e => console.warn(e))));
     try { await document.fonts.load('8px Misaki'); await document.fonts.load("8px 'DotGothic16'"); } catch (e) { console.warn('font load failed', e); }
     G.bg = G.bgCache.oka = BG.build(WORLD_W, STAGES[0].theme);
