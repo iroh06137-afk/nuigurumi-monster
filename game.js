@@ -280,7 +280,10 @@
   }
   const $name = document.getElementById('heroname');
   const $color = document.getElementById('herocolor');
-  if ($name) $name.addEventListener('input', () => { G.heroName = $name.value.trim().slice(0, 8); });
+  if ($name) {
+    $name.addEventListener('pointerdown', e => e.stopPropagation());
+    $name.addEventListener('input', () => { G.heroName = $name.value.trim().slice(0, 8); persist(); });
+  }
   if ($color) $color.addEventListener('click', () => { G.hero = (G.hero + 1) % HEROES.length; applyHero(); $color.textContent = hero().label; });
   // walk cycle: horizontal sheet of 32x32 frames (right-facing), mirrored for left
   function prepWalk(key, img, def) {
@@ -621,6 +624,7 @@
     view.style.cursor = (active && i >= 0) || G.state === 'title' ? 'pointer' : 'default';
   });
   window.addEventListener('pointerdown', e => {
+    if (e.target && e.target.closest && e.target.closest('#namebar')) return;
     if (G.state === 'title') {
       e.preventDefault();
       const [x, y] = logicalPos(e);
