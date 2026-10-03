@@ -90,7 +90,7 @@ const SPECIES = {
     },
   },
   mori_boss: {
-    name: 'もりの ぬし', sprite: 'kuuko', boss: true,
+    name: 'もりの ぬし', sprite: 'tanukin', boss: true,
     hp: 72, atk: 10, def: 8, spd: 7, recruitBase: 0,
     moves: {
       attack: { name: 'こかげタックル', power: 12, acc: 0.94 },
@@ -144,7 +144,7 @@ const TUNING = {
 const STAGES = [
   {
     id: 'oka', name: 'はじまりの丘', width: 1000, theme: 'day',
-    spawns: [ { sp: 'oguri', x: 230 }, { sp: 'kitsunen', x: 340 }, { sp: 'kuuko', x: 450 }, { sp: 'usagin', x: 555 }, { sp: 'tsumaguro', x: 660 }, { sp: 'oguri', x: 860 } ],
+    spawns: [ { sp: 'oguri', x: 230 }, { sp: 'kitsunen', x: 340 }, { sp: 'kaerun', x: 450 }, { sp: 'usagin', x: 555 }, { sp: 'tsumaguro', x: 660 }, { sp: 'fukuron', x: 860 } ],
     exit: ['このさき', 'ぬいぐるみ街道'],
   },
   {
@@ -157,20 +157,20 @@ const STAGES = [
   },
   {
     id: 'dusk', name: '夕方の草地', width: 1200, theme: 'dusk',
-    // ★ placeholder roster until dusk-only species arrive
-    spawns: [ { sp: 'kuuko', x: 260 }, { sp: 'usagin', x: 420 }, { sp: 'tsumaguro', x: 600 }, { sp: 'kitsunen', x: 780 }, { sp: 'oguri', x: 980 } ],
+    // ★ placeholder roster until dusk-only species arrive. オグリ/くうこ appear only once in the whole game (丘 / 森)
+    spawns: [ { sp: 'tanukin', x: 260 }, { sp: 'usagin', x: 420 }, { sp: 'tsumaguro', x: 600 }, { sp: 'kitsunen', x: 780 }, { sp: 'kaerun', x: 980 } ],
     bench: 540,
     exit: ['このさき', 'ぬいの森'],
   },
   {
     id: 'mori', name: 'ぬいの森', width: 1300, theme: 'forest', bench: 620,
-    spawns: [ { sp: 'kitsunen', x: 240 }, { sp: 'kuuko', x: 400 }, { sp: 'tsumaguro', x: 560 }, { sp: 'oguri', x: 780 }, { sp: 'usagin', x: 940 }, { sp: 'mori_boss', x: 1160 } ],
+    spawns: [ { sp: 'kitsunen', x: 240 }, { sp: 'kuuko', x: 400 }, { sp: 'tsumaguro', x: 560 }, { sp: 'fukuron', x: 780 }, { sp: 'usagin', x: 940 }, { sp: 'mori_boss', x: 1160 } ],
     exit: ['このさき', 'ほしぞらのはら'],
     decor: [ { k: 'tree', x: 90 }, { k: 'tree', x: 170 }, { k: 'bush', x: 250 }, { k: 'tree', x: 500 }, { k: 'tree', x: 700 }, { k: 'bush', x: 860 }, { k: 'tree', x: 1040 } ],
   },
   {
     id: 'hoshi', name: 'ほしぞらのはら', width: 1300, theme: 'night', bench: 600,
-    spawns: [ { sp: 'oguri', x: 260 }, { sp: 'tsumaguro', x: 440 }, { sp: 'kuuko', x: 640 }, { sp: 'kitsunen', x: 840 }, { sp: 'hoshi_boss', x: 1140 } ],
+    spawns: [ { sp: 'tanukin', x: 260 }, { sp: 'tsumaguro', x: 440 }, { sp: 'fukuron', x: 640 }, { sp: 'kitsunen', x: 840 }, { sp: 'hoshi_boss', x: 1140 } ],
     exit: ['ここが', 'さいはて'],
     decor: [ { k: 'bush', x: 120 }, { k: 'lamp', x: 300 }, { k: 'bush', x: 520 }, { k: 'lamp', x: 760 }, { k: 'bush', x: 980 } ],
   },
