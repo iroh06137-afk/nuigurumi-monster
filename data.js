@@ -13,6 +13,7 @@ const SPRITES = {
   kaerun:  { src: 'assets/kaerun.png',   native: 1 }, // frog plush (zako). no walk sheet yet
   fukuron: { src: 'assets/fukuron.png',  native: 1 }, // owl plush (zako). no walk sheet yet
   tanukin: { src: 'assets/tanukin.png',  native: 1 }, // tanuki plush (zako). no walk sheet yet
+  kangarun: { src: 'assets/kangarun.png', native: 1 }, // kangaroo plush with ribbon + baby in pouch (rare). no walk sheet yet
   oguri:   { src: 'assets/oguri-cap.png', native: -1, walk: { src: 'assets/oguri_walk.png', frames: 4, ms: 150 } }, // faces left; flipped for right
 };
 
@@ -55,6 +56,14 @@ const SPECIES = {
     moves: {
       attack: { name: 'ぴょんキック',     power: 9,  acc: 0.97 },
       strong: { name: 'たれみみビンタ',   power: 19, acc: 0.86 },
+    },
+  },
+  kangarun: {  // ★ provisional: rare (like くうこ/ツマグロ), appears once (夕方の草地)
+    name: 'カンガルン', sprite: 'kangarun',
+    hp: 36, atk: 9, def: 6, spd: 10, recruitBase: 0.10,
+    moves: {
+      attack: { name: 'ぴょこぴょこキック', power: 10, acc: 0.96 },
+      strong: { name: 'ボクシングパンチ',   power: 24, acc: 0.84 },
     },
   },
   kaerun: {  // ★ provisional: road zako (frog), sturdy but slow-ish
@@ -158,7 +167,7 @@ const STAGES = [
   {
     id: 'dusk', name: '夕方の草地', width: 1200, theme: 'dusk',
     // ★ placeholder roster until dusk-only species arrive. オグリ/くうこ appear only once in the whole game (丘 / 森)
-    spawns: [ { sp: 'tanukin', x: 260 }, { sp: 'usagin', x: 420 }, { sp: 'tsumaguro', x: 600 }, { sp: 'kitsunen', x: 780 }, { sp: 'kaerun', x: 980 } ],
+    spawns: [ { sp: 'tanukin', x: 260 }, { sp: 'usagin', x: 420 }, { sp: 'tsumaguro', x: 600 }, { sp: 'kitsunen', x: 780 }, { sp: 'kangarun', x: 980 } ],
     bench: 540,
     exit: ['このさき', 'ぬいの森'],
   },
