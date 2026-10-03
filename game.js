@@ -314,7 +314,18 @@
   nameIn.addEventListener('keydown', e => { if (e.key === 'Escape') closeName(false); });
   function titleConfirm() {
     if (G.state !== 'title' || G.nameEdit) return;
-    if ((G.titleRow | 0) >= 2) openName(G.titleRow === 3 ? 'r' : 'p'); else startGame(G.hasSave);
+    if ((G.titleRow | 0) >= 2) titleRowAction(G.titleRow); else startGame(G.hasSave);
+  }
+  function titleRowAction(row) {
+    if (row === 2 || row === 3) { openName(row === 3 ? 'r' : 'p'); return; }
+    if (row !== 4 || G.wiped) return;
+    if (G.wipeAsk && G.t - G.wipeAsk < 4) {   // second press within 4s: erase everything and restart fresh
+      wipeSave(); try { localStorage.removeItem(HERO_KEY); } catch (e) {}
+      G.wipeAsk = 0; G.wiped = true; SFX.hit && SFX.hit();
+      setTimeout(() => location.reload(), 900);
+      return;
+    }
+    G.wipeAsk = G.t; SFX.blip();
   }
   function setHero(dg, dc) {
     if (dg) { G.gender = ((G.gender | 0) + dg + HERO_GENDERS.length) % HERO_GENDERS.length; G.hcolor = HERO_GENDERS[G.gender].def; }
@@ -594,10 +605,11 @@
     if (G.state === 'title') {
       if (code === 'KeyN') { wipeSave(); startGame(false); return; }
       if (G.nameEdit) return;
-      if (['ArrowUp', 'KeyW'].includes(code)) { G.titleRow = ((G.titleRow | 0) + 3) % 4; SFX.blip(); return; }
-      if (['ArrowDown', 'KeyS', 'Tab'].includes(code)) { G.titleRow = ((G.titleRow | 0) + 1) % 4; SFX.blip(); return; }
+      if (['ArrowUp', 'KeyW'].includes(code)) { G.titleRow = ((G.titleRow | 0) + 4) % 5; G.wipeAsk = 0; SFX.blip(); return; }
+      if (['ArrowDown', 'KeyS', 'Tab'].includes(code)) { G.titleRow = ((G.titleRow | 0) + 1) % 5; G.wipeAsk = 0; SFX.blip(); return; }
       const d = (code === 'ArrowLeft' || code === 'KeyA') ? -1 : (code === 'ArrowRight' || code === 'KeyD') ? 1 : 0;
-      if (G.titleRow >= 2 && (d || code === 'Enter' || code === 'NumpadEnter')) { openName(G.titleRow === 3 ? 'r' : 'p'); return; }
+      if (G.titleRow >= 2 && (code === 'Enter' || code === 'NumpadEnter' || (d && G.titleRow < 4))) { titleRowAction(G.titleRow); return; }
+      if (G.titleRow >= 4) return;
       if (d) { if (G.titleRow) setHero(0, d); else setHero(d, 0); return; }
       if (['Enter', 'Space', 'NumpadEnter', 'Digit1'].includes(code)) { startGame(G.hasSave); return; }
       return;
@@ -661,8 +673,8 @@
   window.addEventListener('pointerdown', e => {
     if (G.state !== 'title' || G.nameEdit || nameBox.contains(e.target) || (e.target.closest && e.target.closest('.ctl'))) return;
     const [x, y] = logicalPos(e);
-    if (y >= 43 && y < 63 && x >= 40 && x < 120) {
-      const d = x < 80 ? -1 : 1, row = Math.floor((y - 43) / 5); G.titleRow = row;
+    if (y >= 43 && y < 68 && x >= 40 && x < 120) {
+      const d = x < 80 ? -1 : 1, row = Math.floor((y - 43) / 5); if (row !== G.titleRow) G.wipeAsk = 0; G.titleRow = row;
       if (row === 0) setHero(d, 0); else if (row === 1) setHero(0, d);
       return;   // name rows open on release (phone keyboards need a finished tap to focus)
     }
@@ -671,7 +683,7 @@
   window.addEventListener('pointerup', e => {
     if (G.state !== 'title' || G.nameEdit || nameBox.contains(e.target) || (e.target.closest && e.target.closest('.ctl'))) return;
     const [x, y] = logicalPos(e);
-    if (y >= 53 && y < 63 && x >= 40 && x < 120) openName(y < 58 ? 'p' : 'r');
+    if (y >= 53 && y < 68 && x >= 40 && x < 120) titleRowAction(Math.floor((y - 43) / 5));
   });
   view.addEventListener('pointerdown', e => {
     if (G.state === 'title') return;
@@ -2038,10 +2050,11 @@
       T(line, 80, 38, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
     }
     const rows = [(HERO_GENDERS[G.gender | 0] || HERO_GENDERS[0]).name, 'いろ: ' + (HERO_COLORS[G.hcolor | 0] || HERO_COLORS[0]).name,
-      'なまえ: ' + (G.pname || '？？？'), 'ライバル: ' + rName()];
-    g.globalAlpha = 0.5; rect(54, 42, 58, 21, '#1a2a4a'); g.globalAlpha = 1;
+      'なまえ: ' + (G.pname || '？？？'), 'ライバル: ' + rName(),
+      G.wiped ? 'けしました' : G.wipeAsk && G.t - G.wipeAsk < 4 ? 'もういちどで けす！' : 'データを けす'];
+    g.globalAlpha = 0.5; rect(54, 42, 58, 26, '#1a2a4a'); g.globalAlpha = 1;
     rows.forEach((r, i) => {
-      const y = 43.5 + i * 5, on = (G.titleRow | 0) === i, c = on ? '#fff6b0' : '#ffffff';
+      const y = 43.5 + i * 5, on = (G.titleRow | 0) === i, c = i === 4 && (G.wiped || (G.wipeAsk && G.t - G.wipeAsk < 4)) ? '#ff7a6a' : on ? '#fff6b0' : '#ffffff';
       if (i < 2) { T('◀', 58, y, { size: 4, c, ol: '#1a3a5a' }); T('▶', 99, y, { size: 4, c, ol: '#1a3a5a' }); }
       else if (on) T('▶', 58, y, { size: 4, c, ol: '#1a3a5a' });
       T(r, 80, y, { size: 4, c, ol: '#1a3a5a', al: 'center' });
@@ -2050,7 +2063,7 @@
     if (G.hasSave) {
       const s = readSave();
       const st = STAGES[s && s.stage || 0];
-      T(`セーブ: ${st ? st.name : ''}  Lv${(s && s.party && s.party[0] && s.party[0].lv) || 1}`, 80, 66, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
+      T(`セーブ: ${st ? st.name : ''}  Lv${(s && s.party && s.party[0] && s.party[0].lv) || 1}`, 80, 70, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
     }
   }
   function drawVersus() {
