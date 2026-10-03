@@ -130,14 +130,18 @@ const SPECIES = {
 };
 
 // Stamina cost per action (gauge max 100; must be FULL to act). 企画書 §6.4
-const COST = { attack: 35, strong: 70, recruit: 50, run: 25 };
+const COST = { attack: 35, strong: 70, recruit: 50, run: 25, guard: 20, item: 30, swap: 30, special: 60 };
 
 // HUD command buttons, in key order 1..4
-const COMMANDS = [
-  { kind: 'attack',  label: 'こうげき',     icon: 'sword', color: '#8a5a2e', dark: '#5a3418' },
-  { kind: 'strong',  label: 'つよわざ',     icon: 'bolt',  color: '#3c9a40', dark: '#1f5a22' },
-  { kind: 'recruit', label: 'なかまにする', icon: 'heart', color: '#d4588c', dark: '#7a2a4c' },
-  { kind: 'run',     label: 'にげる',       icon: 'run',   color: '#4a76bf', dark: '#24407a' },
+const COMMANDS = [   // 2 pages of 4: page 1 = keys 1-4, page 2 = keys 5-8 (↑↓ / Q to flip)
+  { kind: 'attack',  label: 'こうげき',     icon: 'sword',  color: '#8a5a2e', dark: '#5a3418' },
+  { kind: 'strong',  label: 'つよわざ',     icon: 'bolt',   color: '#3c9a40', dark: '#1f5a22' },
+  { kind: 'special', label: 'ひっさつ',     icon: 'star',   color: '#e0662a', dark: '#8a3010' },
+  { kind: 'recruit', label: 'なかまにする', icon: 'heart',  color: '#d4588c', dark: '#7a2a4c' },
+  { kind: 'guard',   label: 'ぼうぎょ',     icon: 'shield', color: '#6a7a8a', dark: '#3a4450' },
+  { kind: 'item',    label: 'どうぐ',       icon: 'potion', color: '#c89a2a', dark: '#7a5a10' },
+  { kind: 'swap',    label: 'いれかえ',     icon: 'swap',   color: '#2a9a9a', dark: '#145a5a' },
+  { kind: 'run',     label: 'にげる',       icon: 'run',    color: '#4a76bf', dark: '#24407a' },
 ];
 
 const TUNING = {

@@ -553,17 +553,24 @@
         if (code === 'Enter' || code === 'Space' || code === 'NumpadEnter') confirmSwap(B.swapSel);
         return;
       }
+      if (B.phase === 'menu') { menuKey(code); return; }
       if (B.phase !== 'input') return;
+      const NC = COMMANDS.length;
       const n = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Numpad1: 0, Numpad2: 1, Numpad3: 2, Numpad4: 3 }[code];
       if (n != null) { choose(n); return; }
-      if (code === 'ArrowLeft' || code === 'KeyA') B.sel = (B.sel + 3) % 4;
-      if (code === 'ArrowRight' || code === 'KeyD') B.sel = (B.sel + 1) % 4;
+      const n2 = { Digit5: 4, Digit6: 5, Digit7: 6, Digit8: 7, Numpad5: 4, Numpad6: 5, Numpad7: 6, Numpad8: 7 }[code];
+      if (n2 != null) { choose(n2); return; }
+      if (code === 'ArrowLeft' || code === 'KeyA') B.sel = (B.sel + NC - 1) % NC;
+      if (code === 'ArrowRight' || code === 'KeyD') B.sel = (B.sel + 1) % NC;
+      if (['ArrowUp', 'ArrowDown', 'KeyW', 'KeyS', 'KeyQ', 'Tab'].includes(code)) { B.sel = (B.sel + 4) % NC; SFX.blip(); }
       if (code === 'Enter' || code === 'Space' || code === 'NumpadEnter') choose(B.sel);
     }
   }
 
   const MSGBOX = { x: 42, y: 72, w: 56, h: 17 };
-  const BTN = COMMANDS.map((c, i) => ({ x: 98 + i * 15, y: 74, w: 14, h: 13 }));
+  const BTN = [0, 1, 2, 3].map(i => ({ x: 98 + i * 14, y: 74, w: 13, h: 13 }));
+  const PAGETAB = { x: 154, y: 74, w: 6, h: 13 };
+  const cmdPage = () => (G.battle && G.battle.phase !== 'swap' ? (G.battle.sel >> 2) : 0);
   function logicalPos(e) { const r = view.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; }
   const inRect = (x, y, b) => b && x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
   function btnAt(x, y) { return BTN.findIndex(b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h); }
@@ -572,7 +579,7 @@
     const [x, y] = logicalPos(e); const i = btnAt(x, y);
     G.hoverBtn = i;
     const active = G.state === 'battle' && G.battle.phase === 'input';
-    if (active && i >= 0) G.battle.sel = i;
+    if (active && i >= 0) G.battle.sel = cmdPage() * 4 + i;
     view.style.cursor = (active && i >= 0) || G.state === 'title' ? 'pointer' : 'default';
   });
   window.addEventListener('pointerdown', e => {
@@ -586,14 +593,15 @@
     if (G.state === 'versus') { versusTap(x, y); return; }
     if (G.chip && inRect(x, y, G.chip)) { onKey('KeyT'); return; }
     if (G.state === 'talk') { talkNext(); return; }
-    if (G.state === 'menu') { menuTap(x, y); return; }
+    if (G.state === 'menu' || (G.state === 'battle' && G.battle && G.battle.phase === 'menu')) { menuTap(x, y); return; }
+    if (G.state === 'battle' && G.battle && G.battle.phase === 'input' && inRect(x, y, PAGETAB)) { G.battle.sel = (G.battle.sel + 4) % COMMANDS.length; SFX.blip(); return; }
     if (G.state === 'field' && inRect(x, y, MSGBOX)) { if (G.near) interact(); else openBag(); return; }
     const i = btnAt(x, y);
     if (G.state === 'battle' && G.battle && G.battle.phase === 'swap') {
       if (i >= 0 && i < G.party.length) confirmSwap(i);
       return;
     }
-    if (i >= 0 && G.state === 'battle' && G.battle.phase === 'input') choose(i);
+    if (i >= 0 && G.state === 'battle' && G.battle.phase === 'input') choose(cmdPage() * 4 + i);
   });
 
   // ---------- field ----------
@@ -837,10 +845,18 @@
     if (!bagList().length) { banner('どうぐを もっていない', 1.3); return; }
     G.menu = { kind: 'bag', sel: 0 }; G.state = 'menu'; player.moving = false;
   }
-  function menuRows() { const M = G.menu; return (M.kind === 'shop' ? SHOP_LIST : bagList()).concat(['_close']); }
-  function closeMenu() { G.menu = null; G.state = 'field'; }
+  function menuRows() {
+    const M = G.menu;
+    if (M.kind === 'bswap') return G.party.map((m, i) => 'p' + i).concat(['_close']);
+    return (M.kind === 'shop' ? SHOP_LIST : bagList()).concat(['_close']);
+  }
+  function closeMenu() {
+    G.menu = null;
+    if (G.state === 'battle' && G.battle) { if (G.battle.phase === 'menu') G.battle.phase = 'input'; return; }
+    G.state = 'field';
+  }
   function menuKey(code) {
-    const M = G.menu; if (!M) { G.state = 'field'; return; }
+    const M = G.menu; if (!M) { closeMenu(); return; }
     const rows = menuRows();
     if (code === 'ArrowUp' || code === 'KeyW') M.sel = (M.sel + rows.length - 1) % rows.length;
     if (code === 'ArrowDown' || code === 'KeyS') M.sel = (M.sel + 1) % rows.length;
@@ -850,6 +866,7 @@
   function menuPick() {
     const M = G.menu, rows = menuRows(), k = rows[M.sel];
     if (k === '_close') { closeMenu(); return; }
+    if (M.kind === 'bswap' || M.kind === 'bitem') { battleMenuPick(M, k); return; }
     const it = ITEMS[k];
     if (M.kind === 'shop') {
       if ((G.items[k] | 0) >= 9) { banner('もう もちきれない', 1.2); return; }
@@ -1034,6 +1051,8 @@
       netRng = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
     }
     G.state = 'battle';
+    B.bond = 0; for (const m of G.party) m.guard = false; w.guard = false;
+    G.vs = { t: 0, hot: !!(SPECIES[w.sp].boss || w.trainer) };
     SFX.battleStart();
     player.moving = false; player.face = side; player.ox = 0;
     ally().hp = Math.floor(ally().hp);
@@ -1073,10 +1092,99 @@
       banner(kind === 'recruit' ? 'ひとの ぬいぐるみは なかまに できない！' : 'しょうぶの とちゅうで にげられない！', 1.4);
       return;
     }
+    if (G.friend && ['guard', 'item', 'swap', 'special'].includes(kind)) { banner('たいせんでは つかえない', 1.1); return; }
+    const a = ally();
+    if (kind === 'special' && (B.bond | 0) < 100) { SFX.miss(); banner('きずなゲージが まだ たまっていない', 1.4); return; }
+    if (kind === 'item') {
+      if (!bagList().length) { SFX.miss(); banner('どうぐを もっていない', 1.2); return; }
+      B.phase = 'menu'; G.menu = { kind: 'bitem', sel: 0 }; SFX.blip(); return;
+    }
+    if (kind === 'swap') {
+      if (!G.party.some((m, i) => i !== G.active && m.hp >= 1)) { SFX.miss(); banner('こうたい できる なかまが いない', 1.4); return; }
+      B.phase = 'menu'; G.menu = { kind: 'bswap', sel: 0 }; SFX.blip(); return;
+    }
+    a.guard = false;
     if (G.netRole && (!B.who || B.who === 'me')) netSend({ t: 'cmd', kind });
     B.phase = 'run';
     if (B.who === 'opp') B.q.push(enemyAttack(kind));
-    else B.q.push(kind === 'recruit' ? recruitAction() : kind === 'run' ? runAction() : allyAttack(kind));
+    else B.q.push(kind === 'recruit' ? recruitAction() : kind === 'run' ? runAction() : kind === 'guard' ? guardAction() : kind === 'special' ? specialAction() : allyAttack(kind));
+  }
+  function battleMenuPick(M, k) {
+    const B = G.battle, a = ally();
+    if (k === '_close') { closeMenu(); return; }
+    if (M.kind === 'bswap') {
+      const i = +k.slice(1), m = G.party[i];
+      if (i === G.active) { banner(`${m.name}は もう たたかっている`, 1.2); return; }
+      if (m.hp < 1) { banner(`${m.name}は たおれている`, 1.2); return; }
+      G.menu = null; a.guard = false; B.phase = 'run'; B.q.push(swapAction(i)); return;
+    }
+    const it = ITEMS[k];
+    if (it.use === 'heal' && a.hp >= a.maxHp) { banner(`${a.name}は げんき いっぱい`, 1.2); return; }
+    if (it.use === 'healAll' && G.party.every(m => m.hp >= m.maxHp)) { banner('みんな げんき いっぱい', 1.2); return; }
+    if (it.use === 'recruit') {
+      if (G.cookie) { banner('もう たべさせてある', 1.2); return; }
+      if (B.w.trainer || SPECIES[B.w.sp].boss) { banner('いまは つかえない', 1.2); return; }
+    }
+    G.menu = null; a.guard = false; B.phase = 'run'; B.q.push(itemAction(k));
+  }
+  function* guardAction() {
+    const B = G.battle, a = ally();
+    a.st -= COST.guard; a.guard = true;
+    B.msg = `${a.name}は みを まもっている！`;
+    banner(B.msg, 1.2);
+    SFX.blip(); burst(comp.x, GROUND - 16, 'spark', 6, '#a8d8ff');
+    yield* tween(v => comp.oy = v, 0, -2, 0.1); yield* tween(v => comp.oy = v, -2, 0, 0.12);
+    addBond(8);
+    yield* wait(0.4);
+  }
+  function* itemAction(k) {
+    const B = G.battle, a = ally(), it = ITEMS[k];
+    a.st -= COST.item;
+    B.msg = `${it.name}を つかった！`;
+    banner(B.msg, 1.2);
+    player.moving = true; yield* tween(v => player.ox = v, 0, B.side * 4, 0.2); player.moving = false;
+    yield* wait(0.2);
+    if (it.use === 'heal') { const before = a.hp; a.hp = Math.min(a.maxHp, a.hp + it.amt); pop(comp.x, GROUND - 38, '+' + Math.round(a.hp - before), '#9af07a'); }
+    else if (it.use === 'healAll') { for (const m of G.party) m.hp = m.maxHp; pop(comp.x, GROUND - 38, 'FULL', '#9af07a'); }
+    else if (it.use === 'recruit') { G.cookie = true; for (let i = 0; i < 3; i++) heartTo(player.x, GROUND - 18, B.w.x, GROUND - 16, i * 0.1); }
+    burst(comp.x, GROUND - 14, 'spark', 10, it.use === 'recruit' ? '#ff9ac8' : '#9af07a');
+    SFX.level();
+    G.items[k]--; if (G.items[k] <= 0) delete G.items[k];
+    persist();
+    B.msg = it.use === 'recruit' ? `${B.w.name}は クッキーに きょうみしんしん` : `${a.name}は げんきに なった！`;
+    banner(B.msg, 1.4);
+    yield* tween(v => player.ox = v, player.ox, 0, 0.2);
+    yield* wait(0.4);
+  }
+  function* swapAction(i) {
+    const B = G.battle, a = ally(), n = G.party[i];
+    const st = Math.max(0, a.st - COST.swap);
+    B.msg = `もどれ ${a.name}！`;
+    banner(B.msg, 1.0);
+    yield* tween(v => comp.alpha = v, 1, 0, 0.25);
+    burst(comp.x, GROUND - 12, 'spark', 8, '#ffffff');
+    G.active = i; comp.key = compKey(); n.st = st; n.guard = false;
+    yield* wait(0.25);
+    B.msg = `いけっ ${n.name}！`;
+    banner(B.msg, 1.2); SFX.blip();
+    yield* tween(v => comp.alpha = v, 0, 1, 0.25);
+    burst(comp.x, GROUND - 14, 'spark', 10, '#ffe24a');
+    yield* wait(0.4);
+  }
+  function addBond(v) { const B = G.battle; if (!B || G.friend) return; const was = B.bond | 0; B.bond = Math.min(100, (B.bond || 0) + v); if (was < 100 && B.bond >= 100) { banner('きずなゲージ MAX！ ひっさつが つかえる！', 1.6); burst(comp.x, GROUND - 30, 'spark', 10, '#ffb04a'); } }
+  function* specialAction() {
+    const B = G.battle, a = ally(), e = B.w;
+    const base = SPECIES[a.sp].moves.strong;
+    const mv = { name: 'きずなの ' + base.name, power: Math.round(base.power * 1.9), acc: 1 };
+    a.st -= COST.special; B.bond = 0;
+    B.msg = `${a.name}の ひっさつ！`;
+    G.cutin = { t: 0, dur: 1.15, key: comp.key, name: base.name, who: a.name };
+    SFX.battleStart();
+    while (G.cutin && G.cutin.t < G.cutin.dur) yield;
+    G.cutin = null;
+    banner(`${a.name}の ${mv.name}！`, 1.3);
+    yield* strike(comp, a, e, e, mv, 'special');
+    if (e.hp <= 0) yield* enemyFaint();
   }
   function aiChoose(e, a) {
     const strong = SPECIES[e.sp].moves.strong;
@@ -1086,17 +1194,27 @@
   }
   function* strike(attA, att, defA, def, mv, kind) {
     const dir = Math.sign(defA.x - attA.x) || 1;
-    const dist = kind === 'strong' ? 22 : 10;
-    if (kind === 'strong') { yield* tween(v => attA.ox = v, 0, -dir * 4, 0.22); yield* wait(0.08); }
-    yield* tween(v => attA.ox = v, attA.ox, dir * dist, kind === 'strong' ? 0.1 : 0.13);
+    const big = kind === 'strong' || kind === 'special';
+    const dist = kind === 'special' ? 30 : big ? 22 : 10;
+    if (big) { yield* tween(v => attA.ox = v, 0, -dir * (kind === 'special' ? 6 : 4), 0.22); yield* wait(0.08); }
+    yield* tween(v => attA.ox = v, attA.ox, dir * dist, big ? 0.1 : 0.13);
     if (rand() < mv.acc) {
-      const dmg = calcDmg(att, def, mv);
+      let dmg = calcDmg(att, def, mv);
+      const crit = kind !== 'special' && rand() < (kind === 'strong' ? 0.12 : 0.08);
+      if (kind === 'special') dmg = Math.max(dmg, 8);
+      if (crit) dmg = Math.round(dmg * 1.5);
+      const guarded = !!def.guard;
+      if (guarded) { dmg = Math.max(1, Math.ceil(dmg / 2)); def.guard = false; }
       def.hp = Math.max(0, def.hp - dmg);
-      defA.flash = 0.3; defA.shake = 0.3;
-      pop(defA.x, GROUND - 38, dmg, kind === 'strong' ? '#ffdf3a' : '#ffffff');
-      burst(defA.x - dir * 6, GROUND - 14, 'hit', kind === 'strong' ? 10 : 5);
-      if (kind === 'strong') G.shakeT = 0.3;
-      SFX.hit(kind);
+      defA.flash = 0.3; defA.shake = crit || kind === 'special' ? 0.5 : 0.3;
+      pop(defA.x, GROUND - 38, dmg, crit ? '#ff6a3a' : big ? '#ffdf3a' : '#ffffff');
+      if (crit) { pop(defA.x, GROUND - 46, 'CRITICAL!', '#ffe24a'); G.hitStop = 0.14; G.flashT = 0.08; }
+      if (guarded) { pop(defA.x, GROUND - 46, 'GUARD', '#a8d8ff'); burst(defA.x, GROUND - 16, 'spark', 6, '#a8d8ff'); }
+      if (kind === 'special') { G.hitStop = 0.18; G.flashT = 0.12; burst(defA.x, GROUND - 14, 'spark', 16, '#ffb04a'); }
+      burst(defA.x - dir * 6, GROUND - 14, 'hit', kind === 'special' ? 16 : crit ? 12 : big ? 10 : 5);
+      if (big || crit) G.shakeT = kind === 'special' ? 0.5 : 0.3;
+      SFX.hit(big || crit ? 'strong' : kind);
+      if (G.battle) { if (att === ally() && kind !== 'special') addBond(dmg / def.maxHp * 90); if (def === ally()) addBond(dmg / def.maxHp * 110); }
     } else { pop(defA.x, GROUND - 38, 'MISS', '#cfe8ff'); SFX.miss(); }
     yield* tween(v => attA.ox = v, attA.ox, 0, 0.2);
     yield* wait(0.35);
@@ -1285,7 +1403,8 @@
     const B = G.battle;
     if (B.w.alive) { B.w.home = B.w.x; B.w.alpha = 1; B.w.moving = false; }
     player.ox = comp.ox = 0; player.moving = comp.moving = false; comp.alpha = 1;
-    for (const m of G.party) m.st = 0;
+    for (const m of G.party) { m.st = 0; m.guard = false; }
+    G.cutin = null;
     B.phase = 'done';
     G.lastResult = B.result;
     if (G.versus) {
@@ -1315,6 +1434,9 @@
   }
   function updateBattle(dt) {
     const B = G.battle;
+    if (G.hitStop > 0) { G.hitStop -= dt; return; }
+    if (G.cutin) G.cutin.t += dt;
+    if (B.phase === 'menu') return;
     if (!B.cur && B.q.length) B.cur = B.q.shift();
     if (B.cur) { const r = B.cur.next(); if (r.done) B.cur = null; }
     if (!G.battle || B.phase === 'end' || B.phase === 'intro' || B.phase === 'done' || B.phase === 'swap') return;
@@ -1356,6 +1478,8 @@
     G.cam += (G.camT - G.cam) * Math.min(1, dt * 6);
     if (Math.abs(G.camT - G.cam) < 0.3) G.cam = G.camT;
     if (G.shakeT > 0) G.shakeT -= dt;
+    if (G.flashT > 0) G.flashT -= dt;
+    if (G.vs) { G.vs.t += dt; if (G.vs.t > 1.1) G.vs = null; }
     if (G.banner) { G.banner.t -= dt; if (G.banner.t <= 0) G.banner = null; }
     G.fade = clamp(G.fade + G.fadeSpeed * dt, 0, 1);
     for (const p of G.particles) {
@@ -1381,6 +1505,10 @@
     sword: ['w.......w', '.w.....w.', '..w...w..', '...w.w...', '....w....', '...w.w...', '.yw...wy.', '.yy...yy.', 'y.......y'],
     bolt:  ['.....yy..', '....yy...', '...yy....', '..yyyyy..', '....yy...', '...yy....', '..yy.....', '.yy......', '.y.......'],
     heart: ['.........', '.ww...ww.', 'wwww.wwww', 'wwwwwwwww', 'wwwwwwwww', '.wwwwwww.', '..wwwww..', '...www...', '....w....'],
+    star:  ['....y....', '...yyy...', 'yyyyyyyyy', '.yyyyyyy.', '..yyyyy..', '..yyyyy..', '.yyy.yyy.', '.yy...yy.', '.........'],
+    shield:['.wwwwwww.', 'wwwwwwwww', 'wwyyyyyww', 'wwyyyyyww', 'wwwyyywww', '.wwwywww.', '..wwwww..', '...www...', '....w....'],
+    potion:['...www...', '....w....', '...www...', '..w...w..', '.wyyyyyw.', '.wyyyyyw.', '.wyyyyyw.', '.wyyyyyw.', '..wwwww..'],
+    swap:  ['...w.....', '..ww.....', '.wwwwwww.', '..ww.....', '...w.w...', '.....ww..', '.wwwwwww.', '.....ww..', '.....w...'],
     run:   ['.........', '...w.....', '..ww.....', '.wwwwwww.', 'wwwwwwwww', '.wwwwwww.', '..ww.....', '...w.....', '.........'],
   };
   function drawActor(a, cam) {
@@ -1661,21 +1789,33 @@
     // command buttons
     const swapping = B && B.phase === 'swap';
     const enabled = (B && B.phase === 'input') || swapping;
-    COMMANDS.forEach((c, i) => {
-      const b = BTN[i];
-      const sel = swapping ? B.swapSel === i : (enabled && B.sel === i);
+    const page = swapping ? 0 : cmdPage();
+    for (let slot = 0; slot < 4; slot++) {
+      const ci = page * 4 + slot, c = COMMANDS[ci], b = BTN[slot];
+      const sel = swapping ? B.swapSel === slot : (enabled && B.sel === ci);
       const oy = sel ? 1 : 0;
       rect(b.x, b.y + oy, b.w, b.h - oy, '#3a2410');
       rect(b.x + 1, b.y + 1 + oy, b.w - 2, b.h - 2 - oy, c.color);
+      if (c.kind === 'special' && B && !swapping) {
+        const bond = clamp(B.bond | 0, 0, 100), fh = Math.round((b.h - 2 - oy) * (1 - bond / 100));
+        if (bond < 100) rect(b.x + 1, b.y + 1 + oy, b.w - 2, fh, '#7a6a5a');
+        else if (Math.floor(G.t * 6) % 2) rect(b.x + 1, b.y + 1 + oy, b.w - 2, b.h - 2 - oy, '#ffb04a');
+      }
       rect(b.x + 1, b.y + 1 + oy, b.w - 2, 1, 'rgba(255,255,255,0.35)');
       rect(b.x + 1, b.y + b.h - 2, b.w - 2, 1, c.dark);
-      drawPattern(ICONS[c.icon], b.x + 4, b.y + 2 + oy, { w: '#ffffff', y: '#ffe24a' });
-      tiny(String(i + 1), b.x + 1, b.y + 1 + oy, '#ffffff', c.dark);
+      drawPattern(ICONS[c.icon], b.x + 2, b.y + 2 + oy, { w: '#ffffff', y: '#ffe24a' });
+      tiny(String(swapping ? slot + 1 : ci + 1), b.x + 1, b.y + 1 + oy, '#ffffff', c.dark);
       if (!enabled) { g.globalAlpha = 0.5; rect(b.x, b.y, b.w, b.h, '#8a8070'); g.globalAlpha = 1; }
       if (sel && Math.floor(G.t * 4) % 2) {
         g.strokeStyle = '#ffe24a'; g.lineWidth = 1; g.strokeRect(b.x - 0.5, b.y + oy - 0.5, b.w + 1, b.h - oy + 1);
       }
-    });
+    }
+    // page tab (flip between the two sets of 4)
+    { const t = PAGETAB;
+      rect(t.x, t.y, t.w, t.h, '#3a2410'); rect(t.x + 1, t.y + 1, t.w - 2, t.h - 2, enabled && !swapping ? '#f4e4b8' : '#a89878');
+      drawPattern(['.#.', '###'], t.x + 1, t.y + 2, { '#': page === 0 ? '#c0a070' : '#5a3418' });
+      drawPattern(['###', '.#.'], t.x + 1, t.y + 8, { '#': page === 1 ? '#c0a070' : '#5a3418' });
+      rect(t.x + 1, t.y + 5 + 0, t.w - 2, 2, page === 0 ? '#ffd23a' : '#4a76bf'); }
     // message text (hi-res layer)
     let l1 = '', l2 = '';
     if (!B) {
@@ -1685,6 +1825,7 @@
       else if (G.benchNear) { l1 = 'ベンチ'; l2 = 'ひとやすみ できた'; }
       else { l1 = `${a.name}`; l2 = `HP ${Math.floor(a.hp)}/${a.maxHp}`; }
     } else if (B.phase === 'intro') { l1 = B.w.trainer ? 'しょうぶ！' : SPECIES[B.w.sp].boss ? 'ボスの' : 'やせいの'; l2 = B.w.name + '！'; }
+    else if (B.phase === 'menu') { l1 = G.menu && G.menu.kind === 'bswap' ? 'いれかえ' : 'どうぐ'; l2 = 'えらんでね'; }
     else if (B.phase === 'swap') {
       const m = G.party[B.swapSel];
       l1 = m ? m.name : '？';
@@ -1697,6 +1838,10 @@
       else if (c.kind === 'recruit') l2 = B.w.trainer ? 'ひとの こは だめ' : SPECIES[B.w.sp].boss ? 'ボスは なかまに できない' : `せいこう ${Math.round(recruitChance(B.w) * 100)}%` + (G.cookie ? '♪' : '');
       else if (c.kind === 'run' && (SPECIES[B.w.sp].boss || B.w.trainer)) l2 = B.w.trainer ? 'にげられない' : 'ボスからは にげられない';
       else if (c.kind === 'run') l2 = `にげる ${Math.round(runChance(a, B.w, B.runTries) * 100)}%`;
+      else if (c.kind === 'guard') l2 = 'ダメージ はんぶん';
+      else if (c.kind === 'item') l2 = `もちもの ${bagList().reduce((n, k) => n + (G.items[k] | 0), 0)}こ`;
+      else if (c.kind === 'swap') l2 = 'なかまと こうたい';
+      else if (c.kind === 'special') l2 = (B.bond | 0) >= 100 ? 'きずなの ' + SPECIES[a.sp].moves.strong.name : `きずな ${Math.floor(B.bond | 0)}%`;
       else l2 = SPECIES[a.sp].moves[c.kind].name;
     } else if (B.cur || B.phase === 'end') { [l1, l2] = wrap2(B.msg, 12); }
     else { l1 = 'スタミナ'; l2 = 'ためちゅう…'; }
@@ -1716,26 +1861,33 @@
     if (Math.floor(G.t * 3) % 2) drawPattern(['#####', '.###.', '..#..'], x + w - 10, y + h - 7, { '#': '#c0502a' });
   }
   function drawMenu() {
-    const M = G.menu; if (G.state !== 'menu' || !M) return;
+    const M = G.menu; if (!M || !(G.state === 'menu' || (G.battle && G.battle.phase === 'menu'))) return;
     const { x, y, w, h, row0, rh } = MENU;
     rect(x + 1, y, w - 2, h, '#5a3418'); rect(x, y + 1, w, h - 2, '#5a3418');
     rect(x + 1, y + 1, w - 2, h - 2, '#fff8e0');
-    T(M.kind === 'shop' ? 'ぬいショップ' : 'どうぐ', x + 5, y + 4, { c: '#c0502a' });
-    T(`${G.coins}コイン`, x + w - 5, y + 4, { al: 'right' });
+    T(M.kind === 'shop' ? 'ぬいショップ' : M.kind === 'bswap' ? 'いれかえ' : 'どうぐ', x + 5, y + 4, { c: '#c0502a' });
+    if (M.kind !== 'bswap') T(`${G.coins}コイン`, x + w - 5, y + 4, { al: 'right' });
     rect(x + 3, y + 10, w - 6, 1, '#e8d8b0');
     const rows = menuRows();
     rows.forEach((k, i) => {
       const yy = row0 + i * rh, sel = i === M.sel;
       if (sel) rect(x + 3, yy - 1, w - 6, rh, '#ffe98a');
       if (sel && Math.floor(G.t * 4) % 2) drawPattern(['#..', '##.', '###', '##.', '#..'], x + 5, yy, { '#': '#c0502a' });
-      if (k === '_close') { T(M.kind === 'shop' ? 'でる' : 'とじる', x + 10, yy); return; }
+      if (k === '_close') { T(M.kind === 'shop' ? 'でる' : M.kind === 'bswap' || M.kind === 'bitem' ? 'やめる' : 'とじる', x + 10, yy); return; }
+      if (M.kind === 'bswap') {
+        const m = G.party[+k.slice(1)], out = +k.slice(1) === G.active, down = m.hp < 1;
+        T(m.name + (out ? ' (でている)' : ''), x + 10, yy, { c: down ? '#b0a080' : '#4a2c12' });
+        T(`Lv${m.lv}`, x + 74, yy, { c: '#7a5a30' });
+        T(down ? 'たおれている' : `HP${Math.floor(m.hp)}/${m.maxHp}`, x + w - 5, yy, { al: 'right', c: down ? '#c0502a' : '#4a2c12' });
+        return;
+      }
       const it = ITEMS[k], have = G.items[k] | 0;
       T(it.name, x + 10, yy);
       if (M.kind === 'shop') { T(`${it.price}`, x + 86, yy, { al: 'right', c: G.coins >= it.price ? '#4a2c12' : '#b0a080' }); T(`もち${have}`, x + w - 5, yy, { al: 'right', c: '#7a5a30' }); }
       else T(`x${have}`, x + w - 5, yy, { al: 'right' });
     });
     const k = rows[M.sel];
-    const desc = k === '_close' ? '' : ITEMS[k].desc;
+    const desc = k === '_close' ? '' : M.kind === 'bswap' ? 'だれと こうたい する？' : ITEMS[k].desc;
     rect(x + 3, y + h - 11, w - 6, 1, '#e8d8b0');
     T(desc, x + 5, y + h - 8, { c: '#7a5a30' });
     if (M.kind === 'bag' && G.cookie) T('クッキー こうかちゅう', x + w - 5, y + h - 8 - 0, { al: 'right', c: '#d4588c' });
@@ -1744,6 +1896,37 @@
     if (msg.length <= n) return [msg, ''];
     const cut = msg.lastIndexOf(' ', n);
     return cut > 0 ? [msg.slice(0, cut), msg.slice(cut + 1)] : [msg.slice(0, n), msg.slice(n)];
+  }
+  function drawBattleFx() {
+    if (G.vs) {   // battle start: flash, two bands sweep in, "VS"
+      const t = G.vs.t;
+      if (t < 0.15) { g.globalAlpha = 1 - t / 0.15; rect(0, 0, W, H, '#ffffff'); g.globalAlpha = 1; }
+      const k = Math.min(1, t / 0.25), out = t > 0.8 ? (t - 0.8) / 0.3 : 0;
+      const c1 = G.vs.hot ? '#c8283a' : '#2a5ad8', c2 = G.vs.hot ? '#ffb020' : '#7ad0ff';
+      g.globalAlpha = 1 - out;
+      const bw = Math.round(W * k);
+      rect(0, 24, bw, 9, '#1a1020'); rect(0, 25, bw, 7, c1);
+      rect(W - bw, 37, bw, 9, '#1a1020'); rect(W - bw, 38, bw, 7, c1);
+      for (let x = (Math.floor(t * 300) % 12) - 12; x < bw; x += 12) rect(x, 28, 6, 1, c2);
+      for (let x = W - (Math.floor(t * 300) % 12); x > W - bw; x -= 12) rect(x, 41, 6, 1, c2);
+      if (t > 0.18) T(G.vs.hot ? 'しょうぶ！' : 'バトル！', 80, 30.5, { size: 8, c: '#ffffff', ol: '#1a1020', al: 'center' });
+      g.globalAlpha = 1;
+    }
+    if (G.cutin) {   // special move cut-in
+      const c = G.cutin, t = c.t, k = Math.min(1, t / 0.18), out = t > c.dur - 0.2 ? (t - (c.dur - 0.2)) / 0.2 : 0;
+      g.globalAlpha = 0.55 * (1 - out); rect(0, 0, W, H, '#100818'); g.globalAlpha = 1 - out;
+      const bh = Math.round(30 * k), y0 = 34 - (bh >> 1);
+      rect(0, y0 - 1, W, bh + 2, '#ffe24a'); rect(0, y0, W, bh, '#e0662a');
+      for (let i = 0; i < 14; i++) { const yy = y0 + ((i * 7 + Math.floor(t * 40)) % Math.max(1, bh)); rect((i * 37 + Math.floor(t * 400)) % (W + 30) - 30, yy, 18, 1, '#ffb04a'); }
+      const s = SPR[c.key];
+      if (s && bh > 20) { const x = Math.round(-64 + Math.min(1, t / 0.3) * 84); const im = s.native === 1 ? s.n : s.f; g.drawImage(im, x, y0 + bh - im.height * 2 + 2, im.width * 2, im.height * 2); }
+      if (t > 0.25) {
+        const sz = measure(c.name, 8) <= W - 72 ? 8 : 4, tx = Math.round(W + 4 - Math.min(1, (t - 0.25) / 0.2) * (W - 66));
+        T(c.who + 'の きずなの', tx, y0 + 6, { size: 4, c: '#ffffff', ol: '#4a1a08' }); T(c.name, tx, y0 + (sz === 8 ? 14 : 16), { size: sz, c: '#ffffff', ol: '#4a1a08' });
+      }
+      g.globalAlpha = 1;
+    }
+    if (G.flashT > 0) { g.globalAlpha = Math.min(1, G.flashT / 0.08) * 0.8; rect(0, 0, W, H, '#ffffff'); g.globalAlpha = 1; }
   }
   function drawBanner() {
     if (!G.banner) return;
@@ -1826,8 +2009,10 @@
     drawActor(comp, cam);
     drawActor(player, cam);
     if (G.battle && G.battle.phase !== 'done') { drawBars(G.battle.w, G.battle.w, cam); if (comp.alpha > 0) drawBars(comp, ally(), cam); }
+    if (G.battle && G.battle.phase !== 'done' && ally().guard && comp.alpha > 0) drawPattern(ICONS.shield, Math.round(comp.x - cam) - 4, GROUND - 42, { w: '#ffffff', y: '#6aa8e8' });
     drawParticles(cam);
     drawNearMark(cam);
+    drawBattleFx();
     if (G.state !== 'title') {
       drawHUD(); drawTalk(); drawMenu(); drawBanner();
       // help + party (hi-res text)
@@ -1841,7 +2026,7 @@
           T('ボタンをタップ', cw + 5, 2.5, { size: 4, c: '#ffffff', ol: '#1a3a5a' });
         } else T(G.state === 'menu' ? 'タップで えらぶ ／ そとを タップで とじる' : G.state === 'talk' ? 'タップで つぎへ' : 'ボタン:あるく・ジャンプ ／ まどタップ:どうぐ', 2, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a' });
       } else {
-        const help = G.state === 'battle' ? '1-4/クリック:コマンド ←→+Enter:えらぶ T:' + (G.waitMode ? 'WAIT' : 'ACTIVE') + ' M:おと'
+        const help = G.state === 'battle' ? '1-8:コマンド ←→:えらぶ ↑↓:きりかえ T:' + (G.waitMode ? 'WAIT' : 'ACTIVE') + ' M:おと'
           : G.state === 'menu' ? '↑↓:えらぶ Enter:けってい X:とじる'
           : G.state === 'talk' ? 'Enter:つぎへ'
           : '←→:あるく ↑/Space:ジャンプ C:いれかえ I:どうぐ' + (STAGES[G.stage].town ? ' Enter:はなす' : '');
