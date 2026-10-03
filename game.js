@@ -665,6 +665,12 @@
     }
     if (G.state === 'battle') {
       const B = G.battle;
+      if (tutOn()) {
+        if (code === 'ArrowLeft' || code === 'KeyA' || code === 'Backspace') tutStep(-1);
+        else if (code === 'Escape' || code === 'KeyX') { B.tut.i = TUT_STEPS.length - 1; tutStep(1); }
+        else if (['Enter', 'Space', 'NumpadEnter', 'Tab', 'ArrowRight', 'ArrowDown', 'KeyD', 'KeyE'].includes(code)) tutStep(1);
+        return;
+      }
       if (B.phase === 'swap') {
         const n = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Numpad1: 0, Numpad2: 1, Numpad3: 2, Numpad4: 3 }[code];
         if (n != null) confirmSwap(n);
@@ -699,7 +705,7 @@
     const [x, y] = logicalPos(e); const i = btnAt(x, y);
     G.hoverBtn = i;
     const active = G.state === 'battle' && G.battle.phase === 'input';
-    if (active && i >= 0) G.battle.sel = cmdPage() * 4 + i;
+    if (active && i >= 0 && !tutOn()) G.battle.sel = cmdPage() * 4 + i;
     view.style.cursor = (active && i >= 0) || G.state === 'title' ? 'pointer' : 'default';
   });
   const titleTarget = e => G.state === 'title' && !G.nameEdit && !nameBox.contains(e.target) && !(e.target.closest && e.target.closest('.ctl'));
@@ -726,6 +732,7 @@
     if (G.state === 'versus') { versusTap(x, y); return; }
     if (G.chip && inRect(x, y, G.chip)) { onKey('KeyT'); return; }
     if (G.state === 'talk') { talkNext(); return; }
+    if (G.state === 'battle' && tutOn()) { tutStep(1); return; }
     if (G.state === 'menu' || (G.state === 'battle' && G.battle && G.battle.phase === 'menu')) { menuTap(x, y); return; }
     if (G.state === 'field' && inRect(x, y, MSGBOX)) { if (G.near) interact(); else openBag(); return; }
     const i = btnAt(x, y);
@@ -759,9 +766,11 @@
       if (s.muted != null) G.muted = !!s.muted;
       const i = Math.max(0, Math.min(s.stage | 0, STAGES.length - 1));
       enterStage(i, { heal: false, startX: s.px });
+      if (!G.flags.tut || G.forceTut) G.tutWait = 2.5;
       return;
     }
     G.state = 'field';
+    if (!G.flags.tut || G.forceTut) G.tutWait = 2.5;
     G.wilds[0].toHome = true;   // the title-screen Oguri trots off to its spot
     banner(STAGES[0].name, 2.2);
     persist();
@@ -1173,6 +1182,59 @@
   }
 
   // ---------- battle ----------
+  // ---------- battle tutorial (first time only: a キツネン shows up and each command is explained) ----------
+  const TUT_STEPS = [
+    { btn: -1, title: 'バトルの きほん', l1: 'スタミナが まんたんで READY！', l2: 'したの コマンドを えらんでね' },
+    { btn: 0, l1: 'すくない スタミナで ふつうの こうげき', l2: 'まよったら これ' },
+    { btn: 1, l1: 'スタミナを たくさん つかう つよい わざ', l2: 'ここぞ という ときに' },
+    { btn: 2, l1: 'たたかうと きずなゲージが たまる', l2: '100%で なかまの すごい いちげき' },
+    { btn: 3, l1: 'こえを かけて なかまに さそう', l2: 'あいての HPが すくないほど せいこう' },
+    { btn: 4, l1: 'みを まもって つぎの ダメージを', l2: 'はんぶんに する' },
+    { btn: 5, l1: 'もちものを つかう', l2: 'ぬいショップで かえるよ' },
+    { btn: 6, l1: 'たたかう なかまを こうたい する', l2: 'HPが へった ときに' },
+    { btn: 7, l1: 'バトルから にげる', l2: 'ボスや ひとの こからは にげられない' },
+    { btn: -2, title: 'やってみよう！', l1: 'キツネンと たたかってみよう', l2: 'なかまに するのも ありだよ' },
+  ];
+  function startTutorial() {
+    G.tutWait = 0;
+    if (G.state !== 'field' || G.battle || !G.party.length) return;
+    const x = clamp(player.x + 70 * (player.face || 1), 20, WORLD_W - 20);
+    const w = Object.assign(newActor(x, -1, SPECIES.kitsunen.sprite), newMember('kitsunen'), {
+      home: x, spawnX: x, alive: true, cool: false, wt: 1, wdir: 0, toHome: false, idx: G.wilds.length, tutMob: true,
+    });
+    G.wilds.push(w);
+    startBattle(w);
+    G.battle.tutorial = true;
+  }
+  function tutStep(d) {
+    const B = G.battle, t = B && B.tut; if (!t || !t.on) return;
+    t.i = Math.max(0, t.i + d);
+    SFX.blip();
+    if (t.i >= TUT_STEPS.length) { t.on = false; B.sel = 0; G.flags.tut = 1; persist(); return; }
+    const st = TUT_STEPS[t.i]; if (st.btn >= 0) B.sel = st.btn;
+  }
+  const tutOn = () => !!(G.battle && G.battle.tut && G.battle.tut.on);
+  function drawTut() {
+    if (G.state !== 'battle' || !tutOn()) return;
+    const t = G.battle.tut, st = TUT_STEPS[t.i], c = st.btn >= 0 ? COMMANDS[st.btn] : null;
+    const x = 4, y = 2, w = 152, h = 35;
+    rect(x + 1, y, w - 2, h, '#5a3418'); rect(x, y + 1, w, h - 2, '#5a3418');
+    rect(x + 1, y + 1, w - 2, h - 2, '#fff8e0'); rect(x + 2, y + h - 3, w - 4, 1, '#e8d8b0');
+    if (c) {
+      const bx = x + 5, by = y + 4;
+      rect(bx, by, 11, 11, '#3a2410'); rect(bx + 1, by + 1, 9, 9, c.color);
+      drawPattern(ICONS[c.icon], bx + 1, by + 1, { w: '#ffffff', y: '#ffe24a' });
+      T((st.btn + 1) + ' ' + c.label, x + 20, y + 4, { size: 8, c: '#c0502a' });
+      T('スタミナ ' + COST[c.kind], x + w - 6, y + 6, { size: 4, c: '#7a5a38', al: 'right' });
+    } else T(st.title, x + 6, y + 4, { size: 8, c: '#c0502a' });
+    T(st.l1, x + 6, y + 15.5); T(st.l2, x + 6, y + 21);
+    T((t.i + 1) + '/' + TUT_STEPS.length + (TOUCH ? '  タップで つぎへ' : '  Enterで つぎへ'), x + w - 6, y + h - 8.5, { size: 4, c: '#a08a60', al: 'right' });
+    // bouncing arrow at the button (or the stamina bar) being explained
+    const bob = Math.floor(G.t * 4) % 2;
+    let ax = -1;
+    if (st.btn >= 0) ax = BTN[st.btn].x + BTN[st.btn].w / 2 - 2; else if (st.btn === -1) ax = 26;
+    if (ax >= 0) drawPattern(['#######', '#yyyyy#', '.#yyy#.', '..#y#..', '...#...'], Math.round(ax) - 1, 66 + bob, { '#': '#5a1a1a', y: '#ffe24a' });
+  }
   function startBattle(w) {
     if (ally().hp < 1) G.active = Math.max(0, G.party.findIndex(m => m.hp >= 1));
     comp.key = compKey();
@@ -1215,7 +1277,7 @@
   }
   function choose(i) {
     const B = G.battle;
-    if (!B || B.phase !== 'input') return;
+    if (!B || B.phase !== 'input' || tutOn()) return;
     const kind = COMMANDS[i].kind;
     B.sel = i;
     if (SPECIES[B.w.sp].boss && (kind === 'recruit' || kind === 'run')) {
@@ -1537,6 +1599,8 @@
   function endBattle() {
     const B = G.battle;
     if (B.w.alive) { B.w.home = B.w.x; B.w.alpha = 1; B.w.moving = false; }
+    if (B.w.tutMob) G.wilds = G.wilds.filter(w => w !== B.w);
+    if (B.tutorial && !G.flags.tut) { G.flags.tut = 1; persist(); }
     player.ox = comp.ox = 0; player.moving = comp.moving = false; comp.alpha = 1;
     for (const m of G.party) { m.st = 0; m.guard = false; }
     G.cutin = null;
@@ -1578,10 +1642,10 @@
     const a = ally(), e = B.w;
     const busy = !!B.cur || B.q.length > 0;
     const waiting = B.phase === 'input';
-    if (busy || (waiting && G.waitMode)) return;
+    if (busy || (waiting && G.waitMode) || (B.tut && B.tut.on)) return;
     if (!waiting) a.st = Math.min(100, a.st + stRate(a) * dt);
     e.st = Math.min(100, e.st + stRate(e) * dt);
-    if (!waiting && a.st >= 100) { B.phase = 'input'; B.who = 'me'; burst(comp.x, GROUND - 30, 'spark', 5, '#ffe24a'); }
+    if (!waiting && a.st >= 100) { B.phase = 'input'; B.who = 'me'; burst(comp.x, GROUND - 30, 'spark', 5, '#ffe24a'); if (B.tutorial && !B.tut) { B.tut = { on: true, i: 0 }; B.sel = 0; } }
     else if (e.st >= 100) {
       if (G.friend) { B.phase = 'input'; B.who = 'opp'; burst(e.x, GROUND - 30, 'spark', 5, '#ff9ac8'); }
       else B.q.push(enemyTurn());
@@ -1600,6 +1664,7 @@
   function update(dt) {
     G.t += dt;
     SFX.sync();
+    if (G.state === 'field' && G.tutWait > 0 && !G.talk) { G.tutWait -= dt; if (G.tutWait <= 0) startTutorial(); }
     if (G.state === 'field') updateField(dt);
     else if (G.state === 'battle') { physics(player, dt); physics(comp, dt); updateBattle(dt); }
     else if (G.state === 'title') { for (const w of G.wilds) w.face = -1; }
@@ -1637,7 +1702,7 @@
   const HEART = ['.##.##.', '#rr#rr#', '#rrrrr#', '.#rrr#.', '..#r#..', '...#...'];
   const HEART_S = ['.#.#.', '#####', '.###.', '..#..'];
   const ICONS = {
-    sword: ['w.......w', '.w.....w.', '..w...w..', '...w.w...', '....w....', '...w.w...', '.yw...wy.', '.yy...yy.', 'y.......y'],
+    sword: ['ww.....ww', 'www...www', '.www.www.', '..wwwww..', '...www...', '..wwwww..', 'yyww.wwyy', 'yyy...yyy', 'yy.....yy'],
     bolt:  ['.....yy..', '....yy...', '...yy....', '..yyyyy..', '....yy...', '...yy....', '..yy.....', '.yy......', '.y.......'],
     heart: ['.........', '.ww...ww.', 'wwww.wwww', 'wwwwwwwww', 'wwwwwwwww', '.wwwwwww.', '..wwwww..', '...www...', '....w....'],
     star:  ['....y....', '...yyy...', 'yyyyyyyyy', '.yyyyyyy.', '..yyyyy..', '..yyyyy..', '.yyy.yyy.', '.yy...yy.', '.........'],
@@ -2178,10 +2243,11 @@
     drawNearMark(cam);
     drawBattleFx();
     if (G.state !== 'title') {
-      drawHUD(); drawTalk(); drawMenu(); drawBanner();
+      drawHUD(); drawTalk(); drawMenu(); drawBanner(); drawTut();
       // help + party (hi-res text)
       G.chip = null;
-      if (TOUCH) {
+      if (tutOn()) { /* the tutorial box covers the top: no help line */ }
+      else if (TOUCH) {
         if (G.state === 'battle') {
           const lab = G.waitMode ? 'WAIT' : 'ACTIVE', cw = Math.ceil(measure(lab)) + 4;
           G.chip = { x: 0, y: 0, w: cw + 6, h: 10 };   // generous tap area
@@ -2197,8 +2263,8 @@
         T(help, 2, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a' });
       }
       const m = ally();
-      T(`Lv${m.lv || 1} なかま${G.party.length}/${TUNING.partyMax}`, 158, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'right' });
-      T(`${G.coins}コイン`, 158, 6, { size: 4, c: '#ffe24a', ol: '#1a3a5a', al: 'right' });
+      if (!tutOn()) T(`Lv${m.lv || 1} なかま${G.party.length}/${TUNING.partyMax}`, 158, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'right' });
+      if (!tutOn()) T(`${G.coins}コイン`, 158, 6, { size: 4, c: '#ffe24a', ol: '#1a3a5a', al: 'right' });
     } else drawTitle();
     vctx.drawImage(low, 0, 0, W * S, H * S);
     flushText();
@@ -2249,6 +2315,7 @@
     try { const h = JSON.parse(localStorage.getItem(HERO_KEY) || 'null'); if (h && typeof h === 'object') { G.gender = (h.g | 0) % HERO_GENDERS.length; G.hcolor = (h.c | 0) % HERO_COLORS.length; G.pname = String(h.n || '').slice(0, 6); G.rname = String(h.r || '').slice(0, 6); } } catch (e) {}
     if (params.has('hero')) { const [g, c] = params.get('hero').split(',').map(v => parseInt(v, 10) || 0); G.gender = g % HERO_GENDERS.length; G.hcolor = c % HERO_COLORS.length; }
     buildHero();
+    if (params.has('tut')) { G.forceTut = true; }
     if (params.has('skiptitle')) startGame(false);
     requestAnimationFrame(frame);
   }
