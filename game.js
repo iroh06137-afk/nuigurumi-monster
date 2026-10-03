@@ -631,7 +631,7 @@
     const st = STAGES[i];
     const heal = !opts || opts.heal !== false;
     G.stage = i; WORLD_W = st.width;
-    G.bg = G.bgCache[st.id] || (G.bgCache[st.id] = BG.build(st.width, st.theme, PROPS));
+    G.bg = G.bgCache[st.id] || (G.bgCache[st.id] = BG.build(st.width, st.theme, st.theme === 'town' && PROPS.town_road ? Object.assign({}, PROPS, { road: PROPS.town_road }) : PROPS));
     spawnWilds();
     G.npcs = (st.npcs || []).map(n => Object.assign(newActor(n.x, -1, 'npc_' + n.look), { def: n }));
     G.near = null; G.talk = null; G.menu = null;
@@ -1433,11 +1433,13 @@
   }
   function drawRoadProps(cam) {
     const st = STAGES[G.stage];
-    if (st.theme === 'road') {
-      const f = PROPS.fence;
+    const town = st.theme === 'town';
+    if (st.theme === 'road' || town) {
+      const f = (town && PROPS.town_fence) || PROPS.fence;
       if (f) for (let x = -(((cam % f.width) + f.width) % f.width); x < W; x += f.width) g.drawImage(f, x, EDGE - 30);
     }
-    for (const d of st.decor || []) drawProp(d.k, d.x, cam);
+    const TK = { lamp: 'town_lamp', tree: 'town_tree', bush: 'town_flowerbed' };
+    for (const d of st.decor || []) drawProp(town && PROPS[TK[d.k]] ? TK[d.k] : d.k, d.x, cam);
   }
 
   // placeholder buildings drawn in code (46 wide, bottom on the road's far edge) until building art arrives
@@ -1445,6 +1447,7 @@
   function drawBuilding(b, cam) {
     const cx = Math.round(b.x - cam), x0 = cx - 23, top = EDGE - 33, ol = '#3a2410';
     if (x0 > W + 8 || x0 + 46 < -8) return;
+    const bi = PROPS['bld_' + b.k]; if (bi) { g.drawImage(bi, x0, top); return; }
     const wall = { shop: '#f8ecd0', clinic: '#f6f4ee', house: '#e8be88' }[b.k] || '#f0e0c0';
     const roof = { shop: '#3c78d8', clinic: '#f07aa8', house: '#c84a3a' }[b.k] || '#8a5a2e';
     // wall
@@ -1507,10 +1510,11 @@
   }
   // ---------- world map (placeholder art until the 160x90 map picture arrives) ----------
   function drawMap() {
-    if (!MAPBG) MAPBG = buildMapBG();
-    g.drawImage(MAPBG, 0, 0);
+    const art = PROPS.wmap;
+    if (art) g.drawImage(art, 0, 0);
+    else { if (!MAPBG) MAPBG = buildMapBG(); g.drawImage(MAPBG, 0, 0); }
     // drifting clouds over the sky strip
-    for (let i = 0; i < 3; i++) {
+    if (!art) for (let i = 0; i < 3; i++) {
       const X = Math.round(((i * 61 + G.t * 2) % 200) - 20), Y = 1 + i * 2;
       rect(X, Y + 1, 14, 2, '#ffffff'); rect(X + 3, Y, 7, 1, '#ffffff'); rect(X + 1, Y + 3, 12, 1, '#dcefff');
     }
@@ -1518,6 +1522,7 @@
     for (let k = 0; k < MAP_NODES.length - 1; k++) {
       const a = MAP_NODES[k], b = MAP_NODES[k + 1], n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y));
       const open = k + 1 < G.unlocked;
+      if (art) { if (open && PROPS['wseg' + k]) g.drawImage(PROPS['wseg' + k], 0, 0); continue; }
       for (let j = 0; j <= n; j++) {
         const X = Math.round(a.x + (b.x - a.x) * j / n), Y = Math.round(a.y + (b.y - a.y) * j / n);
         if (open) { rect(X - 1, Y - 1, 3, 3, '#a0743c'); }

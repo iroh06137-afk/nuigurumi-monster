@@ -4,6 +4,11 @@
 
 // 32x32 sprites. native = direction the source art faces (1 = right, -1 = left).
 const SPRITES = {
+  npc_girl: { src: 'assets/npc/girl.png', native: 1 },
+  npc_mushitori: { src: 'assets/npc/mushitori.png', native: 1 },
+  npc_gaki: { src: 'assets/npc/gaki.png', native: 1 },
+  npc_oneesan: { src: 'assets/npc/oneesan.png', native: 1 },
+  npc_karate: { src: 'assets/npc/karate.png', native: 1 },
   player:  { src: 'assets/player.png',    native: 1, walk: { src: 'assets/player_walk.png', frames: 4, ms: 150 } },
   goririn: { src: 'assets/goririn.png',   native: 1, walk: { src: 'assets/goririn_walk.png', frames: 4, ms: 150 } },  // near-frontal, symmetric
   kuuko:   { src: 'assets/kuuko.png',     native: 1, walk: { src: 'assets/kuuko_walk.png', frames: 4, ms: 150 } }, // slim white teddy
@@ -236,6 +241,9 @@ const ITEMS = {
 const SHOP_LIST = ['kizu', 'genki', 'cookie'];
 // road props by ドット絵作成くん (32x32, bottom outline on row 30; road = 32x8 tile for screen rows 64..71)
 const PROP_IMGS = {
+  town_road: 'assets/town/town_road.png', town_fence: 'assets/town/town_fence.png', town_flowerbed: 'assets/town/town_flowerbed.png', town_lamp: 'assets/town/town_lamp.png', town_tree: 'assets/town/town_tree.png',
+  wmap: 'assets/worldmap/worldmap.png', wseg0: 'assets/worldmap/worldmap_path_seg0.png', wseg1: 'assets/worldmap/worldmap_path_seg1.png', wseg2: 'assets/worldmap/worldmap_path_seg2.png', wseg3: 'assets/worldmap/worldmap_path_seg3.png', wseg4: 'assets/worldmap/worldmap_path_seg4.png', wseg5: 'assets/worldmap/worldmap_path_seg5.png', wseg6: 'assets/worldmap/worldmap_path_seg6.png',
+  bld_shop: 'assets/town/shop.png', bld_clinic: 'assets/town/hospital.png', bld_house: 'assets/town/grandma_house.png',
   tree: 'assets/props/street_tree.png', fence: 'assets/props/fence.png', signpost: 'assets/props/signpost.png',
   bench: 'assets/props/bench.png', bush: 'assets/props/bush.png', lamp: 'assets/props/streetlamp.png', road: 'assets/props/road.png',
 };
