@@ -10,10 +10,6 @@ const SPRITES = {
   npc_oneesan: { src: 'assets/npc/oneesan.png', native: 1 },
   npc_karate: { src: 'assets/npc/karate.png', native: 1 },
   hero_girl: { src: 'assets/npc/girl.png', native: 1, walk: { src: 'assets/hero/girl_walk.png', frames: 4, ms: 150 } },
-  hero_mushitori: { src: 'assets/npc/mushitori.png', native: 1, walk: { src: 'assets/hero/mushitori_walk.png', frames: 4, ms: 150 } },
-  hero_gaki: { src: 'assets/npc/gaki.png', native: 1, walk: { src: 'assets/hero/gaki_walk.png', frames: 4, ms: 150 } },
-  hero_oneesan: { src: 'assets/npc/oneesan.png', native: 1, walk: { src: 'assets/hero/oneesan_walk.png', frames: 4, ms: 150 } },
-  hero_karate: { src: 'assets/npc/karate.png', native: 1, walk: { src: 'assets/hero/karate_walk.png', frames: 4, ms: 150 } },
   player:  { src: 'assets/player.png',    native: 1, walk: { src: 'assets/player_walk.png', frames: 4, ms: 150 } },
   goririn: { src: 'assets/goririn.png',   native: 1, walk: { src: 'assets/goririn_walk.png', frames: 4, ms: 150 } },  // near-frontal, symmetric
   kuuko:   { src: 'assets/kuuko.png',     native: 1, walk: { src: 'assets/kuuko_walk.png', frames: 4, ms: 150 } }, // slim white teddy
@@ -209,8 +205,14 @@ const STAGES = [
     ],
     // look = placeholder recolor of the boy until the 5 new human sprites are approved
     npcs: [
-      { id: 'yui', x: 120, name: 'ユイ', look: 'girl',
-        lines: [['ようこそ ぬいぐるみタウンへ！', 'ここには やせいの こは いないよ'], ['おみせで どうぐが かえるし', 'まちの ひとと しょうぶも できるよ']] },
+      // rival = the gender the player didn't pick (default colors). resolved in enterStage
+      { id: 'rival', x: 120, rival: {
+          girl: { name: 'ライバルの ユイ', look: 'girl', battle: { sp: 'kitsunen', mul: 1.2, reward: 50 },
+            lines: [['あっ きみも ぬいぐるみと たびしてるの？', 'わたしの キツネンと しょうぶよ！']],
+            after: [['くやしい… でも つぎは まけないから！', 'おみせで どうぐも そろえておきなよ']] },
+          boy: { name: 'ライバルの ハルト', look: 'player', battle: { sp: 'kitsunen', mul: 1.2, reward: 50 },
+            lines: [['よう！ おまえも ぬいぐるみと たびしてるのか', 'おれの キツネンと しょうぶだ！']],
+            after: [['くっそー… つぎは まけないからな！', 'おみせで どうぐも そろえておけよ']] } } },
       { id: 'sota', x: 310, name: 'むしとりの ソウタ', look: 'mushitori', battle: { sp: 'kaerun', mul: 1.15, reward: 40 },
         lines: [['おっ その ぬいぐるみ つよそう！', 'ぼくの カエルンと しょうぶだ！']],
         after: [['まけたー！', 'もっと きたえて くるよ']] },
@@ -271,12 +273,12 @@ const MAP_NODES = [
 
 let WORLD_W = STAGES[0].width;   // current stage width (set by enterStage)
 
-// selectable player characters (title screen ←→). key = SPRITES key
-const HEROES = [
-  { key: 'player', name: 'ぼうしの おとこのこ' },
-  { key: 'hero_girl', name: 'おんなのこ' },
-  { key: 'hero_mushitori', name: 'むしとりしょうねん' },
-  { key: 'hero_gaki', name: 'ガキだいしょう' },
-  { key: 'hero_oneesan', name: 'おねえさん' },
-  { key: 'hero_karate', name: 'からてか' },
+// hero = gender + color (title screen). Color swaps the cap/hoodie/shoes ramp at load time (keeps each pixel's lightness)
+const HERO_GENDERS = [
+  { key: 'player',    name: 'おとこのこ', ramp: ['#4d72d0', '#4263b9', '#38529d', '#31447f'], base: '#4d72d0', def: 0 },
+  { key: 'hero_girl', name: 'おんなのこ', ramp: ['#f6bee2', '#f96ab4', '#d8529c', '#c54385', '#8a2c66'], base: '#f96ab4', def: 5 },
+];
+const HERO_COLORS = [
+  { name: 'あお', c: '#4d72d0' }, { name: 'あか', c: '#d8473a' }, { name: 'みどり', c: '#47a83a' }, { name: 'きいろ', c: '#e6b02a' },
+  { name: 'むらさき', c: '#8656cc' }, { name: 'ピンク', c: '#f96ab4' }, { name: 'オレンジ', c: '#ec7f2c' }, { name: 'くろ', c: '#4a4a5a' },
 ];

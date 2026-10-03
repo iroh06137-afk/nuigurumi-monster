@@ -254,11 +254,46 @@
     coins: 50, items: {}, beaten: [], flags: {}, cookie: false, npcs: [], near: null, talk: null, menu: null,
   };
   const SAVE_KEY = 'nm_save_v1', HERO_KEY = 'nm_hero';
-  function heroKey() { const h = HEROES[G.hero | 0] || HEROES[0]; return SPR[h.key] ? h.key : 'player'; }
-  function setHero(d) {
-    G.hero = ((G.hero | 0) + d + HEROES.length) % HEROES.length;
-    player.key = heroKey();
-    try { localStorage.setItem(HERO_KEY, String(G.hero)); } catch (e) {}
+  // ---- hero (gender + color) ----
+  const hex2rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  function rgb2hsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+    if (mx === mn) return [0, 0, l];
+    const d = mx - mn, s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+    const h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return [h / 6, s, l];
+  }
+  function hsl2rgb(h, s, l) {
+    if (!s) return [l * 255, l * 255, l * 255];
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+    const f = t => { t = (t + 1) % 1; return 255 * (t < 1 / 6 ? p + (q - p) * 6 * t : t < 0.5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p); };
+    return [f(h + 1 / 3), f(h), f(h - 1 / 3)];
+  }
+  function recolor(src, gd, target) {
+    const [c, x] = mk(src.width, src.height); x.drawImage(src, 0, 0);
+    if (target.toLowerCase() === gd.base) return c;
+    const ramp = new Set(gd.ramp.map(h => hex2rgb(h).join(','))), bl = rgb2hsl(...hex2rgb(gd.base))[2];
+    const [th, ts, tl] = rgb2hsl(...hex2rgb(target));
+    const id = x.getImageData(0, 0, c.width, c.height), d = id.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (!d[i + 3] || !ramp.has(d[i] + ',' + d[i + 1] + ',' + d[i + 2])) continue;
+      const l = Math.max(0.06, Math.min(0.94, rgb2hsl(d[i], d[i + 1], d[i + 2])[2] + tl - bl));
+      const o = hsl2rgb(th, ts, l); d[i] = o[0]; d[i + 1] = o[1]; d[i + 2] = o[2];
+    }
+    x.putImageData(id, 0, 0); return c;
+  }
+  function buildHero() {
+    const gd = HERO_GENDERS[G.gender | 0] || HERO_GENDERS[0], src = SPR[gd.key] || SPR.player;
+    const col = (HERO_COLORS[G.hcolor | 0] || HERO_COLORS[0]).c;
+    SPR.hero = Object.assign({}, src, { n: recolor(src.n, gd, col), f: recolor(src.f, gd, col) });
+    if (src.walk) SPR.hero.walk = { ms: src.walk.ms, frames: src.walk.frames.map(fr => Object.assign({}, fr, { n: recolor(fr.n, gd, col), f: recolor(fr.f, gd, col) })) };
+    player.key = 'hero';
+  }
+  function setHero(dg, dc) {
+    if (dg) { G.gender = ((G.gender | 0) + dg + HERO_GENDERS.length) % HERO_GENDERS.length; G.hcolor = HERO_GENDERS[G.gender].def; }
+    if (dc) G.hcolor = ((G.hcolor | 0) + dc + HERO_COLORS.length) % HERO_COLORS.length;
+    buildHero();
+    try { localStorage.setItem(HERO_KEY, JSON.stringify({ g: G.gender | 0, c: G.hcolor | 0 })); } catch (e) {}
     SFX.blip();
   }
   function persist() {
@@ -530,8 +565,9 @@
   function onKey(code) {
     if (G.state === 'title') {
       if (code === 'KeyN') { wipeSave(); startGame(false); return; }
-      if (code === 'ArrowLeft' || code === 'KeyA') { setHero(-1); return; }
-      if (code === 'ArrowRight' || code === 'KeyD') { setHero(1); return; }
+      if (['ArrowUp', 'ArrowDown', 'KeyW', 'KeyS', 'Tab'].includes(code)) { G.titleRow = G.titleRow ? 0 : 1; SFX.blip(); return; }
+      const d = (code === 'ArrowLeft' || code === 'KeyA') ? -1 : (code === 'ArrowRight' || code === 'KeyD') ? 1 : 0;
+      if (d) { if (G.titleRow) setHero(0, d); else setHero(d, 0); return; }
       if (['Enter', 'Space', 'NumpadEnter', 'Digit1'].includes(code)) { startGame(G.hasSave); return; }
       return;
     }
@@ -594,7 +630,7 @@
   window.addEventListener('pointerdown', e => {
     if (G.state !== 'title') return;
     const [x, y] = logicalPos(e);
-    if (y >= 42 && y < 50 && x >= 30 && x < 130) { setHero(x < 80 ? -1 : 1); return; }
+    if (y >= 42 && y < 54 && x >= 30 && x < 130) { const d = x < 80 ? -1 : 1, row = y < 48 ? 0 : 1; G.titleRow = row; if (row) setHero(0, d); else setHero(d, 0); return; }
     startGame(G.hasSave);
   });
   view.addEventListener('pointerdown', e => {
@@ -652,7 +688,10 @@
     G.stage = i; WORLD_W = st.width;
     G.bg = G.bgCache[st.id] || (G.bgCache[st.id] = BG.build(st.width, st.theme, st.theme === 'town' && PROPS.town_road ? Object.assign({}, PROPS, { road: PROPS.town_road }) : PROPS));
     spawnWilds();
-    G.npcs = (st.npcs || []).map(n => Object.assign(newActor(n.x, -1, 'npc_' + n.look), { def: n }));
+    G.npcs = (st.npcs || []).map(n => {
+      const d = n.rival ? Object.assign({}, n, n.rival[(G.gender | 0) === 1 ? 'boy' : 'girl']) : n;
+      return Object.assign(newActor(n.x, -1, d.look === 'player' ? 'player' : 'npc_' + d.look), { def: d });
+    });
     G.near = null; G.talk = null; G.menu = null;
     if (heal) for (const m of G.party) { m.hp = m.maxHp; m.st = 0; }
     else for (const m of G.party) m.st = 0;
@@ -1958,9 +1997,13 @@
         : (TOUCH ? 'うえタップで スタート' : 'ENTER で スタート');
       T(line, 80, 38, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
     }
-    const hn = (HEROES[G.hero | 0] || HEROES[0]).name;
-    T('◀', 34, 44, { size: 4, c: '#ffffff', ol: '#1a3a5a' }); T('▶', 122, 44, { size: 4, c: '#ffffff', ol: '#1a3a5a' });
-    T('しゅじんこう: ' + hn, 80, 44, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
+    const rows = [(HERO_GENDERS[G.gender | 0] || HERO_GENDERS[0]).name, 'いろ: ' + (HERO_COLORS[G.hcolor | 0] || HERO_COLORS[0]).name];
+    rows.forEach((r, i) => {
+      const y = 44 + i * 6, on = (G.titleRow | 0) === i, c = on ? '#fff6b0' : '#ffffff';
+      T('◀', 52, y, { size: 4, c, ol: '#1a3a5a' }); T('▶', 104, y, { size: 4, c, ol: '#1a3a5a' });
+      T(r, 80, y, { size: 4, c, ol: '#1a3a5a', al: 'center' });
+    });
+    { const sw = HERO_COLORS[G.hcolor | 0] || HERO_COLORS[0]; rect(98, 51, 4, 4, '#1a3a5a'); rect(99, 52, 2, 2, sw.c); }
     if (G.hasSave) {
       const s = readSave();
       const st = STAGES[s && s.stage || 0];
@@ -2095,9 +2138,10 @@
     G.wilds[0].x = 128; G.wilds[0].face = -1;
     G.state = 'title';
     G.hasSave = !!readSave();
-    try { G.hero = Math.max(0, Math.min(HEROES.length - 1, parseInt(localStorage.getItem(HERO_KEY) || '0', 10) || 0)); } catch (e) { G.hero = 0; }
-    if (params.has('hero')) G.hero = (parseInt(params.get('hero'), 10) || 0) % HEROES.length;
-    player.key = heroKey();
+    G.gender = 0; G.hcolor = 0; G.titleRow = 0;
+    try { const h = JSON.parse(localStorage.getItem(HERO_KEY) || 'null'); if (h && typeof h === 'object') { G.gender = (h.g | 0) % HERO_GENDERS.length; G.hcolor = (h.c | 0) % HERO_COLORS.length; } } catch (e) {}
+    if (params.has('hero')) { const [g, c] = params.get('hero').split(',').map(v => parseInt(v, 10) || 0); G.gender = g % HERO_GENDERS.length; G.hcolor = c % HERO_COLORS.length; }
+    buildHero();
     if (params.has('skiptitle')) startGame(false);
     requestAnimationFrame(frame);
   }
