@@ -488,6 +488,12 @@
         bass: [36,36,48,36, 34,34,46,34, 32,32,44,32, 31,31,43,34, 36,36,48,36, 34,34,46,34, 29,29,41,29, 31,31,43,31],
         drum: [1,0,2,0, 1,1,2,0, 1,0,2,0, 1,0,2,2, 1,0,2,0, 1,1,2,0, 1,0,2,1, 1,2,2,0],
       },
+      boss: {   // A minor, heavier and darker than the normal battle loop
+        bpm: 158,
+        lead: [69,0,72,0, 71,0,68,0, 69,72,76,75, 74,0,71,0, 69,0,72,0, 71,0,68,0, 65,69,72,71, 68,0,64,0],
+        bass: [33,33,45,33, 33,33,44,33, 29,29,41,29, 28,28,40,28, 33,33,45,33, 32,32,44,32, 29,29,41,29, 28,28,40,32],
+        drum: [1,0,2,1, 1,0,2,0, 1,1,2,0, 1,0,2,2, 1,0,2,1, 1,0,2,0, 1,1,2,1, 2,1,2,2],
+      },
       town:   { bpm: 120, lead: [76,79,84,79, 81,79,76,0, 74,77,81,77, 79,76,72,0], bass: [48,55,52,55, 53,57,48,57, 50,53,57,53, 55,59,48,0] },
       map:    { bpm: 88,  lead: [72,0,74,0, 76,0,74,0, 72,0,69,0, 71,0,72,0], bass: [48,0,0,55, 45,0,0,52, 41,0,0,48, 43,0,0,50] },
     };
@@ -499,7 +505,7 @@
       if (!G.muted && bgmGain) {
         const lead = song.lead[step % len];
         const bass = song.bass[step % song.bass.length];
-        const isBattle = theme === 'battle';
+        const isBattle = theme === 'battle' || theme === 'boss';
         if (lead) tone(bgmGain, n2f(lead), beat * (isBattle ? 0.55 : 0.85), isBattle ? 'sawtooth' : 'square', isBattle ? 0.08 : 0.07);
         if (bass) tone(bgmGain, n2f(bass), beat * (isBattle ? 0.7 : 0.95), 'square', isBattle ? 0.11 : 0.09);
         if (isBattle && song.drum) {
@@ -528,7 +534,7 @@
       let name = 'field';
       if (G.state === 'title') name = 'title';
       else if (G.state === 'map') name = 'map';
-      else if (G.state === 'battle') name = 'battle';
+      else if (G.state === 'battle') name = G.battle && G.battle.w && SPECIES[G.battle.w.sp] && SPECIES[G.battle.w.sp].boss ? 'boss' : 'battle';
       else {
         const th = STAGES[G.stage] && STAGES[G.stage].theme;
         name = SONGS[th] ? th : 'field';
@@ -968,16 +974,22 @@
       else say(b.name, [['ぬいぐるみと なかよくね', 'つかれたら また おいで']]);
     }
   }
+  // a trainer's plush at a given level: same growth as ours (grantXp), times an optional multiplier
+  function trainerMember(t) {
+    const m = newMember(t.sp), lv = t.lv || 1, mul = t.mul || 1;
+    for (let l = 2; l <= lv; l++) { m.maxHp += 4; m.atk += 1; m.def += 1; if (l % 2 === 0) m.spd += 1; }
+    m.maxHp = Math.round(m.maxHp * mul); m.atk = Math.round(m.atk * mul); m.def = Math.round(m.def * mul);
+    m.hp = m.maxHp; m.lv = lv;
+    return m;
+  }
   function startTrainer(a) {
     const d = a.def, bt = d.battle;
-    const m = newMember(bt.sp);
-    m.maxHp = m.hp = Math.round(m.maxHp * bt.mul);
-    m.atk = Math.round(m.atk * bt.mul); m.def = Math.round(m.def * bt.mul);
-    if (bt.mul >= 1.3) m.spd += 1;
+    const team = (bt.team || [{ sp: bt.sp, lv: 1, mul: bt.mul }]).slice();
+    const first = team.shift(), m = trainerMember(first);
     const side = Math.sign(a.x - player.x) || 1;
-    const w = Object.assign(newActor(a.x, -side, SPECIES[bt.sp].sprite), m, {
+    const w = Object.assign(newActor(a.x, -side, SPECIES[first.sp].sprite), m, {
       alive: true, home: a.x, spawnX: a.x, cool: false, wt: 1, wdir: 0, toHome: false,
-      trainer: d.id, trainerName: d.name, reward: bt.reward,
+      trainer: d.id, trainerName: d.name, reward: bt.reward, team, teamTotal: team.length + 1,
     });
     burst(a.x, GROUND - 12, 'spark', 8, '#ffffff');
     startBattle(w);
@@ -1449,6 +1461,16 @@
     const boss = SPECIES[e.sp].boss;
     const xp = Math.max(6, Math.round((e.maxHp + e.atk * 2) * (boss ? 0.55 : e.trainer ? 0.45 : 0.35)));
     const ups = grantXp(xp);
+    const more = !!(e.trainer && e.team && e.team.length);
+    if (more) {
+      B.result = null;
+      banner(`${e.name}を たおした！ +${xp}けいけん`, 1.6);
+      for (let i = 0; i < 8; i++) { e.alpha = i % 2 ? 1 : 0.25; yield* wait(0.08); }
+      yield* tween(v => { e.alpha = v; e.oy = (1 - v) * 3; }, 1, 0, 0.4);
+      burst(e.x, GROUND - 12, 'spark', 10, '#fff2a0');
+      yield* trainerNext(e, ups);
+      return;
+    }
     const coins = G.friend ? 0 : e.trainer ? e.reward : boss ? 30 : Math.max(2, Math.round(xp / 3));
     G.coins += coins;
     if (e.trainer && !G.beaten.includes(e.trainer)) G.beaten.push(e.trainer);
@@ -1464,6 +1486,18 @@
     persist();
     yield* wait(1.0);
     endBattle();
+  }
+  function* trainerNext(e, ups) {
+    const B = G.battle;
+    if (ups) { SFX.level(); banner(`${ally().name}は レベル ${ally().lv} に あがった！`, 1.8); yield* wait(1.2); }
+    yield* wait(0.5);
+    const t = e.team.shift(), m = trainerMember(t);
+    Object.assign(e, m, { key: SPECIES[t.sp].sprite, guard: false, st: 5 + rand() * 25, oy: 0, alpha: 0 });
+    banner(`${e.trainerName}は ${m.name} Lv${m.lv}を くりだした！`, 1.8);
+    burst(e.x, GROUND - 12, 'spark', 8, '#ffffff');
+    yield* tween(v => { e.alpha = v; }, 0, 1, 0.35);
+    yield* wait(0.6);
+    B.phase = 'run'; B.result = null; B.msg = '';
   }
   function* allyFaint() {
     const B = G.battle, a = ally();
@@ -1742,6 +1776,13 @@
     rect(x + 1, t + 4, 20, 1, '#3a4a5a');
     const full = unit.st >= 100;
     rect(x + 1, t + 4, Math.floor(20 * unit.st / 100), 1, full ? (Math.floor(G.t * 6) % 2 ? '#ffe24a' : '#fff6b0') : '#48b8f0');
+    if (unit.teamTotal > 1) {
+      const left = (unit.hp > 0 ? 1 : 0) + (unit.team ? unit.team.length : 0);
+      for (let i = 0; i < unit.teamTotal; i++) {
+        const dx = x + i * 4, on = i < left;
+        rect(dx, t - 4, 3, 3, '#2a1a10'); rect(dx + 1, t - 3, 1, 1, on ? '#ff6a6a' : '#7a6a60');
+      }
+    }
   }
   function drawSign(cam) {
     if ((STAGES[G.stage].theme === 'road' || STAGES[G.stage].town) && drawProp('signpost', WORLD_W - 36, cam)) return;
@@ -2320,6 +2361,6 @@
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN };
+  window.NM = { G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();
