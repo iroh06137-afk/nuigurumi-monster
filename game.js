@@ -257,7 +257,7 @@
   function persist() {
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify({
-        v: 2,
+        v: 3,
         party: G.party.map(m => ({
           sp: m.sp, hp: Math.round(m.hp), maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd,
           lv: m.lv || 1, xp: m.xp || 0,
@@ -609,8 +609,8 @@
       G.active = Math.max(0, Math.min(s.active | 0, G.party.length - 1));
       G.unlocked = Math.max(1, s.unlocked | 0);
       G.cleared = Array.isArray(s.cleared) ? s.cleared.slice() : [];
-      // v1 saves: the town node was inserted at map index 2, so anything past 街道 shifts by one
-      if ((s.v | 0) < 2 && G.unlocked >= 3) G.unlocked += 1;
+      // v2 saves (town briefly sat at map index 2): drop that slot so the field stages line up again
+      if ((s.v | 0) === 2 && G.unlocked >= 3) G.unlocked -= 1;
       G.coins = s.coins != null ? s.coins | 0 : 50;
       G.items = s.items && typeof s.items === 'object' ? Object.assign({}, s.items) : {};
       G.beaten = Array.isArray(s.beaten) ? s.beaten.slice() : [];

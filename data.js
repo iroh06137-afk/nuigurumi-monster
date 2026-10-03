@@ -159,7 +159,7 @@ const STAGES = [
   {
     id: 'kaido', name: 'ぬいぐるみ街道', width: 1400, theme: 'road', bench: 680,
     spawns: [ { sp: 'kitsunen', x: 260 }, { sp: 'usagin', x: 400 }, { sp: 'kaerun', x: 540 }, { sp: 'fukuron', x: 820 }, { sp: 'tanukin', x: 960 }, { sp: 'kitsunen', x: 1100 }, { sp: 'kaido_boss', x: 1260 } ],
-    exit: ['このさき', 'ぬいぐるみタウン'],
+    exit: ['このさき', '夕方の草地'],
     // decorations stand on the far edge of the road (screen row 63), behind the characters
     decor: [ { k: 'tree', x: 110 }, { k: 'bush', x: 185 }, { k: 'lamp', x: 320 }, { k: 'tree', x: 465 }, { k: 'bush', x: 610 }, { k: 'lamp', x: 750 },
              { k: 'tree', x: 890 }, { k: 'bush', x: 1030 }, { k: 'tree', x: 1170 }, { k: 'lamp', x: 1310 } ],
@@ -180,14 +180,14 @@ const STAGES = [
   {
     id: 'hoshi', name: 'ほしぞらのはら', width: 1300, theme: 'night', bench: 600,
     spawns: [ { sp: 'tanukin', x: 260 }, { sp: 'tsumaguro', x: 440 }, { sp: 'fukuron', x: 640 }, { sp: 'kitsunen', x: 840 }, { sp: 'hoshi_boss', x: 1140 } ],
-    exit: ['ここが', 'さいはて'],
+    exit: ['このさき', 'ぬいぐるみタウン'],
     decor: [ { k: 'bush', x: 120 }, { k: 'lamp', x: 300 }, { k: 'bush', x: 520 }, { k: 'lamp', x: 760 }, { k: 'bush', x: 980 } ],
   },
   {
     // ★ town: no wild plush. people to talk to, shop / clinic / house, trainer battles (people's plush can't be recruited)
     id: 'machi', name: 'ぬいぐるみタウン', width: 1200, theme: 'town', town: true,
     spawns: [],
-    exit: ['このさき', '夕方の草地'],
+    exit: ['このさき', 'わたぐも高原'],
     buildings: [
       { k: 'shop',   x: 215, name: 'ぬいショップ' },
       { k: 'clinic', x: 420, name: 'ぬいぐるみびょういん' },
@@ -206,11 +206,25 @@ const STAGES = [
         lines: [['おす！ しゅぎょう ちゅうだ！', 'うでだめし していけ！']],
         after: [['みごとだ…', 'また しゅぎょうして くる！']] },
       { id: 'daichi', x: 980, name: 'ガキだいしょう ダイチ', look: 'gaki', battle: { sp: 'tanukin', mul: 1.5, reward: 100 },
-        lines: [['この まちで いちばん つよいのは', 'おれさまの タヌキンだ！'], ['とおりたけりゃ', 'しょうぶ しろ！']],
+        lines: [['この まちで いちばん つよいのは', 'おれさまの タヌキンだ！'], ['まちを でる まえに', 'おれと しょうぶ しろ！']],
         after: [['ちぇっ… おまえ つよいな', 'さきへ いっていいぞ']] },
     ],
     decor: [ { k: 'lamp', x: 60 }, { k: 'tree', x: 160 }, { k: 'lamp', x: 270 }, { k: 'bush', x: 360 }, { k: 'tree', x: 475 }, { k: 'lamp', x: 580 },
              { k: 'bush', x: 740 }, { k: 'lamp', x: 900 }, { k: 'tree', x: 1060 }, { k: 'lamp', x: 1120 } ],
+  },
+  {
+    // ★ provisional stage after the town (species / boss to be decided)
+    id: 'kogen', name: 'わたぐも高原', width: 1300, theme: 'highland', bench: 640,
+    spawns: [ { sp: 'usagin', x: 260 }, { sp: 'fukuron', x: 430 }, { sp: 'kaerun', x: 600 }, { sp: 'tanukin', x: 820 }, { sp: 'kitsunen', x: 1000 }, { sp: 'tsumaguro', x: 1150 } ],
+    exit: ['このさき', 'あかつち谷'],
+    decor: [ { k: 'bush', x: 140 }, { k: 'tree', x: 360 }, { k: 'bush', x: 540 }, { k: 'tree', x: 760 }, { k: 'bush', x: 930 }, { k: 'tree', x: 1100 } ],
+  },
+  {
+    // ★ provisional stage
+    id: 'tani', name: 'あかつち谷', width: 1400, theme: 'canyon', bench: 700,
+    spawns: [ { sp: 'tanukin', x: 260 }, { sp: 'kitsunen', x: 440 }, { sp: 'tsumaguro', x: 620 }, { sp: 'fukuron', x: 880 }, { sp: 'usagin', x: 1060 }, { sp: 'kaerun', x: 1220 } ],
+    exit: ['このさき', 'じゅんびちゅう'],
+    decor: [ { k: 'bush', x: 180 }, { k: 'bush', x: 520 }, { k: 'bush', x: 960 }, { k: 'bush', x: 1300 } ],
   },
 ];
 // shop items (price in coins). use: heal = HP of the walking companion, healAll = everyone full, recruit = next なかまにする +
@@ -226,14 +240,16 @@ const PROP_IMGS = {
   bench: 'assets/props/bench.png', bush: 'assets/props/bush.png', lamp: 'assets/props/streetlamp.png', road: 'assets/props/road.png',
 };
 // world map nodes (160x90 screen; the bottom 18 rows are covered by the text box). stage = index into STAGES, or null = not made yet
-// (the town is STAGES[5] so old saves keep their stage numbers; on the map it sits between 街道 and 夕方の草地)
+// order on the map: 5 field stages -> town (STAGES[5]) -> stages beyond it. stage = index into STAGES
 const MAP_NODES = [
-  { x: 16,  y: 60, stage: 0 },
-  { x: 42,  y: 44, stage: 1 },
-  { x: 68,  y: 58, stage: 5 },
-  { x: 94,  y: 44, stage: 2 },
-  { x: 120, y: 32, stage: 3 },
-  { x: 146, y: 20, stage: 4 },
+  { x: 12,  y: 62, stage: 0 },
+  { x: 32,  y: 46, stage: 1 },
+  { x: 52,  y: 60, stage: 2 },
+  { x: 72,  y: 44, stage: 3 },
+  { x: 92,  y: 58, stage: 4 },
+  { x: 110, y: 40, stage: 5 },
+  { x: 130, y: 54, stage: 6 },
+  { x: 148, y: 34, stage: 7 },
 ];
 
 let WORLD_W = STAGES[0].width;   // current stage width (set by enterStage)

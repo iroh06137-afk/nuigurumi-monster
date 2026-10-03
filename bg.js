@@ -201,14 +201,17 @@ const BG = (() => {
     const roadish = theme === 'road' || theme === 'town';
     const meadow = makeMeadow(worldW, roadish ? 33 : 21);
     if (roadish) addRoad(meadow, 44, imgs);
-    const pal = theme === 'dusk' ? { farA: '#6a7a6e', farB: '#889888', nearA: '#4a7a38', nearB: '#6a9a4a', nearL: '#3a6828' }
+    const sky = theme === 'canyon' ? 'dusk' : theme;   // canyon = evening sky with red-earth hills
+    const pal = theme === 'canyon' ? { farA: '#b07a5a', farB: '#c8946c', nearA: '#a8683a', nearB: '#c4824a', nearL: '#8a5028' }
+      : theme === 'highland' ? { farA: '#9cc0dc', farB: '#b8d4ea', nearA: '#74b864', nearB: '#94d07c', nearL: '#58a048' }
+      : theme === 'dusk' ? { farA: '#6a7a6e', farB: '#889888', nearA: '#4a7a38', nearB: '#6a9a4a', nearL: '#3a6828' }
       : theme === 'forest' ? { farA: '#3a6a48', farB: '#4e8060', nearA: '#2e5a32', nearB: '#3e7240', nearL: '#244a28' }
       : theme === 'night' ? { farA: '#2a3a48', farB: '#3a4c5c', nearA: '#1e3a28', nearB: '#2a4e34', nearL: '#163020' }
       : { farA: '#8ccaa6', farB: '#a8dcbc', nearA: '#63ae4d', nearB: '#82c966', nearL: '#4e9a3e' };
     return {
-      theme,
-      sky: makeSky(theme),
-      sun: makeSun(theme),
+      theme: sky,
+      sky: makeSky(sky),
+      sun: makeSun(sky),
       clouds: makeClouds(7),
       hillsFar: makeHills(320, 44, [[1, 4, 0.3], [3, 2.5, 1.7], [7, 1, 0.2]], pal.farA, pal.farB, null, 3),
       hillsNear: makeHills(288, 50, [[1, 3, 2.1], [2, 3, 0.4], [5, 1.5, 1.1]], pal.nearA, pal.nearB, pal.nearL, 5),
