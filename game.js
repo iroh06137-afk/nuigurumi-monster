@@ -102,13 +102,34 @@
     for (const el of [$jump, $swap]) { const d = parseInt(el.style.width, 10) || 0; el.style.fontSize = (d >= 74 ? 16 : 12) + 'px'; }
   }
   let ctlState = '';
+  // which job the on-screen buttons do right now
+  function ctlMode() {
+    if (G.state === 'field' || G.state === 'map') return 'field';
+    if (G.state === 'title') return G.nameEdit ? 'off' : 'title';
+    if (G.state === 'menu') return 'back';
+    if (G.state === 'battle' && G.battle) {
+      const ph = G.battle.phase;
+      if (ph === 'menu' || ph === 'swap') return 'back';
+      return 'cmd';
+    }
+    return 'off';
+  }
+  // map an on-screen button to a key for menus and battle commands
+  function ctlKey(btn) {
+    const m = ctlMode(), menu = G.state === 'menu' || (G.battle && G.battle.phase === 'menu');
+    if (btn === 'L') return menu ? 'ArrowUp' : 'ArrowLeft';
+    if (btn === 'R') return menu ? 'ArrowDown' : 'ArrowRight';
+    if (btn === 'A') return 'Enter';
+    if (btn === 'B') return m === 'cmd' ? 'Tab' : 'Escape';
+  }
   function syncControls() {
     if (!TOUCH) return;
-    const st = (G.state === 'field' || G.state === 'map') ? 'field' : G.state === 'title' && !G.nameEdit ? 'title' : 'off';
+    const st = ctlMode();
     const key = st + layout.mode;
     if (key === ctlState) return;
     ctlState = key;
-    $jump.textContent = st === 'title' ? 'けってい' : 'ジャンプ'; $swap.textContent = st === 'title' ? 'つぎ' : 'いれかえ';
+    $jump.textContent = st === 'field' ? 'ジャンプ' : 'けってい';
+    $swap.textContent = st === 'field' ? 'いれかえ' : st === 'title' || st === 'cmd' ? 'つぎ' : st === 'back' ? 'もどる' : 'いれかえ';
     const hide = st === 'off' && layout.mode === 'overlay';
     for (const el of [$pad, $acts]) { el.classList.toggle('hide', hide); el.classList.toggle('off', st === 'off' && !hide); }
     if (st === 'off') { touchDir.clear(); for (const el of [$bL, $bR, $jump, $swap]) el.classList.remove('on'); }
@@ -118,7 +139,7 @@
   function padSync() { const d = [...touchDir.values()]; $bL.classList.toggle('on', d.includes(-1)); $bR.classList.toggle('on', d.includes(1)); }
   function dirAt(x, y) { const el = document.elementFromPoint(x, y); return el && el.closest('#bL') ? -1 : el && el.closest('#bR') ? 1 : 0; }
   for (const [el, dir] of [[$bL, -1], [$bR, 1]]) {
-    el.addEventListener('pointerdown', e => { e.preventDefault(); touchDir.set(e.pointerId, dir); padSync(); if (G.state === 'title') onKey(dir < 0 ? 'ArrowLeft' : 'ArrowRight'); });
+    el.addEventListener('pointerdown', e => { e.preventDefault(); touchDir.set(e.pointerId, dir); padSync(); const m = ctlMode(); if (m === 'title') onKey(dir < 0 ? 'ArrowLeft' : 'ArrowRight'); else if (m === 'cmd' || m === 'back') onKey(ctlKey(dir < 0 ? 'L' : 'R')); });
   }
   window.addEventListener('pointermove', e => {
     if (!touchDir.has(e.pointerId)) return;
@@ -129,7 +150,7 @@
   window.addEventListener('pointerup', padEnd);
   window.addEventListener('pointercancel', padEnd);
   for (const [el, code] of [[$jump, 'Space'], [$swap, 'KeyC']]) {
-    el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('on'); if (G.state !== 'title') onKey(code); else if (el === $swap) onKey('ArrowDown'); });
+    el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('on'); const m = ctlMode(); if (m === 'title') { if (el === $swap) onKey('ArrowDown'); } else if (m === 'cmd' || m === 'back') onKey(ctlKey(el === $jump ? 'A' : 'B')); else onKey(code); });
     // title けってい fires on release: opening the name box needs a finished tap for the phone keyboard
     el.addEventListener('pointerup', () => { if (G.state === 'title' && el === $jump && el.classList.contains('on')) titleConfirm(); });
     const up = () => el.classList.remove('on');
@@ -667,10 +688,9 @@
     }
   }
 
-  const MSGBOX = { x: 42, y: 72, w: 56, h: 17 };
-  const BTN = [0, 1, 2, 3].map(i => ({ x: 98 + i * 14, y: 74, w: 13, h: 13 }));
-  const PAGETAB = { x: 154, y: 74, w: 6, h: 13 };
-  const cmdPage = () => (G.battle && G.battle.phase !== 'swap' ? (G.battle.sel >> 2) : 0);
+  const MSGBOX = { x: 2, y: 72, w: 52, h: 17 };
+  const NBTN = 8, BTN = [...Array(NBTN)].map((_, i) => ({ x: 54 + i * 13, y: 74, w: 12, h: 13 }));
+    const cmdPage = () => 0;   // all 8 commands fit on one row now
   function logicalPos(e) { const r = view.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; }
   const inRect = (x, y, b) => b && x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
   function btnAt(x, y) { return BTN.findIndex(b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h); }
@@ -707,7 +727,6 @@
     if (G.chip && inRect(x, y, G.chip)) { onKey('KeyT'); return; }
     if (G.state === 'talk') { talkNext(); return; }
     if (G.state === 'menu' || (G.state === 'battle' && G.battle && G.battle.phase === 'menu')) { menuTap(x, y); return; }
-    if (G.state === 'battle' && G.battle && G.battle.phase === 'input' && inRect(x, y, PAGETAB)) { G.battle.sel = (G.battle.sel + 4) % COMMANDS.length; SFX.blip(); return; }
     if (G.state === 'field' && inRect(x, y, MSGBOX)) { if (G.near) interact(); else openBag(); return; }
     const i = btnAt(x, y);
     if (G.state === 'battle' && G.battle && G.battle.phase === 'swap') {
@@ -1862,24 +1881,25 @@
     rect(x0 + 1, y0 + 1, w - 2, h - 2, '#f4e4b8');
     rect(x0 + 2, y0 + 1, w - 4, 1, '#fff6d8'); rect(x0 + 2, y0 + h - 2, w - 4, 1, '#dcc48e');
     const a = ally(), B = G.battle;
-    // hearts = active companion HP (5 hearts, half steps)
-    const halves = Math.ceil(clamp(a.hp / a.maxHp, 0, 1) * 10 - 1e-6);
-    for (let i = 0; i < 5; i++) {
-      const hv = clamp(halves - i * 2, 0, 2);
-      const X = 5 + i * 7, Y = 73;
-      drawPattern(HEART, X, Y, { '#': '#5a1a1a', r: '#c9b48a' });
-      if (hv > 0) {
-        g.save(); g.beginPath(); g.rect(X, Y, hv === 2 ? 7 : 4, 6); g.clip();
-        drawPattern(HEART, X, Y, { '#': '#5a1a1a', r: '#e8303a' });
-        g.restore();
-        rect(X + 1, Y + 1, 1, 1, '#ff9a9a');
+    // field: hearts = active companion HP. battle: the HP bars above the plushies show it, so the stamina bar takes this row
+    if (!B) {
+      const halves = Math.ceil(clamp(a.hp / a.maxHp, 0, 1) * 10 - 1e-6);
+      for (let i = 0; i < 5; i++) {
+        const hv = clamp(halves - i * 2, 0, 2);
+        const X = 5 + i * 7, Y = 73;
+        drawPattern(HEART, X, Y, { '#': '#5a1a1a', r: '#c9b48a' });
+        if (hv > 0) {
+          g.save(); g.beginPath(); g.rect(X, Y, hv === 2 ? 7 : 4, 6); g.clip();
+          drawPattern(HEART, X, Y, { '#': '#5a1a1a', r: '#e8303a' });
+          g.restore();
+          rect(X + 1, Y + 1, 1, 1, '#ff9a9a');
+        }
       }
-    }
-    // stamina bar / READY
-    const bx = 5, by = 80, bw = 35, bh = 7;
-    rect(bx, by, bw, bh, '#5a3418'); rect(bx + 1, by + 1, bw - 2, bh - 2, '#d8c498');
-    let label = null, lc = '#5a3418';
-    if (B) {
+    } else {
+      // stamina bar / READY
+      const bx = 4, by = 73, bw = 49, bh = 6;
+      rect(bx, by, bw, bh, '#5a3418'); rect(bx + 1, by + 1, bw - 2, bh - 2, '#d8c498');
+      let label = null; const lc = '#5a3418';
       const full = a.st >= 100;
       const fw = Math.floor((bw - 2) * clamp(a.st, 0, 100) / 100);
       if (B.phase === 'end' || B.phase === 'done') {
@@ -1898,16 +1918,17 @@
       } else {
         rect(bx + 1, by + 1, fw, bh - 2, '#48b8f0'); rect(bx + 1, by + 1, fw, 1, '#a0e2ff');
       }
-    } else { label = 'WALK'; lc = '#a08a60'; }
-    if (label) T(label, bx + bw / 2, by + 1.5, { al: 'center', c: lc, size: 4 });
+      if (label) T(label, bx + bw / 2, by + 1, { al: 'center', c: lc, size: 4 });
+    }
     // message box
-    rect(43, 74, 53, 13, '#b89058'); rect(44, 75, 51, 11, '#ead7a8'); rect(44, 75, 51, 1, '#d6bf8a');
-    // command buttons
+    rect(3, 79, 50, 8, '#ead7a8'); rect(3, 79, 50, 1, '#d6bf8a');
+    // command buttons (all 8 in one row)
     const swapping = B && B.phase === 'swap';
     const enabled = (B && B.phase === 'input') || swapping;
-    const page = swapping ? 0 : cmdPage();
-    for (let slot = 0; slot < 4; slot++) {
-      const ci = page * 4 + slot, c = COMMANDS[ci], b = BTN[slot];
+    for (let slot = 0; slot < NBTN; slot++) {
+      const ci = slot, c = COMMANDS[ci], b = BTN[slot];
+      if (!c) continue;
+      const usable = swapping ? slot < G.party.length : enabled;
       const sel = swapping ? B.swapSel === slot : (enabled && B.sel === ci);
       const oy = sel ? 1 : 0;
       rect(b.x, b.y + oy, b.w, b.h - oy, '#3a2410');
@@ -1920,18 +1941,12 @@
       rect(b.x + 1, b.y + 1 + oy, b.w - 2, 1, 'rgba(255,255,255,0.35)');
       rect(b.x + 1, b.y + b.h - 2, b.w - 2, 1, c.dark);
       drawPattern(ICONS[c.icon], b.x + 2, b.y + 2 + oy, { w: '#ffffff', y: '#ffe24a' });
-      tiny(String(swapping ? slot + 1 : ci + 1), b.x + 1, b.y + 1 + oy, '#ffffff', c.dark);
-      if (!enabled) { g.globalAlpha = 0.5; rect(b.x, b.y, b.w, b.h, '#8a8070'); g.globalAlpha = 1; }
+      tiny(String(slot + 1), b.x + 1, b.y + 1 + oy, '#ffffff', c.dark);
+      if (!usable) { g.globalAlpha = 0.5; rect(b.x, b.y, b.w, b.h, '#8a8070'); g.globalAlpha = 1; }
       if (sel && Math.floor(G.t * 4) % 2) {
         g.strokeStyle = '#ffe24a'; g.lineWidth = 1; g.strokeRect(b.x - 0.5, b.y + oy - 0.5, b.w + 1, b.h - oy + 1);
       }
     }
-    // page tab (flip between the two sets of 4)
-    { const t = PAGETAB;
-      rect(t.x, t.y, t.w, t.h, '#3a2410'); rect(t.x + 1, t.y + 1, t.w - 2, t.h - 2, enabled && !swapping ? '#f4e4b8' : '#a89878');
-      drawPattern(['.#.', '###'], t.x + 1, t.y + 2, { '#': page === 0 ? '#c0a070' : '#5a3418' });
-      drawPattern(['###', '.#.'], t.x + 1, t.y + 8, { '#': page === 1 ? '#c0a070' : '#5a3418' });
-      rect(t.x + 1, t.y + 5 + 0, t.w - 2, 2, page === 0 ? '#ffd23a' : '#4a76bf'); }
     // message text (hi-res layer)
     let l1 = '', l2 = '';
     if (!B) {
@@ -1961,7 +1976,7 @@
       else l2 = SPECIES[a.sp].moves[c.kind].name;
     } else if (B.cur || B.phase === 'end') { [l1, l2] = wrap2(B.msg, 12); }
     else { l1 = 'スタミナ'; l2 = 'ためちゅう…'; }
-    T(l1, 45.5, 76); T(l2, 45.5, 81);
+    T(l1, 4.5, 79); T(l2, 4.5, 83.5);
   }
 
   function drawTalk() {
