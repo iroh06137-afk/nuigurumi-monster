@@ -198,8 +198,9 @@ const BG = (() => {
   }
 
   function build(worldW, theme, imgs) {
-    const meadow = makeMeadow(worldW, theme === 'road' ? 33 : 21);
-    if (theme === 'road') addRoad(meadow, 44, imgs);
+    const roadish = theme === 'road' || theme === 'town';
+    const meadow = makeMeadow(worldW, roadish ? 33 : 21);
+    if (roadish) addRoad(meadow, 44, imgs);
     const pal = theme === 'dusk' ? { farA: '#6a7a6e', farB: '#889888', nearA: '#4a7a38', nearB: '#6a9a4a', nearL: '#3a6828' }
       : theme === 'forest' ? { farA: '#3a6a48', farB: '#4e8060', nearA: '#2e5a32', nearB: '#3e7240', nearL: '#244a28' }
       : theme === 'night' ? { farA: '#2a3a48', farB: '#3a4c5c', nearA: '#1e3a28', nearB: '#2a4e34', nearL: '#163020' }

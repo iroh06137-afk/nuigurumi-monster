@@ -159,7 +159,7 @@ const STAGES = [
   {
     id: 'kaido', name: 'ぬいぐるみ街道', width: 1400, theme: 'road', bench: 680,
     spawns: [ { sp: 'kitsunen', x: 260 }, { sp: 'usagin', x: 400 }, { sp: 'kaerun', x: 540 }, { sp: 'fukuron', x: 820 }, { sp: 'tanukin', x: 960 }, { sp: 'kitsunen', x: 1100 }, { sp: 'kaido_boss', x: 1260 } ],
-    exit: ['このさき', '夕方の草地'],
+    exit: ['このさき', 'ぬいぐるみタウン'],
     // decorations stand on the far edge of the road (screen row 63), behind the characters
     decor: [ { k: 'tree', x: 110 }, { k: 'bush', x: 185 }, { k: 'lamp', x: 320 }, { k: 'tree', x: 465 }, { k: 'bush', x: 610 }, { k: 'lamp', x: 750 },
              { k: 'tree', x: 890 }, { k: 'bush', x: 1030 }, { k: 'tree', x: 1170 }, { k: 'lamp', x: 1310 } ],
@@ -183,19 +183,57 @@ const STAGES = [
     exit: ['ここが', 'さいはて'],
     decor: [ { k: 'bush', x: 120 }, { k: 'lamp', x: 300 }, { k: 'bush', x: 520 }, { k: 'lamp', x: 760 }, { k: 'bush', x: 980 } ],
   },
+  {
+    // ★ town: no wild plush. people to talk to, shop / clinic / house, trainer battles (people's plush can't be recruited)
+    id: 'machi', name: 'ぬいぐるみタウン', width: 1200, theme: 'town', town: true,
+    spawns: [],
+    exit: ['このさき', '夕方の草地'],
+    buildings: [
+      { k: 'shop',   x: 215, name: 'ぬいショップ' },
+      { k: 'clinic', x: 420, name: 'ぬいぐるみびょういん' },
+      { k: 'house',  x: 830, name: 'おばあさんの いえ' },
+    ],
+    // look = placeholder recolor of the boy until the 5 new human sprites are approved
+    npcs: [
+      { id: 'yui', x: 120, name: 'ユイ', look: 'girl',
+        lines: [['ようこそ ぬいぐるみタウンへ！', 'ここには やせいの こは いないよ'], ['おみせで どうぐが かえるし', 'まちの ひとと しょうぶも できるよ']] },
+      { id: 'sota', x: 310, name: 'むしとりの ソウタ', look: 'mushitori', battle: { sp: 'kaerun', mul: 1.15, reward: 40 },
+        lines: [['おっ その ぬいぐるみ つよそう！', 'ぼくの カエルンと しょうぶだ！']],
+        after: [['まけたー！', 'もっと きたえて くるよ']] },
+      { id: 'reika', x: 520, name: 'おねえさん レイカ', look: 'oneesan',
+        lines: [['かった どうぐは {BAG}で', 'いつでも つかえるわ'], ['ひとの ぬいぐるみは', 'なかまに できないから きをつけてね']] },
+      { id: 'akane', x: 680, name: 'からてかの アカネ', look: 'karate', battle: { sp: 'usagin', mul: 1.3, reward: 60 },
+        lines: [['おす！ しゅぎょう ちゅうだ！', 'うでだめし していけ！']],
+        after: [['みごとだ…', 'また しゅぎょうして くる！']] },
+      { id: 'daichi', x: 980, name: 'ガキだいしょう ダイチ', look: 'gaki', battle: { sp: 'tanukin', mul: 1.5, reward: 100 },
+        lines: [['この まちで いちばん つよいのは', 'おれさまの タヌキンだ！'], ['とおりたけりゃ', 'しょうぶ しろ！']],
+        after: [['ちぇっ… おまえ つよいな', 'さきへ いっていいぞ']] },
+    ],
+    decor: [ { k: 'lamp', x: 60 }, { k: 'tree', x: 160 }, { k: 'lamp', x: 270 }, { k: 'bush', x: 360 }, { k: 'tree', x: 475 }, { k: 'lamp', x: 580 },
+             { k: 'bush', x: 740 }, { k: 'lamp', x: 900 }, { k: 'tree', x: 1060 }, { k: 'lamp', x: 1120 } ],
+  },
 ];
+// shop items (price in coins). use: heal = HP of the walking companion, healAll = everyone full, recruit = next なかまにする +
+const ITEMS = {
+  kizu:   { name: 'きずぐすり',       price: 20, desc: 'つれている こ の HPを 25 かいふく', use: 'heal', amt: 25 },
+  genki:  { name: 'げんきドリンク',   price: 60, desc: 'なかま みんなの HPを ぜんぶ かいふく', use: 'healAll' },
+  cookie: { name: 'なかよしクッキー', price: 40, desc: 'つぎの なかまにする が +20%', use: 'recruit', amt: 0.2 },
+};
+const SHOP_LIST = ['kizu', 'genki', 'cookie'];
 // road props by ドット絵作成くん (32x32, bottom outline on row 30; road = 32x8 tile for screen rows 64..71)
 const PROP_IMGS = {
   tree: 'assets/props/street_tree.png', fence: 'assets/props/fence.png', signpost: 'assets/props/signpost.png',
   bench: 'assets/props/bench.png', bush: 'assets/props/bush.png', lamp: 'assets/props/streetlamp.png', road: 'assets/props/road.png',
 };
 // world map nodes (160x90 screen; the bottom 18 rows are covered by the text box). stage = index into STAGES, or null = not made yet
+// (the town is STAGES[5] so old saves keep their stage numbers; on the map it sits between 街道 and 夕方の草地)
 const MAP_NODES = [
-  { x: 18,  y: 60, stage: 0 },
-  { x: 50,  y: 44, stage: 1 },
-  { x: 84,  y: 54, stage: 2 },
-  { x: 114, y: 36, stage: 3 },
-  { x: 142, y: 24, stage: 4 },
+  { x: 16,  y: 60, stage: 0 },
+  { x: 42,  y: 44, stage: 1 },
+  { x: 68,  y: 58, stage: 5 },
+  { x: 94,  y: 44, stage: 2 },
+  { x: 120, y: 32, stage: 3 },
+  { x: 146, y: 20, stage: 4 },
 ];
 
 let WORLD_W = STAGES[0].width;   // current stage width (set by enterStage)

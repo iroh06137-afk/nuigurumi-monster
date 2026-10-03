@@ -251,12 +251,13 @@
     hoverBtn: -1, bg: null, signNear: false, forceRecruit: null,
     stage: 0, unlocked: 1, cleared: [], mapSel: 0, mapPos: null, benchUsed: false, benchNear: false, bgCache: {},
     hasSave: false, muted: false, versus: false, vs: null, saveFlash: 0, 
+    coins: 50, items: {}, beaten: [], flags: {}, cookie: false, npcs: [], near: null, talk: null, menu: null,
   };
   const SAVE_KEY = 'nm_save_v1';
   function persist() {
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify({
-        v: 1,
+        v: 2,
         party: G.party.map(m => ({
           sp: m.sp, hp: Math.round(m.hp), maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd,
           lv: m.lv || 1, xp: m.xp || 0,
@@ -267,6 +268,7 @@
         cleared: G.cleared,
         stage: G.stage,
         px: Math.round(player.x),
+        coins: G.coins | 0, items: G.items, beaten: G.beaten, flags: G.flags, cookie: !!G.cookie,
         savedAt: Date.now(),
       }));
       G.hasSave = true;
@@ -375,6 +377,7 @@
         bass: [36,36,48,36, 34,34,46,34, 32,32,44,32, 31,31,43,34, 36,36,48,36, 34,34,46,34, 29,29,41,29, 31,31,43,31],
         drum: [1,0,2,0, 1,1,2,0, 1,0,2,0, 1,0,2,2, 1,0,2,0, 1,1,2,0, 1,0,2,1, 1,2,2,0],
       },
+      town:   { bpm: 120, lead: [76,79,84,79, 81,79,76,0, 74,77,81,77, 79,76,72,0], bass: [48,55,52,55, 53,57,48,57, 50,53,57,53, 55,59,48,0] },
       map:    { bpm: 88,  lead: [72,0,74,0, 76,0,74,0, 72,0,69,0, 71,0,72,0], bass: [48,0,0,55, 45,0,0,52, 41,0,0,48, 43,0,0,50] },
     };
     function tick() {
@@ -459,6 +462,8 @@
       },
       win() { beep(523, 0.1, 'square', 0.06); setTimeout(() => beep(659, 0.1, 'square', 0.06), 80); setTimeout(() => beep(784, 0.18, 'square', 0.07), 160); },
       level() { beep(392, 0.1, 'square', 0.05); setTimeout(() => beep(523, 0.1, 'square', 0.05), 80); setTimeout(() => beep(784, 0.2, 'square', 0.05), 160); },
+      blip() { beep(880, 0.04, 'square', 0.03); },
+      buy() { beep(988, 0.06, 'square', 0.05); setTimeout(() => beep(1318, 0.14, 'square', 0.05), 60); },
       miss() { beep(160, 0.08, 'square', 0.04); setTimeout(() => beep(110, 0.14, 'triangle', 0.03, 60), 50); },
       battleStart() {
         beep(196, 0.1, 'square', 0.07);
@@ -498,7 +503,7 @@
   const stRate = u => TUNING.stBase + u.spd * TUNING.stPerSpd;
   function calcDmg(a, d, mv) { return Math.max(1, Math.round(mv.power * a.atk / (a.atk + d.def) * (0.85 + rand() * 0.3))); }
   function recruitChance(e) {
-    const base = SPECIES[e.sp].recruitBase;
+    const base = SPECIES[e.sp].recruitBase + (G.cookie ? ITEMS.cookie.amt : 0);
     return clamp(base + TUNING.recruitHpWeight * (1 - e.hp / e.maxHp), TUNING.recruitMin, TUNING.recruitMax);
   }
   function runChance(a, e, tries) { return clamp(TUNING.runBase + (a.spd - e.spd) * TUNING.runSpdWeight + TUNING.runTryBonus * tries, 0.1, 0.95); }
@@ -528,9 +533,13 @@
       banner(G.muted ? 'おと オフ' : 'おと オン', 1.1); return;
     }
     if (G.state === 'map') { mapKey(code); return; }
+    if (G.state === 'talk') { if (['Enter', 'NumpadEnter', 'Space', 'KeyE', 'KeyX', 'Escape', 'ArrowDown', 'KeyS'].includes(code)) talkNext(); return; }
+    if (G.state === 'menu') { menuKey(code); return; }
     if (G.state === 'field') {
       if (['Space', 'ArrowUp', 'KeyW'].includes(code)) jump(player, true);
       if (code === 'KeyC' || code === 'Tab') swapActive();
+      if (['Enter', 'NumpadEnter', 'KeyE', 'ArrowDown', 'KeyS'].includes(code) && G.near) interact();
+      if (code === 'KeyI') openBag();
       return;
     }
     if (G.state === 'battle') {
@@ -553,6 +562,7 @@
     }
   }
 
+  const MSGBOX = { x: 42, y: 72, w: 56, h: 17 };
   const BTN = COMMANDS.map((c, i) => ({ x: 98 + i * 15, y: 74, w: 14, h: 13 }));
   function logicalPos(e) { const r = view.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; }
   const inRect = (x, y, b) => b && x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
@@ -575,6 +585,9 @@
     const [x, y] = logicalPos(e);
     if (G.state === 'versus') { versusTap(x, y); return; }
     if (G.chip && inRect(x, y, G.chip)) { onKey('KeyT'); return; }
+    if (G.state === 'talk') { talkNext(); return; }
+    if (G.state === 'menu') { menuTap(x, y); return; }
+    if (G.state === 'field' && inRect(x, y, MSGBOX)) { if (G.near) interact(); else openBag(); return; }
     const i = btnAt(x, y);
     if (G.state === 'battle' && G.battle && G.battle.phase === 'swap') {
       if (i >= 0 && i < G.party.length) confirmSwap(i);
@@ -596,6 +609,13 @@
       G.active = Math.max(0, Math.min(s.active | 0, G.party.length - 1));
       G.unlocked = Math.max(1, s.unlocked | 0);
       G.cleared = Array.isArray(s.cleared) ? s.cleared.slice() : [];
+      // v1 saves: the town node was inserted at map index 2, so anything past 街道 shifts by one
+      if ((s.v | 0) < 2 && G.unlocked >= 3) G.unlocked += 1;
+      G.coins = s.coins != null ? s.coins | 0 : 50;
+      G.items = s.items && typeof s.items === 'object' ? Object.assign({}, s.items) : {};
+      G.beaten = Array.isArray(s.beaten) ? s.beaten.slice() : [];
+      G.flags = s.flags && typeof s.flags === 'object' ? Object.assign({}, s.flags) : {};
+      G.cookie = !!s.cookie;
       if (s.muted != null) G.muted = !!s.muted;
       const i = Math.max(0, Math.min(s.stage | 0, STAGES.length - 1));
       enterStage(i, { heal: false, startX: s.px });
@@ -613,6 +633,8 @@
     G.stage = i; WORLD_W = st.width;
     G.bg = G.bgCache[st.id] || (G.bgCache[st.id] = BG.build(st.width, st.theme, PROPS));
     spawnWilds();
+    G.npcs = (st.npcs || []).map(n => Object.assign(newActor(n.x, -1, 'npc_' + n.look), { def: n }));
+    G.near = null; G.talk = null; G.menu = null;
     if (heal) for (const m of G.party) { m.hp = m.maxHp; m.st = 0; }
     else for (const m of G.party) m.st = 0;
     G.active = Math.max(0, G.party.findIndex(m => m.hp >= 1));
@@ -740,6 +762,130 @@
     }
     G.state = 'netroom';
   }
+
+  // ---------- town: people, buildings, shop, items ----------
+  function updateNear() {
+    const st = STAGES[G.stage];
+    G.near = null;
+    if (!st.town) return;
+    let bd = 1e9;
+    for (const a of G.npcs) {
+      const dx = player.x - a.x;
+      if (Math.abs(dx) < 60) a.face = Math.sign(dx) || a.face;
+      if (Math.abs(dx) < 18 && Math.abs(dx) < bd) { bd = Math.abs(dx); G.near = { type: 'npc', a }; }
+    }
+    for (const b of st.buildings || []) {
+      const d = Math.abs(player.x - b.x);
+      if (d < 12 && d < bd) { bd = d; G.near = { type: 'bld', b }; }
+    }
+  }
+  const bagWord = () => TOUCH ? 'したの まどタップ' : 'Iキー';
+  function say(name, pages, then) {
+    G.talk = { name, pages: pages.map(p => p.map(l => l.replace('{BAG}', bagWord()))), i: 0, then };
+    G.state = 'talk'; player.moving = false; comp.moving = false;
+    SFX.blip();
+  }
+  function talkNext() {
+    const t = G.talk; if (!t) { G.state = 'field'; return; }
+    t.i++;
+    SFX.blip();
+    if (t.i < t.pages.length) return;
+    G.talk = null; G.state = 'field';
+    if (t.then) t.then();
+  }
+  function interact() {
+    const n = G.near; if (!n) return;
+    if (n.type === 'npc') {
+      const d = n.a.def;
+      if (d.battle && !G.beaten.includes(d.id)) say(d.name, d.lines, () => startTrainer(n.a));
+      else say(d.name, (d.battle && d.after) || d.lines);
+      return;
+    }
+    const b = n.b;
+    if (b.k === 'shop') say(b.name, [['いらっしゃいませ！', 'ゆっくり みていってね']], openShop);
+    else if (b.k === 'clinic') say(b.name, [['いらっしゃい！', 'ぬいぐるみたちを げんきに するわね']], () => {
+      for (const m of G.party) m.hp = m.maxHp;
+      burst(comp.x, GROUND - 14, 'spark', 12, '#ffffff'); SFX.level();
+      banner('なかま みんな げんきに なった！', 2.0); persist();
+    });
+    else if (b.k === 'house') {
+      if (!G.flags.grandmaGift) say(b.name, [['あら いらっしゃい', 'とおくから よく きたねえ'], ['これ もっていきなさい', '']], () => {
+        G.flags.grandmaGift = true; G.items.kizu = (G.items.kizu || 0) + 2;
+        SFX.buy(); banner('きずぐすりを 2こ もらった！', 2.0); persist();
+      });
+      else say(b.name, [['ぬいぐるみと なかよくね', 'つかれたら また おいで']]);
+    }
+  }
+  function startTrainer(a) {
+    const d = a.def, bt = d.battle;
+    const m = newMember(bt.sp);
+    m.maxHp = m.hp = Math.round(m.maxHp * bt.mul);
+    m.atk = Math.round(m.atk * bt.mul); m.def = Math.round(m.def * bt.mul);
+    if (bt.mul >= 1.3) m.spd += 1;
+    const side = Math.sign(a.x - player.x) || 1;
+    const w = Object.assign(newActor(a.x, -side, SPECIES[bt.sp].sprite), m, {
+      alive: true, home: a.x, spawnX: a.x, cool: false, wt: 1, wdir: 0, toHome: false,
+      trainer: d.id, trainerName: d.name, reward: bt.reward,
+    });
+    burst(a.x, GROUND - 12, 'spark', 8, '#ffffff');
+    startBattle(w);
+  }
+  function openShop() { G.menu = { kind: 'shop', sel: 0 }; G.state = 'menu'; }
+  function bagList() { return Object.keys(ITEMS).filter(k => (G.items[k] | 0) > 0); }
+  function openBag() {
+    if (G.state !== 'field') return;
+    if (!bagList().length) { banner('どうぐを もっていない', 1.3); return; }
+    G.menu = { kind: 'bag', sel: 0 }; G.state = 'menu'; player.moving = false;
+  }
+  function menuRows() { const M = G.menu; return (M.kind === 'shop' ? SHOP_LIST : bagList()).concat(['_close']); }
+  function closeMenu() { G.menu = null; G.state = 'field'; }
+  function menuKey(code) {
+    const M = G.menu; if (!M) { G.state = 'field'; return; }
+    const rows = menuRows();
+    if (code === 'ArrowUp' || code === 'KeyW') M.sel = (M.sel + rows.length - 1) % rows.length;
+    if (code === 'ArrowDown' || code === 'KeyS') M.sel = (M.sel + 1) % rows.length;
+    if (code === 'Escape' || code === 'KeyX' || code === 'Backspace' || (code === 'KeyI' && M.kind === 'bag')) closeMenu();
+    if (['Enter', 'NumpadEnter', 'Space', 'KeyE'].includes(code)) menuPick();
+  }
+  function menuPick() {
+    const M = G.menu, rows = menuRows(), k = rows[M.sel];
+    if (k === '_close') { closeMenu(); return; }
+    const it = ITEMS[k];
+    if (M.kind === 'shop') {
+      if ((G.items[k] | 0) >= 9) { banner('もう もちきれない', 1.2); return; }
+      if (G.coins < it.price) { SFX.miss(); banner('コインが たりない…', 1.2); return; }
+      G.coins -= it.price; G.items[k] = (G.items[k] | 0) + 1;
+      SFX.buy(); banner(`${it.name}を かった！`, 1.2); persist();
+      return;
+    }
+    // bag: use on the walking companion / party
+    const a = ally();
+    if (it.use === 'heal') {
+      if (a.hp >= a.maxHp) { banner(`${a.name}は げんき いっぱい`, 1.2); return; }
+      a.hp = Math.min(a.maxHp, a.hp + it.amt);
+      burst(comp.x, GROUND - 14, 'spark', 8, '#9af07a'); banner(`${a.name}の HPが かいふくした！`, 1.4);
+    } else if (it.use === 'healAll') {
+      if (G.party.every(m => m.hp >= m.maxHp)) { banner('みんな げんき いっぱい', 1.2); return; }
+      for (const m of G.party) m.hp = m.maxHp;
+      burst(comp.x, GROUND - 14, 'spark', 12, '#9af07a'); banner('なかま みんな げんきに なった！', 1.6);
+    } else if (it.use === 'recruit') {
+      if (G.cookie) { banner('もう たべさせてある', 1.2); return; }
+      G.cookie = true; banner('つぎの なかまにする が せいこう しやすい！', 1.8);
+    }
+    SFX.level();
+    G.items[k]--; if (G.items[k] <= 0) delete G.items[k];
+    persist();
+    const left = menuRows();
+    if (left.length <= 1) closeMenu(); else M.sel = Math.min(M.sel, left.length - 1);
+  }
+  const MENU = { x: 22, y: 12, w: 116, h: 58, row0: 24, rh: 7 };
+  function menuTap(x, y) {
+    const M = G.menu; if (!M) return;
+    if (!inRect(x, y, MENU)) { closeMenu(); return; }
+    const i = Math.floor((y - MENU.row0 + 1) / MENU.rh), rows = menuRows();
+    if (i < 0 || i >= rows.length) return;
+    if (i === M.sel) menuPick(); else M.sel = i;
+  }
   function clearStage() {
     const i = G.stage;
     if (!G.cleared.includes(i)) G.cleared.push(i);
@@ -857,6 +1003,7 @@
       if (w.cool) { if (Math.abs(dx) > 110) w.cool = false; continue; }
       if (!w.toHome && Math.abs(dx) < TUNING.encounterDist && player.y === 0) { startBattle(w); return; }
     }
+    updateNear();
     G.signNear = Math.abs(player.x - (WORLD_W - 36)) < 22;
     const bx = STAGES[G.stage].bench;
     G.benchNear = bx != null && Math.abs(player.x - bx) < 16;
@@ -892,7 +1039,7 @@
     ally().hp = Math.floor(ally().hp);
     ally().st = 25; w.st = 5 + rand() * 30; w.wdir = 0;
     G.camT = clamp(player.x + side * 45 - W / 2, 0, WORLD_W - W);
-    banner(G.friend ? `たいせん！ ${w.name} が むかってきた！` : (SPECIES[w.sp].boss ? `${w.name}が たちはだかった！` : `やせいの ${w.name}が あらわれた！`), 2.0);
+    banner(G.friend ? `たいせん！ ${w.name} が むかってきた！` : w.trainer ? `${w.trainerName}が しょうぶを しかけてきた！` : (SPECIES[w.sp].boss ? `${w.name}が たちはだかった！` : `やせいの ${w.name}が あらわれた！`), 2.0);
     B.q.push(introAction());
   }
   function* walkTo(a, x, speed) {
@@ -922,6 +1069,10 @@
       return;
     }
     if (G.friend && (kind === 'recruit' || kind === 'run')) { banner('たいせんでは つかえない', 1.1); return; }
+    if (B.w.trainer && (kind === 'recruit' || kind === 'run')) {
+      banner(kind === 'recruit' ? 'ひとの ぬいぐるみは なかまに できない！' : 'しょうぶの とちゅうで にげられない！', 1.4);
+      return;
+    }
     if (G.netRole && (!B.who || B.who === 'me')) netSend({ t: 'cmd', kind });
     B.phase = 'run';
     if (B.who === 'opp') B.q.push(enemyAttack(kind));
@@ -980,10 +1131,16 @@
   function* enemyFaint() {
     const B = G.battle, e = B.w;
     B.phase = 'end'; B.result = 'win';
-    const xp = Math.max(6, Math.round((e.maxHp + e.atk * 2) * (SPECIES[e.sp].boss ? 0.55 : 0.35)));
+    const boss = SPECIES[e.sp].boss;
+    const xp = Math.max(6, Math.round((e.maxHp + e.atk * 2) * (boss ? 0.55 : e.trainer ? 0.45 : 0.35)));
     const ups = grantXp(xp);
+    const coins = G.friend ? 0 : e.trainer ? e.reward : boss ? 30 : Math.max(2, Math.round(xp / 3));
+    G.coins += coins;
+    if (e.trainer && !G.beaten.includes(e.trainer)) G.beaten.push(e.trainer);
     SFX.win();
-    banner(SPECIES[e.sp].boss ? `${e.name}を たおした！ さきへ すすめる！` : `${e.name}を たおした！  +${xp}けいけん`, 2.2);
+    banner(e.trainer ? `${e.trainerName}に かった！ +${coins}コイン`
+      : boss ? `${e.name}を たおした！ +${coins}コイン さきへ すすめる！`
+      : `${e.name}を たおした！ +${xp}けいけん` + (coins ? ` +${coins}コイン` : ''), 2.2);
     for (let i = 0; i < 8; i++) { e.alpha = i % 2 ? 1 : 0.25; yield* wait(0.08); }
     yield* tween(v => { e.alpha = v; e.oy = (1 - v) * 3; }, 1, 0, 0.4);
     burst(e.x, GROUND - 12, 'spark', 10, '#fff2a0');
@@ -1034,6 +1191,7 @@
     yield* wait(1.2);
     const p = recruitChance(e);
     B.lastP = p;
+    if (G.cookie) { G.cookie = false; persist(); }
     for (let i = 0; i < 3; i++) { e.shake = 0.25; pop(e.x, GROUND - 36, '?', '#ffffff'); yield* wait(0.5); }
     const ok = G.forceRecruit != null ? G.forceRecruit : rand() < p;
     if (ok && G.party.length < TUNING.partyMax) {
@@ -1189,10 +1347,12 @@
     else if (G.state === 'battle') { physics(player, dt); physics(comp, dt); updateBattle(dt); }
     else if (G.state === 'title') { for (const w of G.wilds) w.face = -1; }
     else if (G.state === 'map') updateMap(dt);
+    else if (G.state === 'talk' || G.state === 'menu') { physics(player, dt); physics(comp, dt); }
     document.body.classList.toggle('title', G.state === 'title');
     document.body.classList.toggle('has-save', !!G.hasSave);
     animActor(player, dt); animActor(comp, dt);
     for (const w of G.wilds) animActor(w, dt);
+    for (const a of G.npcs) animActor(a, dt);
     G.cam += (G.camT - G.cam) * Math.min(1, dt * 6);
     if (Math.abs(G.camT - G.cam) < 0.3) G.cam = G.camT;
     if (G.shakeT > 0) G.shakeT -= dt;
@@ -1256,7 +1416,7 @@
     rect(x + 1, t + 4, Math.floor(20 * unit.st / 100), 1, full ? (Math.floor(G.t * 6) % 2 ? '#ffe24a' : '#fff6b0') : '#48b8f0');
   }
   function drawSign(cam) {
-    if (STAGES[G.stage].theme === 'road' && drawProp('signpost', WORLD_W - 36, cam)) return;
+    if ((STAGES[G.stage].theme === 'road' || STAGES[G.stage].town) && drawProp('signpost', WORLD_W - 36, cam)) return;
     const x = Math.round(WORLD_W - 36 - cam);
     if (x < -20 || x > W + 20) return;
     rect(x, GROUND - 12, 2, 13, '#6a4020');
@@ -1278,6 +1438,59 @@
       if (f) for (let x = -(((cam % f.width) + f.width) % f.width); x < W; x += f.width) g.drawImage(f, x, EDGE - 30);
     }
     for (const d of st.decor || []) drawProp(d.k, d.x, cam);
+  }
+
+  // placeholder buildings drawn in code (46 wide, bottom on the road's far edge) until building art arrives
+  const shade = c => ({ '#3c78d8': '#2a5aa8', '#f07aa8': '#d0588a', '#c84a3a': '#a03428' }[c] || c);
+  function drawBuilding(b, cam) {
+    const cx = Math.round(b.x - cam), x0 = cx - 23, top = EDGE - 33, ol = '#3a2410';
+    if (x0 > W + 8 || x0 + 46 < -8) return;
+    const wall = { shop: '#f8ecd0', clinic: '#f6f4ee', house: '#e8be88' }[b.k] || '#f0e0c0';
+    const roof = { shop: '#3c78d8', clinic: '#f07aa8', house: '#c84a3a' }[b.k] || '#8a5a2e';
+    // wall
+    rect(x0 - 1, top + 7, 48, EDGE - top - 6, ol); rect(x0, top + 8, 46, EDGE - top - 8, wall);
+    rect(x0, top + 8, 46, 1, 'rgba(255,255,255,0.4)');
+    if (b.k === 'shop') {
+      // flat roof + striped awning
+      rect(x0 - 2, top + 3, 50, 5, ol); rect(x0 - 1, top + 4, 48, 3, '#8a5a2e');
+      for (let i = 0; i < 12; i++) { rect(x0 - 1 + i * 4, top + 9, 4, 5, i % 2 ? '#ffffff' : roof); rect(x0 + i * 4, top + 14, 2, 1, i % 2 ? '#ffffff' : roof); }
+      rect(x0 - 1, top + 8, 48, 1, ol);
+      // coin sign
+      rect(cx - 4, top - 2, 9, 6, ol); rect(cx - 3, top - 1, 7, 4, '#ffd23a'); rect(cx - 1, top, 3, 2, '#c08a1a');
+    } else {
+      // stepped gable roof
+      for (let r = 0; r < 9; r++) {
+        const hw = 6 + Math.round(r * 2.3);
+        rect(cx - hw - 1, top - 2 + r, hw * 2 + 2, 1, ol);
+        if (r > 0) rect(cx - hw, top - 2 + r, hw * 2, 1, r % 3 === 2 ? shade(roof) : roof);
+      }
+      if (b.k === 'house') { rect(cx + 10, top - 6, 6, 7, ol); rect(cx + 11, top - 5, 4, 6, '#9a5a3a'); }
+      if (b.k === 'clinic') drawPattern(['.##.##.', '#rr#rr#', '#rrrrr#', '.#rrr#.', '..#r#..', '...#...'], cx - 3, top + 10, { '#': ol, r: '#ff5a8a' });
+    }
+    // windows
+    for (const wx of [x0 + 4, x0 + 34]) {
+      rect(wx - 1, top + 17, 10, 9, ol); rect(wx, top + 18, 8, 7, '#9ad8f8'); rect(wx, top + 18, 8, 2, '#d0f0ff'); rect(wx + 3, top + 18, 1, 7, ol);
+    }
+    // door
+    rect(cx - 5, EDGE - 13, 11, 14, ol); rect(cx - 4, EDGE - 12, 9, 13, b.k === 'clinic' ? '#e87aa0' : '#9a6234');
+    rect(cx - 4, EDGE - 12, 9, 1, 'rgba(255,255,255,0.3)'); rect(cx + 2, EDGE - 6, 1, 1, '#ffe24a');
+    // step
+    rect(cx - 7, EDGE, 15, 1, '#b8a888');
+  }
+  function drawTown(cam) {
+    const st = STAGES[G.stage];
+    for (const b of st.buildings || []) drawBuilding(b, cam);
+  }
+  function drawNearMark(cam) {
+    const n = G.near; if (!n || G.state !== 'field') return;
+    const bob = Math.floor(G.t * 3) % 2;
+    if (n.type === 'npc') {
+      const x = Math.round(n.a.x - cam), y = GROUND - 30 + SPR[n.a.key].top - 9 - bob;
+      drawPattern(['.#######.', '#wwwwwww#', '#w#w#w#w#', '#wwwwwww#', '.###.###.', '....##...', '....#....'], x - 4, y - 2, { '#': '#3a2410', w: '#ffffff' });
+    } else {
+      const x = Math.round(n.b.x - cam), y = EDGE - 20 - bob;
+      drawPattern(['#####', '.###.', '..#..'], x - 2, y, { '#': '#ffe24a' });
+    }
   }
   function drawBench(cam) {
     const bx = STAGES[G.stage].bench; if (bx == null) return;
@@ -1403,10 +1616,12 @@
     // message text (hi-res layer)
     let l1 = '', l2 = '';
     if (!B) {
-      if (G.signNear) { [l1, l2] = STAGES[G.stage].exit; }
+      if (G.near && G.near.type === 'npc') { l1 = G.near.a.def.name; l2 = TOUCH ? 'ここタップ:はなす' : 'Enter:はなす'; }
+      else if (G.near && G.near.type === 'bld') { l1 = G.near.b.name; l2 = TOUCH ? 'ここタップ:はいる' : 'Enter:はいる'; }
+      else if (G.signNear) { [l1, l2] = STAGES[G.stage].exit; }
       else if (G.benchNear) { l1 = 'ベンチ'; l2 = 'ひとやすみ できた'; }
       else { l1 = `${a.name}`; l2 = `HP ${Math.floor(a.hp)}/${a.maxHp}`; }
-    } else if (B.phase === 'intro') { l1 = SPECIES[B.w.sp].boss ? 'ボスの' : 'やせいの'; l2 = B.w.name + '！'; }
+    } else if (B.phase === 'intro') { l1 = B.w.trainer ? 'しょうぶ！' : SPECIES[B.w.sp].boss ? 'ボスの' : 'やせいの'; l2 = B.w.name + '！'; }
     else if (B.phase === 'swap') {
       const m = G.party[B.swapSel];
       l1 = m ? m.name : '？';
@@ -1416,13 +1631,51 @@
       const c = COMMANDS[B.sel];
       l1 = (B.who === 'opp' ? 'あいて ' : '') + `${c.label}`;
       if (B.who === 'opp') l2 = SPECIES[B.w.sp].moves[c.kind].name;
-      else if (c.kind === 'recruit') l2 = SPECIES[B.w.sp].boss ? 'ボスは なかまに できない' : `せいこう ${Math.round(recruitChance(B.w) * 100)}%`;
-      else if (c.kind === 'run' && SPECIES[B.w.sp].boss) l2 = 'ボスからは にげられない';
+      else if (c.kind === 'recruit') l2 = B.w.trainer ? 'ひとの こは だめ' : SPECIES[B.w.sp].boss ? 'ボスは なかまに できない' : `せいこう ${Math.round(recruitChance(B.w) * 100)}%` + (G.cookie ? '♪' : '');
+      else if (c.kind === 'run' && (SPECIES[B.w.sp].boss || B.w.trainer)) l2 = B.w.trainer ? 'にげられない' : 'ボスからは にげられない';
       else if (c.kind === 'run') l2 = `にげる ${Math.round(runChance(a, B.w, B.runTries) * 100)}%`;
       else l2 = SPECIES[a.sp].moves[c.kind].name;
     } else if (B.cur || B.phase === 'end') { [l1, l2] = wrap2(B.msg, 12); }
     else { l1 = 'スタミナ'; l2 = 'ためちゅう…'; }
     T(l1, 45.5, 76); T(l2, 45.5, 81);
+  }
+
+  function drawTalk() {
+    const t = G.talk; if (G.state !== 'talk' || !t) return;
+    const x = 4, y = 47, w = 152, h = 23;
+    const nw = Math.ceil(measure(t.name)) + 8;
+    rect(x + 3, y - 7, nw, 8, '#5a3418'); rect(x + 4, y - 6, nw - 2, 7, '#ffd23a');
+    T(t.name, x + 7, y - 5);
+    rect(x + 1, y, w - 2, h, '#5a3418'); rect(x, y + 1, w, h - 2, '#5a3418');
+    rect(x + 1, y + 1, w - 2, h - 2, '#fff8e0'); rect(x + 2, y + h - 3, w - 4, 1, '#e8d8b0');
+    const [l1, l2] = t.pages[t.i] || ['', ''];
+    T(l1, x + 6, y + 5); T(l2 || '', x + 6, y + 12);
+    if (Math.floor(G.t * 3) % 2) drawPattern(['#####', '.###.', '..#..'], x + w - 10, y + h - 7, { '#': '#c0502a' });
+  }
+  function drawMenu() {
+    const M = G.menu; if (G.state !== 'menu' || !M) return;
+    const { x, y, w, h, row0, rh } = MENU;
+    rect(x + 1, y, w - 2, h, '#5a3418'); rect(x, y + 1, w, h - 2, '#5a3418');
+    rect(x + 1, y + 1, w - 2, h - 2, '#fff8e0');
+    T(M.kind === 'shop' ? 'ぬいショップ' : 'どうぐ', x + 5, y + 4, { c: '#c0502a' });
+    T(`${G.coins}コイン`, x + w - 5, y + 4, { al: 'right' });
+    rect(x + 3, y + 10, w - 6, 1, '#e8d8b0');
+    const rows = menuRows();
+    rows.forEach((k, i) => {
+      const yy = row0 + i * rh, sel = i === M.sel;
+      if (sel) rect(x + 3, yy - 1, w - 6, rh, '#ffe98a');
+      if (sel && Math.floor(G.t * 4) % 2) drawPattern(['#..', '##.', '###', '##.', '#..'], x + 5, yy, { '#': '#c0502a' });
+      if (k === '_close') { T(M.kind === 'shop' ? 'でる' : 'とじる', x + 10, yy); return; }
+      const it = ITEMS[k], have = G.items[k] | 0;
+      T(it.name, x + 10, yy);
+      if (M.kind === 'shop') { T(`${it.price}`, x + 86, yy, { al: 'right', c: G.coins >= it.price ? '#4a2c12' : '#b0a080' }); T(`もち${have}`, x + w - 5, yy, { al: 'right', c: '#7a5a30' }); }
+      else T(`x${have}`, x + w - 5, yy, { al: 'right' });
+    });
+    const k = rows[M.sel];
+    const desc = k === '_close' ? '' : ITEMS[k].desc;
+    rect(x + 3, y + h - 11, w - 6, 1, '#e8d8b0');
+    T(desc, x + 5, y + h - 8, { c: '#7a5a30' });
+    if (M.kind === 'bag' && G.cookie) T('クッキー こうかちゅう', x + w - 5, y + h - 8 - 0, { al: 'right', c: '#d4588c' });
   }
   function wrap2(msg, n) {
     if (msg.length <= n) return [msg, ''];
@@ -1503,15 +1756,17 @@
     const shake = G.shakeT > 0 ? (Math.floor(G.t * 60) % 2 ? 1 : -1) : 0;
     cam += shake;
     BG.draw(g, G.bg, cam, G.t, W);
-    drawRoadProps(cam); drawSign(cam); drawBench(cam);
+    drawRoadProps(cam); drawTown(cam); drawSign(cam); drawBench(cam);
+    for (const a of G.npcs) drawActor(a, cam);
     for (const w of G.wilds) if (w.alive && w.alpha > 0) drawActor(w, cam);
     if (G.battle && G.battle.w) drawActor(G.battle.w, cam);
     drawActor(comp, cam);
     drawActor(player, cam);
     if (G.battle && G.battle.phase !== 'done') { drawBars(G.battle.w, G.battle.w, cam); if (comp.alpha > 0) drawBars(comp, ally(), cam); }
     drawParticles(cam);
+    drawNearMark(cam);
     if (G.state !== 'title') {
-      drawHUD(); drawBanner();
+      drawHUD(); drawTalk(); drawMenu(); drawBanner();
       // help + party (hi-res text)
       G.chip = null;
       if (TOUCH) {
@@ -1521,20 +1776,42 @@
           rect(1, 1, cw + 2, 7, '#5a3418'); rect(2, 2, cw, 5, G.waitMode ? '#fff8e0' : '#ffd23a');
           T(lab, 4, 2.5, { size: 4, c: '#5a3418' });
           T('ボタンをタップ', cw + 5, 2.5, { size: 4, c: '#ffffff', ol: '#1a3a5a' });
-        } else T('ボタンで あるく・ジャンプ・いれかえ', 2, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a' });
+        } else T(G.state === 'menu' ? 'タップで えらぶ ／ そとを タップで とじる' : G.state === 'talk' ? 'タップで つぎへ' : 'ボタン:あるく・ジャンプ ／ まどタップ:どうぐ', 2, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a' });
       } else {
         const help = G.state === 'battle' ? '1-4/クリック:コマンド ←→+Enter:えらぶ T:' + (G.waitMode ? 'WAIT' : 'ACTIVE') + ' M:おと'
-          : '←→/AD:あるく ↑/W/Space:ジャンプ C:いれかえ M:おと';
+          : G.state === 'menu' ? '↑↓:えらぶ Enter:けってい X:とじる'
+          : G.state === 'talk' ? 'Enter:つぎへ'
+          : '←→:あるく ↑/Space:ジャンプ C:いれかえ I:どうぐ' + (STAGES[G.stage].town ? ' Enter:はなす' : '');
         T(help, 2, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a' });
       }
       const m = ally();
-      T(`Lv${m.lv || 1} なかま ${G.party.length}/${TUNING.partyMax}`, 158, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'right' });
+      T(`Lv${m.lv || 1} なかま${G.party.length}/${TUNING.partyMax}`, 158, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'right' });
+      T(`${G.coins}コイン`, 158, 6, { size: 4, c: '#ffe24a', ol: '#1a3a5a', al: 'right' });
     } else drawTitle();
     vctx.drawImage(low, 0, 0, W * S, H * S);
     flushText();
     if (G.fade > 0) { vctx.globalAlpha = G.fade; vctx.fillStyle = '#ffffff'; vctx.fillRect(0, 0, view.width, view.height); vctx.globalAlpha = 1; }
   }
 
+
+  // placeholder town people: the boy with his blue clothes recolored (replaced once the human sprites are approved)
+  const NPC_LOOKS = { girl: [255, 111, 168], mushitori: [86, 180, 70], oneesan: [160, 96, 214], karate: [236, 236, 228], gaki: [236, 140, 40] };
+  function makeNpcSprites() {
+    const src = SPR.player; if (!src) return;
+    for (const [look, col] of Object.entries(NPC_LOOKS)) {
+      const key = 'npc_' + look; if (SPR[key]) continue;
+      const [n, nx] = mk(32, 32); nx.drawImage(src.n, 0, 0);
+      const id = nx.getImageData(0, 0, 32, 32), d = id.data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (!d[i + 3]) continue;
+        const r = d[i], gg = d[i + 1], b = d[i + 2];
+        if (b > r + 25 && b > gg + 5) { const f = Math.min(1.2, b / 210); d[i] = Math.min(255, col[0] * f); d[i + 1] = Math.min(255, col[1] * f); d[i + 2] = Math.min(255, col[2] * f); }
+      }
+      nx.putImageData(id, 0, 0);
+      const [f, fx] = mk(32, 32); fx.translate(32, 0); fx.scale(-1, 1); fx.drawImage(n, 0, 0);
+      SPR[key] = { n, f, wn: silhouette(n), wf: silhouette(f), native: src.native, top: src.top, w: src.w };
+    }
+  }
   // ---------- boot ----------
   let last = 0;
   function frame(now) {
@@ -1547,6 +1824,7 @@
     await Promise.all(Object.entries(SPRITES).map(([k, s]) => loadImg(s.src).then(img => prepSprite(k, img))));
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.walk).map(([k, s]) => loadImg(s.walk.src).then(img => prepWalk(k, img, s.walk)).catch(() => {})));
     await Promise.all(Object.entries(PROP_IMGS).map(([k, src]) => loadImg(src).then(img => { PROPS[k] = img; }).catch(e => console.warn(e))));
+    makeNpcSprites();
     try { await document.fonts.load('8px Misaki'); await document.fonts.load("8px 'DotGothic16'"); } catch (e) { console.warn('font load failed', e); }
     G.bg = G.bgCache.oka = BG.build(WORLD_W, STAGES[0].theme);
     G.party = [newMember('goririn')];
@@ -1559,6 +1837,6 @@
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { G, player, comp, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN };
+  window.NM = { G, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();
