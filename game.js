@@ -104,10 +104,11 @@
   let ctlState = '';
   function syncControls() {
     if (!TOUCH) return;
-    const st = (G.state === 'field' || G.state === 'map') ? 'field' : 'off';
+    const st = (G.state === 'field' || G.state === 'map') ? 'field' : G.state === 'title' && !G.nameEdit ? 'title' : 'off';
     const key = st + layout.mode;
     if (key === ctlState) return;
     ctlState = key;
+    $jump.textContent = st === 'title' ? 'けってい' : 'ジャンプ'; $swap.textContent = st === 'title' ? 'つぎ' : 'いれかえ';
     const hide = st === 'off' && layout.mode === 'overlay';
     for (const el of [$pad, $acts]) { el.classList.toggle('hide', hide); el.classList.toggle('off', st === 'off' && !hide); }
     if (st === 'off') { touchDir.clear(); for (const el of [$bL, $bR, $jump, $swap]) el.classList.remove('on'); }
@@ -117,7 +118,7 @@
   function padSync() { const d = [...touchDir.values()]; $bL.classList.toggle('on', d.includes(-1)); $bR.classList.toggle('on', d.includes(1)); }
   function dirAt(x, y) { const el = document.elementFromPoint(x, y); return el && el.closest('#bL') ? -1 : el && el.closest('#bR') ? 1 : 0; }
   for (const [el, dir] of [[$bL, -1], [$bR, 1]]) {
-    el.addEventListener('pointerdown', e => { e.preventDefault(); touchDir.set(e.pointerId, dir); padSync(); });
+    el.addEventListener('pointerdown', e => { e.preventDefault(); touchDir.set(e.pointerId, dir); padSync(); if (G.state === 'title') onKey(dir < 0 ? 'ArrowLeft' : 'ArrowRight'); });
   }
   window.addEventListener('pointermove', e => {
     if (!touchDir.has(e.pointerId)) return;
@@ -128,12 +129,14 @@
   window.addEventListener('pointerup', padEnd);
   window.addEventListener('pointercancel', padEnd);
   for (const [el, code] of [[$jump, 'Space'], [$swap, 'KeyC']]) {
-    el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('on'); if (G.state !== 'title') onKey(code); });
+    el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('on'); if (G.state !== 'title') onKey(code); else if (el === $swap) onKey('ArrowDown'); });
+    // title けってい fires on release: opening the name box needs a finished tap for the phone keyboard
+    el.addEventListener('pointerup', () => { if (G.state === 'title' && el === $jump && el.classList.contains('on')) titleConfirm(); });
     const up = () => el.classList.remove('on');
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('pointerleave', up);
   }
   // no scrolling / zoom / long-press menu / text selection
-  for (const ev of ['touchstart', 'touchmove', 'touchend']) document.addEventListener(ev, e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+  for (const ev of ['touchstart', 'touchmove', 'touchend']) document.addEventListener(ev, e => { if (e.target && e.target.closest && e.target.closest('#nameBox')) return; if (e.cancelable) e.preventDefault(); }, { passive: false });
   for (const ev of ['contextmenu', 'gesturestart', 'gesturechange', 'dblclick', 'selectstart']) document.addEventListener(ev, e => e.preventDefault());
 
   // ---------- utils ----------
@@ -309,6 +312,10 @@
   nameBox.querySelector('form').addEventListener('submit', e => { e.preventDefault(); if (performance.now() - (G.nameOpenT || 0) > 250) closeName(true); });
   document.getElementById('nameNo').addEventListener('click', () => closeName(false));
   nameIn.addEventListener('keydown', e => { if (e.key === 'Escape') closeName(false); });
+  function titleConfirm() {
+    if (G.state !== 'title' || G.nameEdit) return;
+    if ((G.titleRow | 0) >= 2) openName(G.titleRow === 3 ? 'r' : 'p'); else startGame(G.hasSave);
+  }
   function setHero(dg, dc) {
     if (dg) { G.gender = ((G.gender | 0) + dg + HERO_GENDERS.length) % HERO_GENDERS.length; G.hcolor = HERO_GENDERS[G.gender].def; }
     if (dc) G.hcolor = ((G.hcolor | 0) + dc + HERO_COLORS.length) % HERO_COLORS.length;
@@ -652,17 +659,17 @@
     view.style.cursor = (active && i >= 0) || G.state === 'title' ? 'pointer' : 'default';
   });
   window.addEventListener('pointerdown', e => {
-    if (G.state !== 'title' || G.nameEdit || nameBox.contains(e.target)) return;
+    if (G.state !== 'title' || G.nameEdit || nameBox.contains(e.target) || (e.target.closest && e.target.closest('.ctl'))) return;
     const [x, y] = logicalPos(e);
     if (y >= 43 && y < 63 && x >= 40 && x < 120) {
       const d = x < 80 ? -1 : 1, row = Math.floor((y - 43) / 5); G.titleRow = row;
       if (row === 0) setHero(d, 0); else if (row === 1) setHero(0, d);
-      return;   // name rows open on click (phone keyboards need a click to focus)
+      return;   // name rows open on release (phone keyboards need a finished tap to focus)
     }
-    startGame(G.hasSave);
+    if (!TOUCH) startGame(G.hasSave);
   });
-  window.addEventListener('click', e => {
-    if (G.state !== 'title' || G.nameEdit || nameBox.contains(e.target)) return;
+  window.addEventListener('pointerup', e => {
+    if (G.state !== 'title' || G.nameEdit || nameBox.contains(e.target) || (e.target.closest && e.target.closest('.ctl'))) return;
     const [x, y] = logicalPos(e);
     if (y >= 53 && y < 63 && x >= 40 && x < 120) openName(y < 58 ? 'p' : 'r');
   });
@@ -2026,8 +2033,8 @@
     T('Plush Monsters Adventure', 80, 31, { size: 4, c: '#ffffff', ol: '#2a2a3a', al: 'center' });
     if ((G.t % 1.2) < 0.85) {
       const line = G.hasSave
-        ? (TOUCH ? 'うえタップ つづきから' : 'ENTER つづきから ／ N はじめから')
-        : (TOUCH ? 'うえタップで スタート' : 'ENTER で スタート');
+        ? (TOUCH ? 'けってい で つづきから' : 'ENTER つづきから ／ N はじめから')
+        : (TOUCH ? 'けってい で スタート' : 'ENTER で スタート');
       T(line, 80, 38, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
     }
     const rows = [(HERO_GENDERS[G.gender | 0] || HERO_GENDERS[0]).name, 'いろ: ' + (HERO_COLORS[G.hcolor | 0] || HERO_COLORS[0]).name,
