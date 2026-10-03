@@ -253,7 +253,14 @@
     hasSave: false, muted: false, versus: false, vs: null, saveFlash: 0, 
     coins: 50, items: {}, beaten: [], flags: {}, cookie: false, npcs: [], near: null, talk: null, menu: null,
   };
-  const SAVE_KEY = 'nm_save_v1';
+  const SAVE_KEY = 'nm_save_v1', HERO_KEY = 'nm_hero';
+  function heroKey() { const h = HEROES[G.hero | 0] || HEROES[0]; return SPR[h.key] ? h.key : 'player'; }
+  function setHero(d) {
+    G.hero = ((G.hero | 0) + d + HEROES.length) % HEROES.length;
+    player.key = heroKey();
+    try { localStorage.setItem(HERO_KEY, String(G.hero)); } catch (e) {}
+    SFX.blip();
+  }
   function persist() {
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify({
@@ -523,6 +530,8 @@
   function onKey(code) {
     if (G.state === 'title') {
       if (code === 'KeyN') { wipeSave(); startGame(false); return; }
+      if (code === 'ArrowLeft' || code === 'KeyA') { setHero(-1); return; }
+      if (code === 'ArrowRight' || code === 'KeyD') { setHero(1); return; }
       if (['Enter', 'Space', 'NumpadEnter', 'Digit1'].includes(code)) { startGame(G.hasSave); return; }
       return;
     }
@@ -584,6 +593,8 @@
   });
   window.addEventListener('pointerdown', e => {
     if (G.state !== 'title') return;
+    const [x, y] = logicalPos(e);
+    if (y >= 42 && y < 50 && x >= 30 && x < 130) { setHero(x < 80 ? -1 : 1); return; }
     startGame(G.hasSave);
   });
   view.addEventListener('pointerdown', e => {
@@ -1679,7 +1690,7 @@
       if (sel && Math.floor(G.t * 4) % 2) { g.strokeStyle = '#ffffff'; g.lineWidth = 1; g.strokeRect(n.x - 6.5, n.y - 6.5, 14, 13); }
     });
     // boy on the map (feet on the node)
-    const s = SPR.player, p = G.mapPos;
+    const s = SPR[player.key] || SPR.player, p = G.mapPos;
     let fr = s; if (s.walk && player.moving) fr = s.walk.frames[Math.floor(G.t * 1000 / s.walk.ms) % s.walk.frames.length];
     g.drawImage(player.face !== s.native ? fr.f : fr.n, Math.round(p.x) - 16, Math.round(p.y) - 33);
     // text box
@@ -1947,6 +1958,9 @@
         : (TOUCH ? 'うえタップで スタート' : 'ENTER で スタート');
       T(line, 80, 38, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
     }
+    const hn = (HEROES[G.hero | 0] || HEROES[0]).name;
+    T('◀', 34, 44, { size: 4, c: '#ffffff', ol: '#1a3a5a' }); T('▶', 122, 44, { size: 4, c: '#ffffff', ol: '#1a3a5a' });
+    T('しゅじんこう: ' + hn, 80, 44, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
     if (G.hasSave) {
       const s = readSave();
       const st = STAGES[s && s.stage || 0];
@@ -2081,10 +2095,13 @@
     G.wilds[0].x = 128; G.wilds[0].face = -1;
     G.state = 'title';
     G.hasSave = !!readSave();
+    try { G.hero = Math.max(0, Math.min(HEROES.length - 1, parseInt(localStorage.getItem(HERO_KEY) || '0', 10) || 0)); } catch (e) { G.hero = 0; }
+    if (params.has('hero')) G.hero = (parseInt(params.get('hero'), 10) || 0) % HEROES.length;
+    player.key = heroKey();
     if (params.has('skiptitle')) startGame(false);
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { G, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN };
+  window.NM = { G, setHero, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();

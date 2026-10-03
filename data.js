@@ -9,6 +9,11 @@ const SPRITES = {
   npc_gaki: { src: 'assets/npc/gaki.png', native: 1 },
   npc_oneesan: { src: 'assets/npc/oneesan.png', native: 1 },
   npc_karate: { src: 'assets/npc/karate.png', native: 1 },
+  hero_girl: { src: 'assets/npc/girl.png', native: 1, walk: { src: 'assets/hero/girl_walk.png', frames: 4, ms: 150 } },
+  hero_mushitori: { src: 'assets/npc/mushitori.png', native: 1, walk: { src: 'assets/hero/mushitori_walk.png', frames: 4, ms: 150 } },
+  hero_gaki: { src: 'assets/npc/gaki.png', native: 1, walk: { src: 'assets/hero/gaki_walk.png', frames: 4, ms: 150 } },
+  hero_oneesan: { src: 'assets/npc/oneesan.png', native: 1, walk: { src: 'assets/hero/oneesan_walk.png', frames: 4, ms: 150 } },
+  hero_karate: { src: 'assets/npc/karate.png', native: 1, walk: { src: 'assets/hero/karate_walk.png', frames: 4, ms: 150 } },
   player:  { src: 'assets/player.png',    native: 1, walk: { src: 'assets/player_walk.png', frames: 4, ms: 150 } },
   goririn: { src: 'assets/goririn.png',   native: 1, walk: { src: 'assets/goririn_walk.png', frames: 4, ms: 150 } },  // near-frontal, symmetric
   kuuko:   { src: 'assets/kuuko.png',     native: 1, walk: { src: 'assets/kuuko_walk.png', frames: 4, ms: 150 } }, // slim white teddy
@@ -265,3 +270,13 @@ const MAP_NODES = [
 ];
 
 let WORLD_W = STAGES[0].width;   // current stage width (set by enterStage)
+
+// selectable player characters (title screen ←→). key = SPRITES key
+const HEROES = [
+  { key: 'player', name: 'ぼうしの おとこのこ' },
+  { key: 'hero_girl', name: 'おんなのこ' },
+  { key: 'hero_mushitori', name: 'むしとりしょうねん' },
+  { key: 'hero_gaki', name: 'ガキだいしょう' },
+  { key: 'hero_oneesan', name: 'おねえさん' },
+  { key: 'hero_karate', name: 'からてか' },
+];
