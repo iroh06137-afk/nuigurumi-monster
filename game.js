@@ -1507,22 +1507,43 @@
   }
   // ---------- world map (placeholder art until the 160x90 map picture arrives) ----------
   function drawMap() {
-    rect(0, 0, W, H, '#6cc547');
-    for (let i = 0; i < 90; i++) { const X = (i * 53) % W, Y = (i * 29) % 72; rect(X, Y, 2, 1, '#5db23f'); }
-    rect(0, 0, W, 8, '#72c0f8');
-    // path between nodes
+    if (!MAPBG) MAPBG = buildMapBG();
+    g.drawImage(MAPBG, 0, 0);
+    // drifting clouds over the sky strip
+    for (let i = 0; i < 3; i++) {
+      const X = Math.round(((i * 61 + G.t * 2) % 200) - 20), Y = 1 + i * 2;
+      rect(X, Y + 1, 14, 2, '#ffffff'); rect(X + 3, Y, 7, 1, '#ffffff'); rect(X + 1, Y + 3, 12, 1, '#dcefff');
+    }
+    // paths: dirt road once opened, faint dots while locked
     for (let k = 0; k < MAP_NODES.length - 1; k++) {
-      const a = MAP_NODES[k], b = MAP_NODES[k + 1], n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 4);
-      for (let j = 1; j < n; j++) rect(Math.round(a.x + (b.x - a.x) * j / n), Math.round(a.y + (b.y - a.y) * j / n), 2, 2, k + 1 < G.unlocked ? '#e8c890' : '#8aa870');
+      const a = MAP_NODES[k], b = MAP_NODES[k + 1], n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y));
+      const open = k + 1 < G.unlocked;
+      for (let j = 0; j <= n; j++) {
+        const X = Math.round(a.x + (b.x - a.x) * j / n), Y = Math.round(a.y + (b.y - a.y) * j / n);
+        if (open) { rect(X - 1, Y - 1, 3, 3, '#a0743c'); }
+        else if (j % 4 === 0) rect(X, Y, 1, 1, '#d8f0c0');
+      }
+      if (open) for (let j = 0; j <= n; j++) {
+        const X = Math.round(a.x + (b.x - a.x) * j / n), Y = Math.round(a.y + (b.y - a.y) * j / n);
+        rect(X, Y, 1, 1, '#f0d8a0');
+      }
     }
     MAP_NODES.forEach((n, i) => {
-      const open = i < G.unlocked, clr = n.stage != null && G.cleared.includes(n.stage), sel = i === G.mapSel;
-      rect(n.x - 5, n.y - 3, 11, 7, '#3a2410'); rect(n.x - 4, n.y - 4, 9, 9, '#3a2410');
-      rect(n.x - 4, n.y - 3, 9, 7, open ? (clr ? '#ffd23a' : '#f45a5a') : '#9a9a9a');
-      rect(n.x - 3, n.y - 3, 7, 1, 'rgba(255,255,255,0.5)');
+      const st = STAGES[n.stage], open = i < G.unlocked, clr = n.stage != null && G.cleared.includes(n.stage), sel = i === G.mapSel;
+      const fill = open ? (clr ? '#ffd23a' : '#f45a5a') : '#9a9a9a';
+      if (st && st.town) {
+        // town = a little house instead of a badge
+        drawPattern(['....#....', '...#r#...', '..#rrr#..', '.#rrrrr#.', '#rrrrrrr#', '.#wwwww#.', '.#wwdww#.', '.#wwdww#.', '.#######.'], n.x - 4, n.y - 5,
+          { '#': '#3a2410', r: open ? '#e04a4a' : '#8a8a8a', w: open ? (clr ? '#ffe98a' : '#fff6e0') : '#c8c8c8', d: '#8a5a2e' });
+        if (clr) drawPattern(['#'], n.x, n.y - 2, { '#': '#ffd23a' });
+      } else {
+        rect(n.x - 5, n.y - 3, 11, 7, '#3a2410'); rect(n.x - 4, n.y - 4, 9, 9, '#3a2410');
+        rect(n.x - 4, n.y - 3, 9, 7, fill);
+        rect(n.x - 3, n.y - 3, 7, 1, 'rgba(255,255,255,0.5)');
+        if (clr) drawPattern(['..#..', '#####', '.###.', '#.#.#'], n.x - 2, n.y - 2, { '#': '#ffffff' });
+      }
       if (!open) tiny('?', n.x - 1, n.y - 2, '#ffffff');
-      if (clr) drawPattern(['..#..', '#####', '.###.', '#.#.#'], n.x - 2, n.y - 2, { '#': '#ffffff' });
-      if (sel && Math.floor(G.t * 4) % 2) { g.strokeStyle = '#ffffff'; g.lineWidth = 1; g.strokeRect(n.x - 6.5, n.y - 5.5, 14, 12); }
+      if (sel && Math.floor(G.t * 4) % 2) { g.strokeStyle = '#ffffff'; g.lineWidth = 1; g.strokeRect(n.x - 6.5, n.y - 6.5, 14, 13); }
     });
     // boy on the map (feet on the node)
     const s = SPR.player, p = G.mapPos;
@@ -1535,6 +1556,43 @@
     T('ぜんたいマップ', 80, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
     T(name + (clr ? ' ★クリア' : ''), 7, 75);
     T(n.stage == null ? 'まだ じゅんびちゅう' : (TOUCH ? '◀▶で えらぶ ／ ここを タップで はいる' : '←→で えらぶ ／ Enterで はいる'), 7, 81, { c: '#7a5a30' });
+  }
+  // world-map background, drawn once in code: each place gets its own patch of scenery (placeholder until map art for 8 places)
+  let MAPBG = null;
+  function buildMapBG() {
+    const [c, x] = mk(W, H);
+    const R = (X, Y, w, h, col) => { x.fillStyle = col; x.fillRect(X, Y, w, h); };
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const blob = (cx, cy, rx, ry, col, edge) => {
+      for (let yy = -ry; yy <= ry; yy++) {
+        const hw = Math.round(rx * Math.sqrt(1 - (yy * yy) / (ry * ry)));
+        R(cx - hw, cy + yy, hw * 2 + 1, 1, col);
+        if (edge) { R(cx - hw - 1, cy + yy, 1, 1, edge); R(cx + hw + 1, cy + yy, 1, 1, edge); }
+      }
+    };
+    const tree = (X, Y, leaf, dark) => { R(X - 1, Y - 4, 3, 1, leaf); R(X - 2, Y - 3, 5, 2, leaf); R(X - 2, Y - 1, 5, 1, dark); R(X, Y, 1, 2, '#6a4020'); };
+    const house = (X, Y, roof) => { R(X - 2, Y - 5, 5, 1, roof); R(X - 3, Y - 4, 7, 2, roof); R(X - 2, Y - 2, 5, 3, '#fff6e0'); R(X, Y - 1, 1, 2, '#8a5a2e'); R(X - 3, Y - 4, 7, 1, '#3a2410'); };
+    // grass + sky strip + far hills
+    R(0, 0, W, H, '#6cc547');
+    R(0, 0, W, 9, '#8fd0fa'); R(0, 0, W, 3, '#72c0f8');
+    for (let X = 0; X < W; X++) { const hh = 2 + Math.round(2 * Math.sin(X / 9) + Math.sin(X / 4)); R(X, 9 - hh, 1, hh + 1, '#58b03e'); }
+    for (let i = 0; i < 140; i++) R(Math.floor(rnd() * W), 10 + Math.floor(rnd() * 62), 2, 1, rnd() < 0.5 ? '#5db23f' : '#7ad455');
+    // a pond and a stream for variety
+    blob(48, 30, 8, 3, '#4aa0e8', '#3a7ac0'); R(42, 29, 4, 1, '#a8dcff');
+    // scenery per place
+    for (const n of MAP_NODES) {
+      const st = STAGES[n.stage]; if (!st) continue;
+      const th = st.theme;
+      if (th === 'day') { blob(n.x, n.y + 1, 9, 5, '#8ee06a'); for (let i = 0; i < 6; i++) R(n.x - 8 + Math.floor(rnd() * 16), n.y - 3 + Math.floor(rnd() * 8), 1, 1, rnd() < 0.5 ? '#ffffff' : '#ff9ac8'); }
+      else if (th === 'road') { for (let i = -10; i <= 8; i += 3) { R(n.x + i, n.y + 6, 1, 3, '#8a5a2e'); } R(n.x - 10, n.y + 7, 19, 1, '#b07a44'); tree(n.x - 9, n.y - 4, '#3c9a40', '#2a7030'); tree(n.x + 9, n.y - 5, '#3c9a40', '#2a7030'); }
+      else if (th === 'dusk') { blob(n.x, n.y + 1, 11, 6, '#e8b848', '#d09a30'); for (let i = 0; i < 10; i++) R(n.x - 9 + Math.floor(rnd() * 18), n.y - 4 + Math.floor(rnd() * 10), 1, 1, '#f8dc80'); }
+      else if (th === 'forest') { blob(n.x, n.y, 12, 7, '#3e8a3a'); for (const [dx, dy] of [[-9, -2], [-4, -5], [3, -6], [9, -2], [-7, 5], [7, 5], [0, 7]]) tree(n.x + dx, n.y + dy, '#2e7a32', '#1f5a22'); }
+      else if (th === 'night') { blob(n.x, n.y, 11, 7, '#2a3a6a', '#1e2a50'); for (let i = 0; i < 9; i++) R(n.x - 9 + Math.floor(rnd() * 18), n.y - 6 + Math.floor(rnd() * 12), 1, 1, rnd() < 0.4 ? '#ffffff' : '#ffe98a'); }
+      else if (th === 'town') { blob(n.x, n.y + 1, 13, 7, '#c8b890', '#a8946a'); R(n.x - 12, n.y + 1, 25, 1, '#b0a07a'); house(n.x - 8, n.y - 1, '#3c78d8'); house(n.x + 8, n.y - 1, '#f07aa8'); house(n.x - 5, n.y + 7, '#c84a3a'); house(n.x + 6, n.y + 7, '#e8902a'); }
+      else if (th === 'highland') { blob(n.x, n.y + 1, 11, 6, '#a8e890'); for (const dx of [-8, 0, 8]) { R(n.x + dx - 2, n.y - 7, 5, 1, '#ffffff'); R(n.x + dx - 3, n.y - 6, 7, 1, '#ffffff'); } }
+      else if (th === 'canyon') { blob(n.x, n.y + 1, 12, 7, '#c4824a', '#8a5028'); for (const [dx, dy] of [[-8, -3], [7, -4], [-5, 5], [8, 4]]) { R(n.x + dx - 1, n.y + dy - 2, 3, 3, '#a8683a'); R(n.x + dx - 1, n.y + dy - 2, 3, 1, '#e0a070'); } }
+    }
+    return c;
   }
   function drawParticles(cam) {
     for (const p of G.particles) {
