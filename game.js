@@ -2065,6 +2065,13 @@
       T(`セーブ: ${st ? st.name : ''}  Lv${(s && s.party && s.party[0] && s.party[0].lv) || 1}`, 80, 80, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
     }
   }
+  function drawNine(img, s, x, y, w, h) {
+    const D = (sx, sy, dx, dy, dw, dh) => { if (dw > 0 && dh > 0) g.drawImage(img, sx, sy, s, s, dx, dy, dw, dh); };
+    D(s, s, x + s, y + s, w - 2 * s, h - 2 * s);
+    D(s, 0, x + s, y, w - 2 * s, s); D(s, 2 * s, x + s, y + h - s, w - 2 * s, s);
+    D(0, s, x, y + s, s, h - 2 * s); D(2 * s, s, x + w - s, y + s, s, h - 2 * s);
+    D(0, 0, x, y, s, s); D(2 * s, 0, x + w - s, y, s, s); D(0, 2 * s, x, y + h - s, s, s); D(2 * s, 2 * s, x + w - s, y + h - s, s, s);
+  }
   function drawSetup() {
     // dim the scene, big hero on the left, framed menu on the right
     g.globalAlpha = 0.6; rect(0, 0, W, H, '#14182a'); g.globalAlpha = 1;
@@ -2074,14 +2081,19 @@
     g.drawImage(s.native === -1 ? fr.f : fr.n, 6, 15, 64, 64);
     T(pName(), 38, 81, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
     const P = SETUP, ph = SETUP_ROWS * P.rowH + 8;
-    rect(P.x, P.y, P.w, ph, '#5a3418'); rect(P.x + 1, P.y + 1, P.w - 2, ph - 2, '#f4e4b8');
+    if (PROPS.ui_frame) drawNine(PROPS.ui_frame, 8, P.x, P.y, P.w, ph);
+    else { rect(P.x, P.y, P.w, ph, '#5a3418'); rect(P.x + 1, P.y + 1, P.w - 2, ph - 2, '#f4e4b8'); }
     const asking = G.wipeAsk && G.t - G.wipeAsk < 4;
     const rows = [G.hasSave ? 'つづきから' : 'はじめる', (HERO_GENDERS[G.gender | 0] || HERO_GENDERS[0]).name,
       (HERO_COLORS[G.hcolor | 0] || HERO_COLORS[0]).name, 'なまえ: ' + (G.pname || '？？？'), 'ライバル: ' + rName(),
       G.wiped ? 'けしました' : asking ? 'もういちどで けす' : 'データを けす'];
     rows.forEach((r, i) => {
       const y = P.rowY + i * P.rowH, on = (G.titleRow | 0) === i;
-      if (on) { rect(P.x + 2, y, P.w - 4, P.rowH - 1, '#ffd23a'); }
+      if (on) {
+        if (PROPS.ui_rowbar) drawNine(PROPS.ui_rowbar, 4, P.x + 4, y, P.w - 8, P.rowH);
+        else rect(P.x + 2, y, P.w - 4, P.rowH - 1, '#ffd23a');
+        if (PROPS.ui_cursor) g.drawImage(PROPS.ui_cursor, (Math.floor(G.t * 3) % 2) * 6, 0, 6, 7, P.x - 7, y + 2, 6, 7);
+      }
       const c = i === 5 && (G.wiped || asking) ? '#d0302a' : i === 0 ? '#2a7a1a' : '#5a3418';
       if (i === 1 || i === 2) { T('◀', P.x + 3, y + 1.5, { size: 8, c: '#5a3418' }); T('▶', P.x + P.w - 10, y + 1.5, { size: 8, c: '#5a3418' }); }
       if (i === 2) { const sw = HERO_COLORS[G.hcolor | 0] || HERO_COLORS[0]; rect(P.x + 13, y + 2, 7, 7, '#5a3418'); rect(P.x + 14, y + 3, 5, 5, sw.c); }
