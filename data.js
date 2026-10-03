@@ -207,12 +207,12 @@ const STAGES = [
     npcs: [
       // rival = the gender the player didn't pick (default colors). resolved in enterStage
       { id: 'rival', x: 120, rival: {
-          girl: { name: 'ライバルの ユイ', look: 'girl', battle: { sp: 'kitsunen', mul: 1.2, reward: 50 },
-            lines: [['あっ きみも ぬいぐるみと たびしてるの？', 'わたしの キツネンと しょうぶよ！']],
-            after: [['くやしい… でも つぎは まけないから！', 'おみせで どうぐも そろえておきなよ']] },
-          boy: { name: 'ライバルの ハルト', look: 'player', battle: { sp: 'kitsunen', mul: 1.2, reward: 50 },
-            lines: [['よう！ おまえも ぬいぐるみと たびしてるのか', 'おれの キツネンと しょうぶだ！']],
-            after: [['くっそー… つぎは まけないからな！', 'おみせで どうぐも そろえておけよ']] } } },
+          girl: { name: 'ユイ', look: 'girl', battle: { sp: 'kitsunen', mul: 1.2, reward: 50 },
+            lines: [['あっ {NAME}も ぬいぐるみと たびしてるの？', 'わたしの キツネンと しょうぶよ！']],
+            after: [['くやしい… {NAME} つよいね', 'おみせで どうぐも そろえておきなよ']] },
+          boy: { name: 'ハルト', look: 'player', battle: { sp: 'kitsunen', mul: 1.2, reward: 50 },
+            lines: [['よう {NAME}！ ぬいぐるみと たびしてるのか', 'おれの キツネンと しょうぶだ！']],
+            after: [['くっそー… {NAME} やるな！', 'おみせで どうぐも そろえておけよ']] } } },
       { id: 'sota', x: 310, name: 'むしとりの ソウタ', look: 'mushitori', battle: { sp: 'kaerun', mul: 1.15, reward: 40 },
         lines: [['おっ その ぬいぐるみ つよそう！', 'ぼくの カエルンと しょうぶだ！']],
         after: [['まけたー！', 'もっと きたえて くるよ']] },

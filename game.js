@@ -289,11 +289,31 @@
     if (src.walk) SPR.hero.walk = { ms: src.walk.ms, frames: src.walk.frames.map(fr => Object.assign({}, fr, { n: recolor(fr.n, gd, col), f: recolor(fr.f, gd, col) })) };
     player.key = 'hero';
   }
+  function saveHero() { try { localStorage.setItem(HERO_KEY, JSON.stringify({ g: G.gender | 0, c: G.hcolor | 0, n: G.pname || '', r: G.rname || '' })); } catch (e) {} }
+  const pName = () => G.pname || 'きみ';
+  const rName = () => G.rname || ((G.gender | 0) === 1 ? 'ハルト' : 'ユイ');
+  // name entry (DOM input so phone keyboards work)
+  const nameBox = document.getElementById('nameBox'), nameIn = document.getElementById('nameIn');
+  function openName(which) {
+    G.nameEdit = which;
+    document.getElementById('nameLab').textContent = (which === 'r' ? 'ライバルの なまえ' : 'あなたの なまえ') + '（6もじまで）';
+    nameIn.value = which === 'r' ? (G.rname || '') : (G.pname || '');
+    nameIn.placeholder = which === 'r' ? rName() : 'なまえ';
+    G.nameOpenT = performance.now(); nameBox.classList.add('on'); nameIn.focus();
+  }
+  function closeName(ok) {
+    if (!G.nameEdit) return;
+    if (ok) { const v = nameIn.value.replace(/\s+/g, '').slice(0, 6); if (G.nameEdit === 'r') G.rname = v; else G.pname = v; saveHero(); SFX.blip(); }
+    G.nameEdit = null; nameBox.classList.remove('on'); nameIn.blur(); view.focus();
+  }
+  nameBox.querySelector('form').addEventListener('submit', e => { e.preventDefault(); if (performance.now() - (G.nameOpenT || 0) > 250) closeName(true); });
+  document.getElementById('nameNo').addEventListener('click', () => closeName(false));
+  nameIn.addEventListener('keydown', e => { if (e.key === 'Escape') closeName(false); });
   function setHero(dg, dc) {
     if (dg) { G.gender = ((G.gender | 0) + dg + HERO_GENDERS.length) % HERO_GENDERS.length; G.hcolor = HERO_GENDERS[G.gender].def; }
     if (dc) G.hcolor = ((G.hcolor | 0) + dc + HERO_COLORS.length) % HERO_COLORS.length;
     buildHero();
-    try { localStorage.setItem(HERO_KEY, JSON.stringify({ g: G.gender | 0, c: G.hcolor | 0 })); } catch (e) {}
+    try { saveHero(); } catch (e) {}
     SFX.blip();
   }
   function persist() {
@@ -555,6 +575,7 @@
   const down = (...codes) => codes.some(c => keys.has(c));
   window.addEventListener('keydown', e => {
     if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'Tab'].includes(e.code)) e.preventDefault();
+    if (e.target && e.target.id === 'nameIn') return;
     if (e.repeat) return;
     keys.add(e.code);
     onKey(e.code);
@@ -565,8 +586,11 @@
   function onKey(code) {
     if (G.state === 'title') {
       if (code === 'KeyN') { wipeSave(); startGame(false); return; }
-      if (['ArrowUp', 'ArrowDown', 'KeyW', 'KeyS', 'Tab'].includes(code)) { G.titleRow = G.titleRow ? 0 : 1; SFX.blip(); return; }
+      if (G.nameEdit) return;
+      if (['ArrowUp', 'KeyW'].includes(code)) { G.titleRow = ((G.titleRow | 0) + 3) % 4; SFX.blip(); return; }
+      if (['ArrowDown', 'KeyS', 'Tab'].includes(code)) { G.titleRow = ((G.titleRow | 0) + 1) % 4; SFX.blip(); return; }
       const d = (code === 'ArrowLeft' || code === 'KeyA') ? -1 : (code === 'ArrowRight' || code === 'KeyD') ? 1 : 0;
+      if (G.titleRow >= 2 && (d || code === 'Enter' || code === 'NumpadEnter')) { openName(G.titleRow === 3 ? 'r' : 'p'); return; }
       if (d) { if (G.titleRow) setHero(0, d); else setHero(d, 0); return; }
       if (['Enter', 'Space', 'NumpadEnter', 'Digit1'].includes(code)) { startGame(G.hasSave); return; }
       return;
@@ -628,10 +652,19 @@
     view.style.cursor = (active && i >= 0) || G.state === 'title' ? 'pointer' : 'default';
   });
   window.addEventListener('pointerdown', e => {
-    if (G.state !== 'title') return;
+    if (G.state !== 'title' || G.nameEdit || nameBox.contains(e.target)) return;
     const [x, y] = logicalPos(e);
-    if (y >= 42 && y < 54 && x >= 30 && x < 130) { const d = x < 80 ? -1 : 1, row = y < 48 ? 0 : 1; G.titleRow = row; if (row) setHero(0, d); else setHero(d, 0); return; }
+    if (y >= 43 && y < 63 && x >= 40 && x < 120) {
+      const d = x < 80 ? -1 : 1, row = Math.floor((y - 43) / 5); G.titleRow = row;
+      if (row === 0) setHero(d, 0); else if (row === 1) setHero(0, d);
+      return;   // name rows open on click (phone keyboards need a click to focus)
+    }
     startGame(G.hasSave);
+  });
+  window.addEventListener('click', e => {
+    if (G.state !== 'title' || G.nameEdit || nameBox.contains(e.target)) return;
+    const [x, y] = logicalPos(e);
+    if (y >= 53 && y < 63 && x >= 40 && x < 120) openName(y < 58 ? 'p' : 'r');
   });
   view.addEventListener('pointerdown', e => {
     if (G.state === 'title') return;
@@ -689,7 +722,7 @@
     G.bg = G.bgCache[st.id] || (G.bgCache[st.id] = BG.build(st.width, st.theme, st.theme === 'town' && PROPS.town_road ? Object.assign({}, PROPS, { road: PROPS.town_road }) : PROPS));
     spawnWilds();
     G.npcs = (st.npcs || []).map(n => {
-      const d = n.rival ? Object.assign({}, n, n.rival[(G.gender | 0) === 1 ? 'boy' : 'girl']) : n;
+      const d = n.rival ? Object.assign({}, n, n.rival[(G.gender | 0) === 1 ? 'boy' : 'girl'], { name: 'ライバルの ' + rName() }) : n;
       return Object.assign(newActor(n.x, -1, d.look === 'player' ? 'player' : 'npc_' + d.look), { def: d });
     });
     G.near = null; G.talk = null; G.menu = null;
@@ -839,7 +872,7 @@
   }
   const bagWord = () => TOUCH ? 'したの まどタップ' : 'Iキー';
   function say(name, pages, then) {
-    G.talk = { name, pages: pages.map(p => p.map(l => l.replace('{BAG}', bagWord()))), i: 0, then };
+    G.talk = { name, pages: pages.map(p => p.map(l => l.replace('{BAG}', bagWord()).replace('{NAME}', pName()))), i: 0, then };
     G.state = 'talk'; player.moving = false; comp.moving = false;
     SFX.blip();
   }
@@ -1997,17 +2030,20 @@
         : (TOUCH ? 'うえタップで スタート' : 'ENTER で スタート');
       T(line, 80, 38, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
     }
-    const rows = [(HERO_GENDERS[G.gender | 0] || HERO_GENDERS[0]).name, 'いろ: ' + (HERO_COLORS[G.hcolor | 0] || HERO_COLORS[0]).name];
+    const rows = [(HERO_GENDERS[G.gender | 0] || HERO_GENDERS[0]).name, 'いろ: ' + (HERO_COLORS[G.hcolor | 0] || HERO_COLORS[0]).name,
+      'なまえ: ' + (G.pname || '？？？'), 'ライバル: ' + rName()];
+    g.globalAlpha = 0.5; rect(54, 42, 58, 21, '#1a2a4a'); g.globalAlpha = 1;
     rows.forEach((r, i) => {
-      const y = 44 + i * 6, on = (G.titleRow | 0) === i, c = on ? '#fff6b0' : '#ffffff';
-      T('◀', 52, y, { size: 4, c, ol: '#1a3a5a' }); T('▶', 104, y, { size: 4, c, ol: '#1a3a5a' });
+      const y = 43.5 + i * 5, on = (G.titleRow | 0) === i, c = on ? '#fff6b0' : '#ffffff';
+      if (i < 2) { T('◀', 58, y, { size: 4, c, ol: '#1a3a5a' }); T('▶', 99, y, { size: 4, c, ol: '#1a3a5a' }); }
+      else if (on) T('▶', 58, y, { size: 4, c, ol: '#1a3a5a' });
       T(r, 80, y, { size: 4, c, ol: '#1a3a5a', al: 'center' });
     });
-    { const sw = HERO_COLORS[G.hcolor | 0] || HERO_COLORS[0]; rect(98, 51, 4, 4, '#1a3a5a'); rect(99, 52, 2, 2, sw.c); }
+    { const sw = HERO_COLORS[G.hcolor | 0] || HERO_COLORS[0]; rect(104, 49.5, 4, 4, '#1a3a5a'); rect(105, 50.5, 2, 2, sw.c); }
     if (G.hasSave) {
       const s = readSave();
       const st = STAGES[s && s.stage || 0];
-      T(`セーブ: ${st ? st.name : ''}  Lv${(s && s.party && s.party[0] && s.party[0].lv) || 1}`, 80, 54, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
+      T(`セーブ: ${st ? st.name : ''}  Lv${(s && s.party && s.party[0] && s.party[0].lv) || 1}`, 80, 66, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
     }
   }
   function drawVersus() {
@@ -2139,13 +2175,13 @@
     G.state = 'title';
     G.hasSave = !!readSave();
     G.gender = 0; G.hcolor = 0; G.titleRow = 0;
-    try { const h = JSON.parse(localStorage.getItem(HERO_KEY) || 'null'); if (h && typeof h === 'object') { G.gender = (h.g | 0) % HERO_GENDERS.length; G.hcolor = (h.c | 0) % HERO_COLORS.length; } } catch (e) {}
+    try { const h = JSON.parse(localStorage.getItem(HERO_KEY) || 'null'); if (h && typeof h === 'object') { G.gender = (h.g | 0) % HERO_GENDERS.length; G.hcolor = (h.c | 0) % HERO_COLORS.length; G.pname = String(h.n || '').slice(0, 6); G.rname = String(h.r || '').slice(0, 6); } } catch (e) {}
     if (params.has('hero')) { const [g, c] = params.get('hero').split(',').map(v => parseInt(v, 10) || 0); G.gender = g % HERO_GENDERS.length; G.hcolor = c % HERO_COLORS.length; }
     buildHero();
     if (params.has('skiptitle')) startGame(false);
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { G, setHero, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN };
+  window.NM = { G, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();
