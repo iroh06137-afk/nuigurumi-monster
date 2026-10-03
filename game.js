@@ -1702,7 +1702,7 @@
   const HEART = ['.##.##.', '#rr#rr#', '#rrrrr#', '.#rrr#.', '..#r#..', '...#...'];
   const HEART_S = ['.#.#.', '#####', '.###.', '..#..'];
   const ICONS = {
-    sword: ['ww.....ww', 'www...www', '.www.www.', '..wwwww..', '...www...', '..wwwww..', 'yyww.wwyy', 'yyy...yyy', 'yy.....yy'],
+    sword: ['w.......w', '.w.....w.', '..w...w..', '...w.w...', '....w....', '...w.w...', '.yw...wy.', '.yy...yy.', 'y.......y'],
     bolt:  ['.....yy..', '....yy...', '...yy....', '..yyyyy..', '....yy...', '...yy....', '..yy.....', '.yy......', '.y.......'],
     heart: ['.........', '.ww...ww.', 'wwww.wwww', 'wwwwwwwww', 'wwwwwwwww', '.wwwwwww.', '..wwwww..', '...www...', '....w....'],
     star:  ['....y....', '...yyy...', 'yyyyyyyyy', '.yyyyyyy.', '..yyyyy..', '..yyyyy..', '.yyy.yyy.', '.yy...yy.', '.........'],
