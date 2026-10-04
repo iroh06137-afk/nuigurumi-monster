@@ -211,6 +211,15 @@ const TUNING = {
   partyMax: 4,
 };
 
+// ---------- evolution ----------
+// at lv, a party plush evolves after a battle: new look (sprite key, loaded from SPRITES once the art is in), optional new name, stat bonus.
+// an entry does nothing until SPRITES[sprite] exists, so art can be dropped in one plush at a time. ★ names / numbers provisional
+const EVOLVE = {};
+for (const sp of ['goririn', 'kuuko', 'tsumaguro', 'oguri', 'kitsunen', 'usagin', 'kangarun', 'kaerun',
+                  'fukuron', 'tanukin', 'nyankon', 'wankon', 'pandan', 'pengiin', 'mokomon', 'ressan']) {
+  EVOLVE[sp] = { lv: 10, sprite: sp + '_evo', name: null, hp: 10, atk: 3, def: 3, spd: 1 };
+}
+
 // ---------- stages ----------
 // width = logical px. theme = background style in bg.js. spawns = wild plush (x = px from the left).
 // exit = sign text at the right end (walk past it to clear the stage). bench = full-heal spot. ★ = provisional

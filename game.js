@@ -371,7 +371,7 @@
         v: 3,
         party: G.party.map(m => ({
           sp: m.sp, hp: Math.round(m.hp), maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd,
-          lv: m.lv || 1, xp: m.xp || 0,
+          lv: m.lv || 1, xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.name,
         })),
         muted: !!G.muted,
         active: G.active,
@@ -593,7 +593,29 @@
   const player = newActor(40, 1, 'player');
   const comp = newActor(64, 1, 'goririn');
   const ally = () => G.party[G.active];
-  const compKey = () => SPECIES[ally().sp].sprite;
+  // evolved members use their EVOLVE sprite once that art is loaded (?evotest falls back to the base art for testing)
+  const EVOTEST = /[?&]evotest/.test(location.search);
+  function memberKey(m) {
+    const ev = m && m.evo && typeof EVOLVE !== 'undefined' && EVOLVE[m.sp];
+    if (ev && SPR[ev.sprite]) return ev.sprite;
+    return SPECIES[m.sp].sprite;
+  }
+  const compKey = () => memberKey(ally());
+  function* tryEvolve() {
+    const m = ally(), ev = typeof EVOLVE !== 'undefined' && EVOLVE[m.sp];
+    if (!ev || m.evo || (m.lv || 1) < ev.lv || !(SPR[ev.sprite] || EVOTEST)) return;
+    const before = m.name;
+    banner(`おや？ ${before}の ようすが…`, 2.2);
+    yield* wait(0.8);
+    for (let i = 0; i < 14; i++) { comp.flash = 0.2; yield* wait(0.1 + (i < 7 ? 0.06 : 0)); }
+    m.evo = 1;
+    if (ev.name) m.name = ev.name;
+    m.maxHp += ev.hp || 0; m.hp = m.maxHp; m.atk += ev.atk || 0; m.def += ev.def || 0; m.spd += ev.spd || 0;
+    comp.key = compKey();
+    burst(comp.x, GROUND - 14, 'spark', 16, '#ffffff'); SFX.level();
+    banner(`${before}は ${m.name !== before ? m.name + 'に ' : ''}しんかした！`, 2.4);
+    yield* wait(1.6);
+  }
 
   function spawnWilds() {
     G.wilds = STAGES[G.stage].spawns.map((s, i) => Object.assign(newActor(s.x, -1, SPECIES[s.sp].sprite), newMember(s.sp), {
@@ -756,7 +778,7 @@
     const s = fromSave ? readSave() : null;
     if (s && Array.isArray(s.party) && s.party.length) {
       G.party = s.party.filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.hp, {
-        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: m.lv || 1, xp: m.xp || 0,
+        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: m.lv || 1, xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.evo && m.name ? m.name : SPECIES[m.sp].name,
       }));
       if (!G.party.length) G.party = [newMember('goririn')];
       G.active = Math.max(0, Math.min(s.active | 0, G.party.length - 1));
@@ -812,7 +834,7 @@
     const s = readSave();
     if (s && Array.isArray(s.party) && s.party.length) {
       G.party = s.party.filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.maxHp || m.hp, {
-        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: m.lv || 1, xp: m.xp || 0,
+        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: m.lv || 1, xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.evo && m.name ? m.name : SPECIES[m.sp].name,
       }));
     }
     if (!G.party.length) G.party = [newMember('goririn')];
@@ -1482,14 +1504,14 @@
     yield* tween(v => { e.alpha = v; e.oy = (1 - v) * 3; }, 1, 0, 0.4);
     burst(e.x, GROUND - 12, 'spark', 10, '#fff2a0');
     e.alive = false;
-    if (ups) { SFX.level(); banner(`${ally().name}は レベル ${ally().lv} に あがった！`, 2.2); yield* wait(1.2); }
+    if (ups) { SFX.level(); banner(`${ally().name}は レベル ${ally().lv} に あがった！`, 2.2); yield* wait(1.2); yield* tryEvolve(); }
     persist();
     yield* wait(1.0);
     endBattle();
   }
   function* trainerNext(e, ups) {
     const B = G.battle;
-    if (ups) { SFX.level(); banner(`${ally().name}は レベル ${ally().lv} に あがった！`, 1.8); yield* wait(1.2); }
+    if (ups) { SFX.level(); banner(`${ally().name}は レベル ${ally().lv} に あがった！`, 1.8); yield* wait(1.2); yield* tryEvolve(); }
     yield* wait(0.5);
     const t = e.team.shift(), m = trainerMember(t);
     Object.assign(e, m, { key: SPECIES[t.sp].sprite, guard: false, st: 5 + rand() * 25, oy: 0, alpha: 0 });
@@ -2361,6 +2383,6 @@
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN };
+  window.NM = { G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();
