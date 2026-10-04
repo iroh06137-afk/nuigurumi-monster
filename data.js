@@ -237,6 +237,28 @@ for (const sp of ['goririn', 'kuuko', 'tsumaguro', 'oguri', 'kitsunen', 'usagin'
   EVOLVE[sp] = { lv: 10, sprite: sp + '_evo', name: null, hp: 10, atk: 3, def: 3, spd: 1 };
 }
 
+// evolved moves: strong gets a new name (+power), special becomes its own projectile move.
+// fx: fire / orb / beam / wave / multi (hits = number of shots; shape: 'glove' | 'orb'). ★ names other than
+// オグリ波 / くうこ弾 / 水ビーム / パンチングパンチ are provisional.
+const EVO_MOVES = {
+  goririn:   { strong: { name: 'メガドラミング', power: 28 },     special: { name: 'ゴリゴリ大砲',     fx: 'orb',   col: '#ff7ab0', big: 1 } },
+  kuuko:     { strong: { name: 'ぎゅうぎゅうハグ', power: 27 },   special: { name: 'くうこ弾',         fx: 'orb',   col: '#7ad8ff' } },
+  tsumaguro: { strong: { name: 'シャークひれぎり', power: 29 },   special: { name: '水ビーム',         fx: 'beam',  col: '#4ab8ff' } },
+  oguri:     { strong: { name: 'ゴールドスパート', power: 26 },   special: { name: 'オグリ波',         fx: 'fire',  col: '#ff8a2a' } },
+  kitsunen:  { strong: { name: 'こんこんスラッシュ', power: 24 }, special: { name: 'きつねび',         fx: 'fire',  col: '#6ad0ff' } },
+  usagin:    { strong: { name: 'たれみみれんだ', power: 23 },     special: { name: 'にんじんミサイル', fx: 'orb',   col: '#ff9a3a' } },
+  kangarun:  { strong: { name: 'ストレートパンチ', power: 28 },   special: { name: 'パンチングパンチ', fx: 'multi', shape: 'glove', hits: 3, col: '#e83a3a' } },
+  kaerun:    { strong: { name: 'ケロケロダイブ', power: 24 },     special: { name: 'あわあわバブル',   fx: 'multi', shape: 'orb', hits: 3, col: '#9ee8ff' } },
+  fukuron:   { strong: { name: 'よるの はばたき', power: 24 },    special: { name: 'ちょうおんぱ',     fx: 'wave',  col: '#c8a8ff' } },
+  tanukin:   { strong: { name: 'ばけばけダイブ', power: 25 },     special: { name: 'はっぱしゅりけん', fx: 'multi', shape: 'orb', hits: 3, col: '#6ad04a' } },
+  nyankon:   { strong: { name: 'ひっかきトルネード', power: 27 }, special: { name: 'にゃんにゃんけだま', fx: 'orb', col: '#ffb0d0' } },
+  wankon:    { strong: { name: 'わんわんスマッシュ', power: 28 }, special: { name: 'とおぼえ',         fx: 'wave',  col: '#ffe04a' } },
+  pandan:    { strong: { name: 'ごろごろメガプレス', power: 31 }, special: { name: 'ささのは みだれうち', fx: 'multi', shape: 'orb', hits: 3, col: '#7ae05a' } },
+  pengiin:   { strong: { name: 'こおりスライダー', power: 27 },   special: { name: 'こおりビーム',     fx: 'beam',  col: '#bff0ff' } },
+  mokomon:   { strong: { name: 'わたぐもメガボム', power: 26 },   special: { name: 'わたぐもサンダー', fx: 'beam',  col: '#ffe84a' } },
+  ressan:    { strong: { name: 'あかつち かかとおとし', power: 29 }, special: { name: 'ほのおの しっぽ', fx: 'fire',  col: '#ff5a2a' } },
+};
+
 // ---------- stages ----------
 // width = logical px. theme = background style in bg.js. spawns = wild plush (x = px from the left).
 // exit = sign text at the right end (walk past it to clear the stage). bench = full-heal spot. ★ = provisional

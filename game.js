@@ -268,7 +268,7 @@
   }
 
   // ---------- game state ----------
-  const G = {
+  const G = { fx: [],
     state: 'loading', t: 0, cam: 0, camT: 0, shakeT: 0,
     party: [], active: 0, wilds: [], particles: [], pops: [],
     banner: null, fade: 0, fadeSpeed: 0, battle: null, waitMode: true,
@@ -641,6 +641,15 @@
   }
 
   // ---------- stats / formulas ----------
+  function movesOf(m) {
+    const base = SPECIES[m.sp].moves, ev = m.evo && typeof EVO_MOVES !== 'undefined' && EVO_MOVES[m.sp];
+    return ev ? { attack: base.attack, strong: Object.assign({}, base.strong, ev.strong) } : base;
+  }
+  function specialOf(m) {
+    const st = movesOf(m).strong, ev = m.evo && typeof EVO_MOVES !== 'undefined' && EVO_MOVES[m.sp];
+    if (ev && ev.special) return Object.assign({ power: Math.round(st.power * 2), acc: 1 }, ev.special);
+    return { name: 'きずなの ' + st.name, power: Math.round(st.power * 1.9), acc: 1 };
+  }
   const stRate = u => TUNING.stBase + u.spd * TUNING.stPerSpd;
   function calcDmg(a, d, mv) { return Math.max(1, Math.round(mv.power * a.atk / (a.atk + d.def) * (0.85 + rand() * 0.3))); }
   function recruitChance(e) {
@@ -1422,16 +1431,15 @@
   function addBond(v) { const B = G.battle; if (!B || G.friend) return; const was = B.bond | 0; B.bond = Math.min(100, (B.bond || 0) + v); if (was < 100 && B.bond >= 100) { banner('きずなゲージ MAX！ ひっさつが つかえる！', 1.6); burst(comp.x, GROUND - 30, 'spark', 10, '#ffb04a'); } }
   function* specialAction() {
     const B = G.battle, a = ally(), e = B.w;
-    const base = SPECIES[a.sp].moves.strong;
-    const mv = { name: 'きずなの ' + base.name, power: Math.round(base.power * 1.9), acc: 1 };
+    const mv = specialOf(a);
     a.st -= COST.special; B.bond = 0;
     B.msg = `${a.name}の ひっさつ！`;
-    G.cutin = { t: 0, dur: 1.15, key: comp.key, name: base.name, who: a.name };
+    G.cutin = { t: 0, dur: 1.15, key: comp.key, name: mv.fx ? mv.name : mv.name.replace(/^きずなの /, ''), who: a.name };
     SFX.battleStart();
     while (G.cutin && G.cutin.t < G.cutin.dur) yield;
     G.cutin = null;
     banner(`${a.name}の ${mv.name}！`, 1.3);
-    yield* strike(comp, a, e, e, mv, 'special');
+    if (mv.fx) yield* fxStrike(comp, a, e, e, mv); else yield* strike(comp, a, e, e, mv, 'special');
     if (e.hp <= 0) yield* enemyFaint();
   }
   function aiChoose(e, a) {
@@ -1467,9 +1475,78 @@
     yield* tween(v => attA.ox = v, attA.ox, 0, 0.2);
     yield* wait(0.35);
   }
+  // projectile special (evolved forms): wind up, shoot mv.fx at the target, hit (mv.hits times)
+  function* fxStrike(attA, att, defA, def, mv) {
+    const dir = Math.sign(defA.x - attA.x) || 1, hits = mv.hits || 1;
+    yield* tween(v => attA.ox = v, 0, -dir * 4, 0.18); yield* wait(0.06);
+    attA.ox = dir * 2;
+    let total = Math.max(8, calcDmg(att, def, mv));
+    for (let h = 0; h < hits; h++) {
+      const f = { type: mv.fx, shape: mv.shape, big: mv.big, col: mv.col || '#ffb04a', dir, t: 0,
+        x0: attA.x + dir * 10, x1: defA.x - dir * 4, y: GROUND - 15 + (hits > 1 ? [0, -4, 3][h % 3] : 0),
+        dur: mv.fx === 'beam' ? 0.3 : hits > 1 ? 0.26 : mv.fx === 'fire' ? 0.42 : 0.4, hold: mv.fx === 'beam' || mv.fx === 'fire' ? 0.3 : 0 };
+      G.fx.push(f); SFX.hit('attack');
+      while (f.t < f.dur) yield;
+      let dmg = hits > 1 ? Math.max(1, Math.round(total / hits)) : total;
+      const guarded = !!def.guard;
+      if (guarded) { dmg = Math.max(1, Math.ceil(dmg / 2)); if (h === hits - 1) def.guard = false; }
+      def.hp = Math.max(0, def.hp - dmg);
+      defA.flash = 0.3; defA.shake = 0.5;
+      pop(defA.x, GROUND - 38 - h * 5, dmg, '#ffdf3a');
+      if (guarded && h === 0) pop(defA.x, GROUND - 46, 'GUARD', '#a8d8ff');
+      G.hitStop = h === hits - 1 ? 0.18 : 0.06; G.flashT = 0.1; G.shakeT = 0.4;
+      burst(defA.x - dir * 4, f.y + 1, 'spark', h === hits - 1 ? 16 : 8, f.col);
+      burst(defA.x - dir * 6, GROUND - 14, 'hit', 10);
+      SFX.hit('strong');
+      if (G.battle && def === ally()) addBond(dmg / def.maxHp * 110);
+      while (f.t < f.dur + f.hold) yield;
+      G.fx.splice(G.fx.indexOf(f), 1);
+      if (def.hp <= 0) break;
+    }
+    yield* tween(v => attA.ox = v, attA.ox, 0, 0.2);
+    yield* wait(0.35);
+  }
+  function drawFxShots(cam) {
+    for (const f of G.fx || []) {
+      const p = Math.min(1, f.t / f.dur), head = f.x0 + (f.x1 - f.x0) * p, y = Math.round(f.y), d = f.dir;
+      const X = v => Math.round(v - cam), tick = Math.floor(f.t * 20);
+      const fade = f.t > f.dur ? Math.max(0, 1 - (f.t - f.dur) / Math.max(0.01, f.hold)) : 1;
+      g.globalAlpha = fade;
+      if (f.type === 'beam') {
+        const a = Math.min(f.x0, head), b = Math.max(f.x0, head), w = Math.max(1, Math.round(b - a)), th = 5 + (tick % 2);
+        rect(X(a), y - (th >> 1), w, th, f.col); rect(X(a), y - 1, w, 2, '#ffffff');
+        rect(X(head) - 3, y - 4, 6, 8, f.col); rect(X(head) - 2, y - 2, 4, 4, '#ffffff');
+        rect(X(f.x0) - 2, y - 4, 4, 8, '#ffffff');
+      } else if (f.type === 'fire') {
+        const n = Math.max(1, Math.floor(Math.abs(head - f.x0) / 5));
+        for (let i = 0; i <= n; i++) {
+          const x = f.x0 + (head - f.x0) * (i / n), r = 1 + Math.round(3 * i / n) + ((i + tick) % 2);
+          const jy = ((i * 7 + tick * 3) % 5) - 2;
+          rect(X(x) - r, y + jy - r, r * 2, r * 2, f.col); if (r > 1) rect(X(x) - r + 1, y + jy - r + 1, r * 2 - 2, r * 2 - 2, '#ffe04a');
+          if (r > 2) rect(X(x) - 1, y + jy - 1, 2, 2, '#ffffff');
+        }
+      } else if (f.type === 'wave') {
+        for (let k = 0; k < 3; k++) {
+          const x = X(head - d * k * 7), h = 4 + k * 2 + (tick % 2);
+          rect(x, y - h, 2, h * 2, f.col); rect(x - d, y - h - 1, 2, 2, f.col); rect(x - d, y + h - 1, 2, 2, f.col);
+        }
+      } else if (f.shape === 'glove') {
+        const x = X(head);
+        rect(x - 4, y - 3, 7, 7, '#5a1010'); rect(x - 3, y - 2, 5, 5, f.col); rect(x - 2, y - 2, 2, 1, '#ffb0a0');
+        rect(x - 4 - d * 3, y - 2, 3, 5, '#ffffff');
+        rect(X(head - d * 8), y, 3, 1, '#ffffff'); rect(X(head - d * 12), y - 2, 2, 1, '#ffffff');
+      } else {   // orb (also multi with shape 'orb')
+        const r = (f.big ? 5 : f.type === 'multi' ? 3 : 4) + (tick % 2);
+        for (let k = 1; k <= 3; k++) { const tx = X(head - d * k * 4); rect(tx - 1, y - 1 + ((k + tick) % 3) - 1, 2, 2, f.col); }
+        rect(X(head) - r, y - r + 1, r * 2, r * 2 - 2, f.col); rect(X(head) - r + 1, y - r, r * 2 - 2, r * 2, f.col);
+        rect(X(head) - r + 2, y - r + 2, r * 2 - 4, r * 2 - 4, '#ffffff');
+      }
+      g.globalAlpha = 1;
+    }
+  }
   function* allyAttack(kind) {
     const B = G.battle, a = ally(), e = B.w;
-    const mv = SPECIES[a.sp].moves[kind];
+    const mv = movesOf(a)[kind];
     a.st -= COST[kind];
     B.msg = `${a.name}の ${mv.name}！`;
     banner(B.msg, 1.3);
@@ -1676,7 +1753,7 @@
     if (B.tutorial && !G.flags.tut) { G.flags.tut = 1; persist(); }
     player.ox = comp.ox = 0; player.moving = comp.moving = false; comp.alpha = 1;
     for (const m of G.party) { m.st = 0; m.guard = false; }
-    G.cutin = null;
+    G.cutin = null; G.fx = [];
     B.phase = 'done';
     G.lastResult = B.result;
     if (G.versus) {
@@ -1708,6 +1785,7 @@
     const B = G.battle;
     if (G.hitStop > 0) { G.hitStop -= dt; return; }
     if (G.cutin) G.cutin.t += dt;
+    if (G.fx) for (const f of G.fx) f.t += dt;
     if (B.phase === 'menu') return;
     if (!B.cur && B.q.length) B.cur = B.q.shift();
     if (B.cur) { const r = B.cur.next(); if (r.done) B.cur = null; }
@@ -2117,8 +2195,8 @@
       else if (c.kind === 'guard') l2 = 'ダメージ はんぶん';
       else if (c.kind === 'item') l2 = `もちもの ${bagList().reduce((n, k) => n + (G.items[k] | 0), 0)}こ`;
       else if (c.kind === 'swap') l2 = 'なかまと こうたい';
-      else if (c.kind === 'special') l2 = (B.bond | 0) >= 100 ? 'きずなの ' + SPECIES[a.sp].moves.strong.name : `きずな ${Math.floor(B.bond | 0)}%`;
-      else l2 = SPECIES[a.sp].moves[c.kind].name;
+      else if (c.kind === 'special') l2 = (B.bond | 0) >= 100 ? specialOf(a).name : `きずな ${Math.floor(B.bond | 0)}%`;
+      else l2 = movesOf(a)[c.kind].name;
     } else if (B.cur || B.phase === 'end') { [l1, l2] = wrap2(B.msg, 12); }
     else { l1 = 'スタミナ'; l2 = 'ためちゅう…'; }
     T(l1, 4.5, 79); T(l2, 4.5, 83.5);
@@ -2324,6 +2402,7 @@
     drawActor(player, cam);
     if (G.battle && G.battle.phase !== 'done') { drawBars(G.battle.w, G.battle.w, cam); if (comp.alpha > 0) drawBars(comp, ally(), cam); }
     if (G.battle && G.battle.phase !== 'done' && ally().guard && comp.alpha > 0) drawPattern(ICONS.shield, Math.round(comp.x - cam) - 4, GROUND - 42, { w: '#ffffff', y: '#6aa8e8' });
+    drawFxShots(cam);
     drawParticles(cam);
     drawNearMark(cam);
     drawBattleFx();
