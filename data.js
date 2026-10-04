@@ -20,6 +20,12 @@ const SPRITES = {
   fukuron: { src: 'assets/fukuron.png',  native: 1 }, // owl plush (zako). no walk sheet yet
   tanukin: { src: 'assets/tanukin.png',  native: 1 }, // tanuki plush (zako). no walk sheet yet
   kangarun: { src: 'assets/kangarun.png', native: 1 }, // kangaroo plush with ribbon + baby in pouch (rare). no walk sheet yet
+  nyankon: { src: 'assets/nyankon.png', native: 1 }, // calico cat plush (after town). no walk sheet yet
+  wankon: { src: 'assets/wankon.png', native: 1 }, // puppy plush (after town). no walk sheet yet
+  pandan: { src: 'assets/pandan.png', native: 1 }, // panda plush (after town). no walk sheet yet
+  pengiin: { src: 'assets/pengiin.png', native: 1 }, // penguin plush (after town). no walk sheet yet
+  mokomon: { src: 'assets/mokomon.png', native: 1 }, // sheep (わたぐも高原) plush (after town). no walk sheet yet
+  ressan: { src: 'assets/ressan.png', native: 1 }, // red panda (あかつち谷) plush (after town). no walk sheet yet
   oguri:   { src: 'assets/oguri-cap.png', native: -1, walk: { src: 'assets/oguri_walk.png', frames: 4, ms: 150 } }, // faces left; flipped for right
 };
 
@@ -94,6 +100,54 @@ const SPECIES = {
     moves: {
       attack: { name: 'ぽんぽこパンチ',   power: 10, acc: 0.96 },
       strong: { name: 'ばけばけアタック', power: 21, acc: 0.84 },
+    },
+  },
+  nyankon: {  // ★ provisional: after-town zako (cat), quick hitter
+    name: 'ニャンコン', sprite: 'nyankon',
+    hp: 38, atk: 11, def: 6, spd: 13, recruitBase: 0.14,
+    moves: {
+      attack: { name: 'ねこパンチ',       power: 11, acc: 0.97 },
+      strong: { name: 'ひっかきラッシュ', power: 23, acc: 0.85 },
+    },
+  },
+  wankon: {  // ★ provisional: after-town zako (dog), balanced
+    name: 'ワンコン', sprite: 'wankon',
+    hp: 42, atk: 11, def: 8, spd: 11, recruitBase: 0.14,
+    moves: {
+      attack: { name: 'あまがみ',         power: 11, acc: 0.96 },
+      strong: { name: 'わんわんタックル', power: 24, acc: 0.84 },
+    },
+  },
+  pandan: {  // ★ provisional: after-town (panda), heavy and slow
+    name: 'パンダン', sprite: 'pandan',
+    hp: 52, atk: 12, def: 10, spd: 6, recruitBase: 0.10,
+    moves: {
+      attack: { name: 'ささパンチ',       power: 12, acc: 0.95 },
+      strong: { name: 'ごろごろプレス',   power: 27, acc: 0.80 },
+    },
+  },
+  pengiin: {  // ★ provisional: after-town (penguin), sturdy
+    name: 'ペンギーン', sprite: 'pengiin',
+    hp: 40, atk: 10, def: 9, spd: 9, recruitBase: 0.14,
+    moves: {
+      attack: { name: 'つるつるアタック', power: 11, acc: 0.96 },
+      strong: { name: 'こおりスライド',   power: 23, acc: 0.85 },
+    },
+  },
+  mokomon: {  // ★ provisional: わたぐも高原 (sheep), very tanky
+    name: 'モコモン', sprite: 'mokomon',
+    hp: 46, atk: 9, def: 11, spd: 8, recruitBase: 0.15,
+    moves: {
+      attack: { name: 'もこもこタックル', power: 10, acc: 0.97 },
+      strong: { name: 'わたぐもボム',     power: 22, acc: 0.86 },
+    },
+  },
+  ressan: {  // ★ provisional: あかつち谷 (red panda), fast and strong
+    name: 'レッサン', sprite: 'ressan',
+    hp: 40, atk: 12, def: 7, spd: 12, recruitBase: 0.12,
+    moves: {
+      attack: { name: 'しっぽビンタ',     power: 12, acc: 0.96 },
+      strong: { name: 'あかつちキック',   power: 25, acc: 0.84 },
     },
   },
   kaido_boss: {  // ★ placeholder boss for ぬいぐるみ街道
@@ -231,14 +285,14 @@ const STAGES = [
   {
     // ★ provisional stage after the town (species / boss to be decided)
     id: 'kogen', name: 'わたぐも高原', width: 1300, theme: 'highland', bench: 640,
-    spawns: [ { sp: 'usagin', x: 260 }, { sp: 'fukuron', x: 430 }, { sp: 'kaerun', x: 600 }, { sp: 'tanukin', x: 820 }, { sp: 'kitsunen', x: 1000 }, { sp: 'tsumaguro', x: 1150 } ],
+    spawns: [ { sp: 'mokomon', x: 260 }, { sp: 'nyankon', x: 430 }, { sp: 'pengiin', x: 600 }, { sp: 'mokomon', x: 820 }, { sp: 'wankon', x: 1000 }, { sp: 'pandan', x: 1150 } ],
     exit: ['このさき', 'あかつち谷'],
     decor: [ { k: 'bush', x: 140 }, { k: 'tree', x: 360 }, { k: 'bush', x: 540 }, { k: 'tree', x: 760 }, { k: 'bush', x: 930 }, { k: 'tree', x: 1100 } ],
   },
   {
     // ★ provisional stage
     id: 'tani', name: 'あかつち谷', width: 1400, theme: 'canyon', bench: 700,
-    spawns: [ { sp: 'tanukin', x: 260 }, { sp: 'kitsunen', x: 440 }, { sp: 'tsumaguro', x: 620 }, { sp: 'fukuron', x: 880 }, { sp: 'usagin', x: 1060 }, { sp: 'kaerun', x: 1220 } ],
+    spawns: [ { sp: 'ressan', x: 260 }, { sp: 'wankon', x: 440 }, { sp: 'nyankon', x: 620 }, { sp: 'ressan', x: 880 }, { sp: 'pandan', x: 1060 }, { sp: 'pengiin', x: 1220 } ],
     exit: ['このさき', 'じゅんびちゅう'],
     decor: [ { k: 'bush', x: 180 }, { k: 'bush', x: 520 }, { k: 'bush', x: 960 }, { k: 'bush', x: 1300 } ],
   },
