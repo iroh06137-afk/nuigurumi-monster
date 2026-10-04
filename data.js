@@ -28,12 +28,12 @@ const SPRITES = {
   ressan: { src: 'assets/ressan.png', native: 1 }, // red panda (あかつち谷) plush (after town). no walk sheet yet
   // evolved forms (EVOLVE below), all right-facing 32x32
   goririn_evo: { src: 'assets/evo/goririn.png', native: 1, walk: { src: 'assets/evo/goririn_walk.png', frames: 4, ms: 150 } },
-  kuuko_evo: { src: 'assets/evo/kuuko.png', native: 1, walk: { src: 'assets/evo/kuuko_walk.png', frames: 4, ms: 150 } },
-  tsumaguro_evo: { src: 'assets/evo/tsumaguro.png', native: 1, walk: { src: 'assets/evo/tsumaguro_walk.png', frames: 4, ms: 150 } },
-  oguri_evo: { src: 'assets/evo/oguri.png', native: 1, walk: { src: 'assets/evo/oguri_walk.png', frames: 4, ms: 150 } },
+  kuuko_evo: { src: 'assets/evo/kuuko.png', native: 1, attack: { src: 'assets/evo/kuuko_attack.png', frames: 4 }, walk: { src: 'assets/evo/kuuko_walk.png', frames: 4, ms: 150 } },
+  tsumaguro_evo: { src: 'assets/evo/tsumaguro.png', native: 1, attack: { src: 'assets/evo/tsumaguro_attack.png', frames: 4 }, walk: { src: 'assets/evo/tsumaguro_walk.png', frames: 4, ms: 150 } },
+  oguri_evo: { src: 'assets/evo/oguri.png', native: 1, attack: { src: 'assets/evo/oguri_attack.png', frames: 4 }, walk: { src: 'assets/evo/oguri_walk.png', frames: 4, ms: 150 } },
   kitsunen_evo: { src: 'assets/evo/kitsunen.png', native: 1, walk: { src: 'assets/evo/kitsunen_walk.png', frames: 4, ms: 150 } },
   usagin_evo: { src: 'assets/evo/usagin.png', native: 1, walk: { src: 'assets/evo/usagin_walk.png', frames: 4, ms: 150 } },
-  kangarun_evo: { src: 'assets/evo/kangarun.png', native: 1, walk: { src: 'assets/evo/kangarun_walk.png', frames: 4, ms: 150 } },
+  kangarun_evo: { src: 'assets/evo/kangarun.png', native: 1, attack: { src: 'assets/evo/kangarun_attack.png', frames: 4 }, walk: { src: 'assets/evo/kangarun_walk.png', frames: 4, ms: 150 } },
   kaerun_evo: { src: 'assets/evo/kaerun.png', native: 1, walk: { src: 'assets/evo/kaerun_walk.png', frames: 4, ms: 150 } },
   fukuron_evo: { src: 'assets/evo/fukuron.png', native: 1, walk: { src: 'assets/evo/fukuron_walk.png', frames: 4, ms: 150 } },
   tanukin_evo: { src: 'assets/evo/tanukin.png', native: 1, walk: { src: 'assets/evo/tanukin_walk.png', frames: 4, ms: 150 } },
@@ -257,6 +257,15 @@ const EVO_MOVES = {
   pengiin:   { strong: { name: 'こおりスライダー', power: 27 },   special: { name: 'こおりビーム',     fx: 'beam',  col: '#bff0ff' } },
   mokomon:   { strong: { name: 'わたぐもメガボム', power: 26 },   special: { name: 'わたぐもサンダー', fx: 'beam',  col: '#ffe84a' } },
   ressan:    { strong: { name: 'あかつち かかとおとし', power: 29 }, special: { name: 'ほのおの しっぽ', fx: 'fire',  col: '#ff5a2a' } },
+};
+
+// pixel-art special fx by ドット絵作成くん (cast = attacker 4 frames; shot/hit = 128x32 sheets in assets/fx/<sp>_shot|hit.png).
+// cast.spawn = fx anchor inside each 32x32 cast frame (right-facing); fire = order steps that launch a shot; hold = step held until shots land.
+const FX_ART = {
+  oguri: {"cast": {"order": [0, 1, 2, 3], "dur": [270, 90, 360, 180], "spawn": [[29, 14], [30, 21], [31, 21], [30, 20]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16}, "hit": {"ms": 90}},
+  kuuko: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[17, 15], [30, 17], [31, 17], [17, 16]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 90, "ax": 21, "ay": 16}, "hit": {"ms": 90}},
+  tsumaguro: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 720, 180], "spawn": [[30, 22], [30, 24], [30, 24], [30, 23]], "fire": [1], "hold": 2}, "shot": {"mode": "beam", "ms": 80, "ax": 0, "ay": 16}, "hit": {"ms": 90}},
+  kangarun: {"cast": {"order": [0, 1, 2, 1, 3], "dur": [140, 110, 110, 160], "spawn": [[22, 17], [31, 17], [30, 15], [22, 18]], "fire": [1, 2, 3], "hold": null}, "shot": {"mode": "glove", "ms": 80, "ax": 19, "ay": 16}, "hit": {"ms": 80}},
 };
 
 // ---------- stages ----------

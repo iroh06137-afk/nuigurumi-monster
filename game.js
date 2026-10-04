@@ -266,6 +266,16 @@
     }
     SPR[key].walk = { frames, ms: def.ms };
   }
+  function sheetFrames(img, count) {
+    const frames = [];
+    for (let i = 0; i < count; i++) {
+      const [n, nx] = mk(32, 32); nx.drawImage(img, i * 32, 0, 32, 32, 0, 0, 32, 32);
+      const [f, fx] = mk(32, 32); fx.translate(32, 0); fx.scale(-1, 1); fx.drawImage(n, 0, 0);
+      frames.push({ n, f, wn: silhouette(n), wf: silhouette(f) });
+    }
+    return frames;
+  }
+  const FXIMG = {};   // sp -> { shot: frames, hit: frames } (pixel-art special fx)
 
   // ---------- game state ----------
   const G = { fx: [],
@@ -1439,7 +1449,8 @@
     while (G.cutin && G.cutin.t < G.cutin.dur) yield;
     G.cutin = null;
     banner(`${a.name}の ${mv.name}！`, 1.3);
-    if (mv.fx) yield* fxStrike(comp, a, e, e, mv); else yield* strike(comp, a, e, e, mv, 'special');
+    const art = mv.fx && a.evo && typeof FX_ART !== 'undefined' && FX_ART[a.sp] && FXIMG[a.sp] && SPR[comp.key] && SPR[comp.key].attack;
+    if (art) yield* artStrike(comp, a, e, e, mv, FX_ART[a.sp]); else if (mv.fx) yield* fxStrike(comp, a, e, e, mv); else yield* strike(comp, a, e, e, mv, 'special');
     if (e.hp <= 0) yield* enemyFaint();
   }
   function aiChoose(e, a) {
@@ -1506,8 +1517,83 @@
     yield* tween(v => attA.ox = v, attA.ox, 0, 0.2);
     yield* wait(0.35);
   }
+  // pixel-art special: plays the attacker's cast frames, launches shots on fire steps, holds until they land
+  function* artStrike(attA, att, defA, def, mv, A) {
+    const dir = Math.sign(defA.x - attA.x) || 1, C = A.cast, frames = SPR[attA.key].attack, img = FXIMG[att.sp];
+    const hits = C.fire.length, total = Math.max(8, calcDmg(att, def, mv));
+    const local = (fi) => { const p = C.spawn[fi]; return { x: attA.x + attA.ox - 16 + (dir > 0 ? p[0] : 31 - p[0]), y: GROUND - 30 + p[1] }; };
+    const shots = []; let landed = 0;
+    const land = (f) => {
+      f.landed = true; landed++;
+      let dmg = hits > 1 ? Math.max(1, Math.round(total / hits)) : total;
+      const guarded = !!def.guard;
+      if (guarded) { dmg = Math.max(1, Math.ceil(dmg / 2)); if (landed === hits) def.guard = false; }
+      def.hp = Math.max(0, def.hp - dmg);
+      defA.flash = 0.3; defA.shake = 0.5;
+      pop(defA.x, GROUND - 38 - (landed - 1) * 5, dmg, '#ffdf3a');
+      if (guarded && landed === 1) pop(defA.x, GROUND - 46, 'GUARD', '#a8d8ff');
+      const hx = f.mode === 'glove' ? f.x1 + dir * 9 : f.mode === 'beam' ? defA.x - dir * 4 : defA.x - dir * 2;
+      const hy = f.mode === 'glove' ? f.y1 : GROUND - 14;
+      G.fx.push({ type: 'ahit', img: img.hit, ms: A.hit.ms, x: hx, y: hy, t: 0, dur: 4 * A.hit.ms / 1000, hold: 0, loopHit: f.mode === 'beam' ? f : null });
+      G.hitStop = landed === hits ? 0.16 : 0.05; G.flashT = 0.08; G.shakeT = 0.35;
+      SFX.hit('strong');
+      if (G.battle && def === ally()) addBond(dmg / def.maxHp * 110);
+    };
+    const launch = (fi, k) => {
+      const p = local(fi), m = A.shot.mode;
+      const f = { type: 'ashot', mode: m, img: img.shot, ms: A.shot.ms, ax: A.shot.ax, ay: A.shot.ay, dir, t: 0, hold: 0,
+        x0: p.x, y0: p.y, x1: defA.x - dir * 6, y1: p.y };
+      if (m === 'fly') { f.y1 = GROUND - 15; f.dur = Math.max(0.15, Math.abs(f.x1 - f.x0) / 170); }
+      else if (m === 'beam') { f.x1 = defA.x - dir * 2; f.dur = 0.14; f.hold = 99; }
+      else { const off = [[-22, -7], [-20, 5], [-14, -1]][k % 3]; f.x1 = defA.x + dir * off[0]; f.y1 = GROUND - 14 + off[1]; f.dur = Math.max(0.08, Math.abs(f.x1 - f.x0) / 260); f.hold = 0.12; }
+      shots.push(f); G.fx.push(f); SFX.hit('attack');
+    };
+    const tick = () => { for (const f of shots) if (!f.landed && f.t >= f.dur && def.hp > 0) land(f); };
+    const hold = function* (sec) { let t = 0; while (t < sec) { tick(); yield; t += DT; } };
+    for (let k = 0; k < C.order.length; k++) {
+      const fi = C.order[k];
+      attA.pose = frames[fi];
+      if (C.fire.includes(k)) launch(fi, C.fire.indexOf(k));
+      yield* hold(C.dur[fi] / 1000);
+      if (k === C.hold) while (shots.some(f => !f.landed) && def.hp > 0) { tick(); yield; }
+      if (k === C.hold) for (const f of shots) if (f.mode === 'beam') f.hold = Math.min(f.hold, f.t - f.dur + 0.12);
+    }
+    attA.pose = null;
+    let t = 0; while ((shots.some(f => !f.landed) && def.hp > 0 && t < 1.5) || G.fx.some(f => f.type === 'ahit')) { tick(); yield; t += DT; }
+    for (const f of shots) { const i = G.fx.indexOf(f); if (i >= 0) G.fx.splice(i, 1); }
+    yield* tween(v => attA.ox = v, attA.ox, 0, 0.15);
+    yield* wait(0.3);
+  }
+  function drawArtFx(cam, layer) {
+    for (let i = G.fx.length - 1; i >= 0; i--) {
+      const f = G.fx[i];
+      if (f.type === 'ahit') {
+        if (layer !== 'top') continue;
+        let fi = Math.floor(f.t * 1000 / f.ms);
+        if (f.loopHit && G.fx.includes(f.loopHit)) fi %= 2;
+        else if (fi >= 4) { G.fx.splice(i, 1); continue; }
+        g.drawImage(f.img[fi].n, Math.round(f.x - cam) - 16, Math.round(f.y) - 16);
+        continue;
+      }
+      if (f.type !== 'ashot' || layer !== 'under') continue;
+      const life = f.t - f.dur;
+      if (life > f.hold) { if (f.landed) G.fx.splice(i, 1); continue; }
+      const fr = f.img[Math.floor(f.t * 1000 / f.ms) % 4], im = f.dir > 0 ? fr.n : fr.f;
+      const ax = f.dir > 0 ? f.ax : 31 - f.ax;
+      const p = Math.min(1, f.t / f.dur), hx = f.x0 + (f.x1 - f.x0) * p, hy = f.y0 + (f.y1 - f.y0) * p;
+      if (f.mode === 'beam') {
+        const a = Math.min(f.x0, hx), len = Math.round(Math.abs(hx - f.x0)), y = Math.round(f.y0) - f.ay;
+        for (let o = 0; o < len; o += 32) {
+          const w = Math.min(32, len - o), sx = f.dir > 0 ? 0 : 32 - w;
+          const dx = f.dir > 0 ? Math.round(a - cam) + o : Math.round(a - cam) + len - o - w;
+          g.drawImage(im, sx, 0, w, 32, dx, y, w, 32);
+        }
+      } else g.drawImage(im, Math.round(hx - cam) - ax, Math.round(hy) - f.ay);
+    }
+  }
   function drawFxShots(cam) {
     for (const f of G.fx || []) {
+      if (f.type === 'ashot' || f.type === 'ahit') continue;
       const p = Math.min(1, f.t / f.dur), head = f.x0 + (f.x1 - f.x0) * p, y = Math.round(f.y), d = f.dir;
       const X = v => Math.round(v - cam), tick = Math.floor(f.t * 20);
       const fade = f.t > f.dur ? Math.max(0, 1 - (f.t - f.dur) / Math.max(0.01, f.hold)) : 1;
@@ -1753,7 +1839,7 @@
     if (B.tutorial && !G.flags.tut) { G.flags.tut = 1; persist(); }
     player.ox = comp.ox = 0; player.moving = comp.moving = false; comp.alpha = 1;
     for (const m of G.party) { m.st = 0; m.guard = false; }
-    G.cutin = null; G.fx = [];
+    G.cutin = null; G.fx = []; comp.pose = null;
     B.phase = 'done';
     G.lastResult = B.result;
     if (G.versus) {
@@ -1877,6 +1963,7 @@
     g.globalAlpha = a.alpha;
     let fr = s;
     if (s.walk && a.moving && a.y === 0) fr = s.walk.frames[Math.floor(a.walkT * 1000 / s.walk.ms) % s.walk.frames.length];
+    if (a.pose) fr = a.pose;
     g.drawImage(flip ? fr.f : fr.n, x, y);
     if (a.flash > 0 && Math.floor(a.flash * 25) % 2 === 0) g.drawImage(flip ? fr.wf : fr.wn, x, y);
     g.globalAlpha = 1;
@@ -2397,12 +2484,14 @@
     drawRoadProps(cam); drawTown(cam); drawSign(cam); drawBench(cam);
     for (const a of G.npcs) drawActor(a, cam);
     for (const w of G.wilds) if (w.alive && w.alpha > 0) drawActor(w, cam);
+    drawArtFx(cam, 'under');
     if (G.battle && G.battle.w) drawActor(G.battle.w, cam);
     drawActor(comp, cam);
     drawActor(player, cam);
     if (G.battle && G.battle.phase !== 'done') { drawBars(G.battle.w, G.battle.w, cam); if (comp.alpha > 0) drawBars(comp, ally(), cam); }
     if (G.battle && G.battle.phase !== 'done' && ally().guard && comp.alpha > 0) drawPattern(ICONS.shield, Math.round(comp.x - cam) - 4, GROUND - 42, { w: '#ffffff', y: '#6aa8e8' });
     drawFxShots(cam);
+    drawArtFx(cam, 'top');
     drawParticles(cam);
     drawNearMark(cam);
     drawBattleFx();
@@ -2465,6 +2554,9 @@
     resize();
     await Promise.all(Object.entries(SPRITES).map(([k, s]) => loadImg(s.src).then(img => prepSprite(k, img))));
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.walk).map(([k, s]) => loadImg(s.walk.src).then(img => prepWalk(k, img, s.walk)).catch(() => {})));
+    await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.attack).map(([k, s]) => loadImg(s.attack.src).then(img => { SPR[k].attack = sheetFrames(img, s.attack.frames); }).catch(() => {})));
+    if (typeof FX_ART !== 'undefined') await Promise.all(Object.keys(FX_ART).map(sp => Promise.all([loadImg('assets/fx/' + sp + '_shot.png'), loadImg('assets/fx/' + sp + '_hit.png')])
+      .then(([a, b]) => { FXIMG[sp] = { shot: sheetFrames(a, 4), hit: sheetFrames(b, 4) }; }).catch(() => {})));
     await Promise.all(Object.entries(PROP_IMGS).map(([k, src]) => loadImg(src).then(img => { PROPS[k] = img; }).catch(e => console.warn(e))));
     makeNpcSprites();
     try { await document.fonts.load('8px Misaki'); await document.fonts.load("8px 'DotGothic16'"); } catch (e) { console.warn('font load failed', e); }
