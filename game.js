@@ -106,7 +106,7 @@
   function ctlMode() {
     if (G.state === 'field' || G.state === 'map') return 'field';
     if (G.state === 'title') return G.nameEdit ? 'off' : 'title';
-    if (G.state === 'menu') return 'back';
+    if (G.state === 'menu' || G.state === 'versus' || G.state === 'netroom') return 'back';
     if (G.state === 'battle' && G.battle) {
       const ph = G.battle.phase;
       if (ph === 'menu' || ph === 'swap') return 'back';
@@ -334,18 +334,20 @@
   document.getElementById('nameNo').addEventListener('click', () => closeName(false));
   nameIn.addEventListener('keydown', e => { if (e.key === 'Escape') closeName(false); });
   // title = logo screen (G.titleScreen 0) -> setup screen (1): start / gender / color / name / rival / erase
-  const SETUP_ROWS = 6, SETUP = { x: 70, y: 9, w: 86, rowY: 13, rowH: 11 };
+  const SETUP_ROWS = 7, SETUP = { x: 70, y: 7, w: 86, rowY: 11, rowH: 10 };
+  const ROW = { start: 0, vs: 1, gender: 2, color: 3, name: 4, rival: 5, erase: 6 };
   function openSetup() { G.titleScreen = 1; G.titleRow = 0; G.wipeAsk = 0; SFX.blip(); }
   function titleConfirm() {
     if (G.state !== 'title' || G.nameEdit) return;
     if (!G.titleScreen) openSetup(); else titleRowAction(G.titleRow | 0);
   }
   function titleRowAction(row) {
-    if (row === 0) { startGame(G.hasSave); return; }
-    if (row === 1) { setHero(1, 0); return; }
-    if (row === 2) { setHero(0, 1); return; }
-    if (row === 3 || row === 4) { openName(row === 4 ? 'r' : 'p'); return; }
-    if (row !== 5 || G.wiped) return;
+    if (row === ROW.start) { startGame(G.hasSave); return; }
+    if (row === ROW.vs) { startVersus(); return; }
+    if (row === ROW.gender) { setHero(1, 0); return; }
+    if (row === ROW.color) { setHero(0, 1); return; }
+    if (row === ROW.name || row === ROW.rival) { openName(row === ROW.rival ? 'r' : 'p'); return; }
+    if (row !== ROW.erase || G.wiped) return;
     if (G.wipeAsk && G.t - G.wipeAsk < 4) {   // second press within 4s: erase everything and restart fresh
       wipeSave(); try { localStorage.removeItem(HERO_KEY); } catch (e) {}
       G.wipeAsk = 0; G.wiped = true;
@@ -670,12 +672,13 @@
       if (['ArrowUp', 'KeyW'].includes(code)) { G.titleRow = ((G.titleRow | 0) + SETUP_ROWS - 1) % SETUP_ROWS; G.wipeAsk = 0; SFX.blip(); return; }
       if (['ArrowDown', 'KeyS', 'Tab'].includes(code)) { G.titleRow = ((G.titleRow | 0) + 1) % SETUP_ROWS; G.wipeAsk = 0; SFX.blip(); return; }
       const d = (code === 'ArrowLeft' || code === 'KeyA') ? -1 : (code === 'ArrowRight' || code === 'KeyD') ? 1 : 0;
-      if (d && G.titleRow === 1) { setHero(d, 0); return; }
-      if (d && G.titleRow === 2) { setHero(0, d); return; }
+      if (d && G.titleRow === ROW.gender) { setHero(d, 0); return; }
+      if (d && G.titleRow === ROW.color) { setHero(0, d); return; }
       if (ok) titleRowAction(G.titleRow | 0);
       return;
     }
     if (G.state === 'versus') { versusKey(code); return; }
+    if (G.state === 'netroom') { if (['Escape', 'KeyX', 'Backspace'].includes(code)) closeNet(); return; }
     if (code === 'KeyT') { G.waitMode = !G.waitMode; banner(G.waitMode ? 'WAITモード：えらぶ あいだ じかんが とまる' : 'ACTIVEモード：えらぶ あいだも あいては うごく', 1.6); return; }
     if (code === 'KeyM') {
       G.muted = !G.muted; persist(); SFX.setMuted(); SFX.start();
@@ -758,6 +761,7 @@
     e.preventDefault();
     const [x, y] = logicalPos(e);
     if (G.state === 'versus') { versusTap(x, y); return; }
+    if (G.state === 'netroom') { if (y > 56) closeNet(); return; }
     if (G.chip && inRect(x, y, G.chip)) { onKey('KeyT'); return; }
     if (G.state === 'talk') { talkNext(); return; }
     if (G.state === 'battle' && tutOn()) { tutStep(1); return; }
@@ -849,6 +853,8 @@
     if (code === 'Escape' || code === 'KeyN') { G.state = 'title'; return; }
     if (code === 'KeyF') { V.friend = !V.friend; return; }
     if (code === 'ArrowDown' || code === 'KeyS') V.focus = 1;
+    if (code === 'ArrowUp' || code === 'KeyW') V.focus = 0;
+    if (code === 'Tab') V.focus = V.focus ? 0 : 1;
     const dir = (code === 'ArrowRight' || code === 'KeyD') ? 1 : (code === 'ArrowLeft' || code === 'KeyA') ? -1 : 0;
     if (dir) {
       if (V.focus === 0) V.mine = (V.mine + dir + G.party.length) % G.party.length;
@@ -858,11 +864,22 @@
   }
   function versusTap(x, y) {
     const V = G.vs; if (!V) return;
-    if (y < 28) { V.focus = 0; V.mine = (V.mine + 1) % G.party.length; }
+    if (y < 30) { V.focus = 0; V.mine = (V.mine + 1) % G.party.length; }
     else if (y < 38) { V.focus = 1; V.opp = (V.opp + 1) % VS_LIST.length; }
-    else if (y < 48) V.friend = !V.friend;
-    else if (x > 96) openNet(true);
-    else launchVersus();
+    else if (y < 47) V.friend = !V.friend;
+    else if (y < 62) { const b = VS_BTNS.find(b => x >= b.x && x < b.x + b.w); if (b) b.act(); }
+    else if (y > 64) G.state = 'title';
+  }
+  const VS_BTNS = [
+    { x: 12, w: 42, label: 'はじめる', c: '#2a7a1a', act: () => launchVersus() },
+    { x: 58, w: 44, label: 'へやを つくる', c: '#3c6ad8', act: () => openNet(true) },
+    { x: 106, w: 42, label: 'へやに はいる', c: '#3c6ad8', act: () => openNet(false) },
+  ];
+  function closeNet() {
+    try { if (NET.conn) { netSend({ t: 'bye' }); NET.conn.close(); } } catch (e) {}
+    try { if (NET.peer) NET.peer.destroy(); } catch (e) {}
+    NET.peer = NET.conn = null; NET.status = ''; G.netRole = null;
+    G.state = 'versus'; SFX.blip();
   }
   function launchVersus() {
     const V = G.vs; if (!V) return;
@@ -2227,7 +2244,7 @@
     if (PROPS.ui_frame) drawNine(PROPS.ui_frame, 8, P.x, P.y, P.w, ph);
     else { rect(P.x, P.y, P.w, ph, '#5a3418'); rect(P.x + 1, P.y + 1, P.w - 2, ph - 2, '#f4e4b8'); }
     const asking = G.wipeAsk && G.t - G.wipeAsk < 4;
-    const rows = [G.hasSave ? 'つづきから' : 'はじめる', (HERO_GENDERS[G.gender | 0] || HERO_GENDERS[0]).name,
+    const rows = [G.hasSave ? 'つづきから' : 'はじめる', 'たいせん', (HERO_GENDERS[G.gender | 0] || HERO_GENDERS[0]).name,
       (HERO_COLORS[G.hcolor | 0] || HERO_COLORS[0]).name, 'なまえ: ' + (G.pname || '？？？'), 'ライバル: ' + rName(),
       G.wiped ? 'けしました' : asking ? 'もういちどで けす' : 'データを けす'];
     rows.forEach((r, i) => {
@@ -2237,11 +2254,11 @@
         else rect(P.x + 2, y, P.w - 4, P.rowH - 1, '#ffd23a');
         if (PROPS.ui_cursor) g.drawImage(PROPS.ui_cursor, (Math.floor(G.t * 3) % 2) * 6, 0, 6, 7, P.x - 7, y + 2, 6, 7);
       }
-      const c = i === 5 && (G.wiped || asking) ? '#d0302a' : i === 0 ? '#2a7a1a' : '#5a3418';
-      if (i === 1 || i === 2) { T('◀', P.x + 3, y + 1.5, { size: 8, c: '#5a3418' }); T('▶', P.x + P.w - 10, y + 1.5, { size: 8, c: '#5a3418' }); }
-      if (i === 2) { const sw = HERO_COLORS[G.hcolor | 0] || HERO_COLORS[0]; rect(P.x + 13, y + 2, 7, 7, '#5a3418'); rect(P.x + 14, y + 3, 5, 5, sw.c); }
+      const c = i === ROW.erase && (G.wiped || asking) ? '#d0302a' : i === ROW.start ? '#2a7a1a' : i === ROW.vs ? '#3c6ad8' : '#5a3418';
+      if (i === ROW.gender || i === ROW.color) { T('◀', P.x + 3, y + 1.5, { size: 8, c: '#5a3418' }); T('▶', P.x + P.w - 10, y + 1.5, { size: 8, c: '#5a3418' }); }
+      if (i === ROW.color) { const sw = HERO_COLORS[G.hcolor | 0] || HERO_COLORS[0]; rect(P.x + 13, y + 2, 7, 7, '#5a3418'); rect(P.x + 14, y + 3, 5, 5, sw.c); }
       const sz = measure(r, 8) <= P.w - 8 ? 8 : 4;
-      T(r, P.x + P.w / 2 + (i === 2 ? 4 : 0), y + (sz === 8 ? 1.5 : 3.5), { size: sz, c, al: 'center' });
+      T(r, P.x + P.w / 2 + (i === ROW.color ? 4 : 0), y + (sz === 8 ? 1 : 3), { size: sz, c, al: 'center' });
     });
     T(TOUCH ? 'つぎ:えらぶ ◀▶:かえる けってい:きめる' : '↑↓:えらぶ ←→:かえる Enter:きめる X:もどる', 80, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
   }
@@ -2254,9 +2271,12 @@
     const opp = SPECIES[VS_LIST[V.opp]];
     T((V.focus === 0 ? '▶ ' : '  ') + 'じぶん  ' + (mine ? mine.name : '?') + ' Lv' + ((mine && mine.lv) || 1), 16, 24, { size: 4, c: '#5a3418' });
     T((V.focus === 1 ? '▶ ' : '  ') + 'あいて  ' + (opp ? opp.name : '?'), 16, 32, { size: 4, c: '#5a3418' });
-    T(V.friend ? 'F ともだち対戦' : 'F コンピュータ', 16, 40, { size: 4, c: V.friend ? '#e84878' : '#7a5a38' });
-    T(TOUCH ? 'したをタップで開始' : 'ENTER で開始', 16, 48, { size: 4, c: '#7a5a38' });
-    T('O オンライン', 100, 48, { size: 4, c: '#3c6ad8' });
+    T((TOUCH ? '' : 'F ') + (V.friend ? 'ともだちが うごかす' : 'コンピュータが うごかす'), 16, 40, { size: 4, c: V.friend ? '#e84878' : '#7a5a38' });
+    for (const b of VS_BTNS) {
+      rect(b.x, 48, b.w, 12, '#5a3418'); rect(b.x + 1, 49, b.w - 2, 10, b.c);
+      T(b.label, b.x + b.w / 2, 51, { size: 4, c: '#ffffff', al: 'center' });
+    }
+    T(TOUCH ? 'タップで えらぶ / もどる' : 'Enter:はじめる  O:へやを つくる  J:へやに はいる  Esc:もどる', 80, 66, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
     const mineSp = mine && mine.sp;
     const oppSp = VS_LIST[V.opp];
     const blit = (sp, x, face) => {
@@ -2286,7 +2306,9 @@
       rect(10, 18, 140, 36, '#fff6e4');
       T('オンラインたいせん', 80, 22, { size: 4, c: '#3c6ad8', al: 'center' });
       T(NET.status || 'せつぞく中', 80, 32, { size: 8, c: '#5a3418', al: 'center' });
-      T('コードを ともだちに つたえて', 80, 44, { size: 4, c: '#7a5a38', al: 'center' });
+      T(G.netRole === 'host' ? 'この コードを ともだちに つたえて' : 'あいてを まってるよ', 80, 44, { size: 4, c: '#7a5a38', al: 'center' });
+      rect(60, 60, 40, 12, '#5a3418'); rect(61, 61, 38, 10, '#a05a3a');
+      T('やめる', 80, 63, { size: 4, c: '#ffffff', al: 'center' });
       vctx.drawImage(low, 0, 0, W * S, H * S); flushText();
       return;
     }
@@ -2383,6 +2405,6 @@
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN };
+  window.NM = { G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();
