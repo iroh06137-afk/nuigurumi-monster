@@ -27,22 +27,22 @@ const SPRITES = {
   mokomon: { src: 'assets/mokomon.png', native: 1 }, // sheep (わたぐも高原) plush (after town). no walk sheet yet
   ressan: { src: 'assets/ressan.png', native: 1 }, // red panda (あかつち谷) plush (after town). no walk sheet yet
   // evolved forms (EVOLVE below), all right-facing 32x32
-  goririn_evo: { src: 'assets/evo/goririn.png', native: 1, walk: { src: 'assets/evo/goririn_walk.png', frames: 4, ms: 150 } },
+  goririn_evo: { src: 'assets/evo/goririn.png', native: 1, attack: { src: 'assets/evo/goririn_attack.png', frames: 4 }, walk: { src: 'assets/evo/goririn_walk.png', frames: 4, ms: 150 } },
   kuuko_evo: { src: 'assets/evo/kuuko.png', native: 1, attack: { src: 'assets/evo/kuuko_attack.png', frames: 4 }, walk: { src: 'assets/evo/kuuko_walk.png', frames: 4, ms: 150 } },
   tsumaguro_evo: { src: 'assets/evo/tsumaguro.png', native: 1, attack: { src: 'assets/evo/tsumaguro_attack.png', frames: 4 }, walk: { src: 'assets/evo/tsumaguro_walk.png', frames: 4, ms: 150 } },
   oguri_evo: { src: 'assets/evo/oguri.png', native: 1, attack: { src: 'assets/evo/oguri_attack.png', frames: 4 }, walk: { src: 'assets/evo/oguri_walk.png', frames: 4, ms: 150 } },
-  kitsunen_evo: { src: 'assets/evo/kitsunen.png', native: 1, walk: { src: 'assets/evo/kitsunen_walk.png', frames: 4, ms: 150 } },
-  usagin_evo: { src: 'assets/evo/usagin.png', native: 1, walk: { src: 'assets/evo/usagin_walk.png', frames: 4, ms: 150 } },
+  kitsunen_evo: { src: 'assets/evo/kitsunen.png', native: 1, attack: { src: 'assets/evo/kitsunen_attack.png', frames: 4 }, walk: { src: 'assets/evo/kitsunen_walk.png', frames: 4, ms: 150 } },
+  usagin_evo: { src: 'assets/evo/usagin.png', native: 1, attack: { src: 'assets/evo/usagin_attack.png', frames: 4 }, walk: { src: 'assets/evo/usagin_walk.png', frames: 4, ms: 150 } },
   kangarun_evo: { src: 'assets/evo/kangarun.png', native: 1, attack: { src: 'assets/evo/kangarun_attack.png', frames: 4 }, walk: { src: 'assets/evo/kangarun_walk.png', frames: 4, ms: 150 } },
-  kaerun_evo: { src: 'assets/evo/kaerun.png', native: 1, walk: { src: 'assets/evo/kaerun_walk.png', frames: 4, ms: 150 } },
-  fukuron_evo: { src: 'assets/evo/fukuron.png', native: 1, walk: { src: 'assets/evo/fukuron_walk.png', frames: 4, ms: 150 } },
-  tanukin_evo: { src: 'assets/evo/tanukin.png', native: 1, walk: { src: 'assets/evo/tanukin_walk.png', frames: 4, ms: 150 } },
-  nyankon_evo: { src: 'assets/evo/nyankon.png', native: 1, walk: { src: 'assets/evo/nyankon_walk.png', frames: 4, ms: 150 } },
-  wankon_evo: { src: 'assets/evo/wankon.png', native: 1, walk: { src: 'assets/evo/wankon_walk.png', frames: 4, ms: 150 } },
-  pandan_evo: { src: 'assets/evo/pandan.png', native: 1, walk: { src: 'assets/evo/pandan_walk.png', frames: 4, ms: 150 } },
-  pengiin_evo: { src: 'assets/evo/pengiin.png', native: 1, walk: { src: 'assets/evo/pengiin_walk.png', frames: 4, ms: 150 } },
-  mokomon_evo: { src: 'assets/evo/mokomon.png', native: 1, walk: { src: 'assets/evo/mokomon_walk.png', frames: 4, ms: 150 } },
-  ressan_evo: { src: 'assets/evo/ressan.png', native: 1, walk: { src: 'assets/evo/ressan_walk.png', frames: 4, ms: 150 } },
+  kaerun_evo: { src: 'assets/evo/kaerun.png', native: 1, attack: { src: 'assets/evo/kaerun_attack.png', frames: 4 }, walk: { src: 'assets/evo/kaerun_walk.png', frames: 4, ms: 150 } },
+  fukuron_evo: { src: 'assets/evo/fukuron.png', native: 1, attack: { src: 'assets/evo/fukuron_attack.png', frames: 4 }, walk: { src: 'assets/evo/fukuron_walk.png', frames: 4, ms: 150 } },
+  tanukin_evo: { src: 'assets/evo/tanukin.png', native: 1, attack: { src: 'assets/evo/tanukin_attack.png', frames: 4 }, walk: { src: 'assets/evo/tanukin_walk.png', frames: 4, ms: 150 } },
+  nyankon_evo: { src: 'assets/evo/nyankon.png', native: 1, attack: { src: 'assets/evo/nyankon_attack.png', frames: 4 }, walk: { src: 'assets/evo/nyankon_walk.png', frames: 4, ms: 150 } },
+  wankon_evo: { src: 'assets/evo/wankon.png', native: 1, attack: { src: 'assets/evo/wankon_attack.png', frames: 4 }, walk: { src: 'assets/evo/wankon_walk.png', frames: 4, ms: 150 } },
+  pandan_evo: { src: 'assets/evo/pandan.png', native: 1, attack: { src: 'assets/evo/pandan_attack.png', frames: 4 }, walk: { src: 'assets/evo/pandan_walk.png', frames: 4, ms: 150 } },
+  pengiin_evo: { src: 'assets/evo/pengiin.png', native: 1, attack: { src: 'assets/evo/pengiin_attack.png', frames: 4 }, walk: { src: 'assets/evo/pengiin_walk.png', frames: 4, ms: 150 } },
+  mokomon_evo: { src: 'assets/evo/mokomon.png', native: 1, attack: { src: 'assets/evo/mokomon_attack.png', frames: 4 }, walk: { src: 'assets/evo/mokomon_walk.png', frames: 4, ms: 150 } },
+  ressan_evo: { src: 'assets/evo/ressan.png', native: 1, attack: { src: 'assets/evo/ressan_attack.png', frames: 4 }, walk: { src: 'assets/evo/ressan_walk.png', frames: 4, ms: 150 } },
   oguri:   { src: 'assets/oguri-cap.png', native: -1, walk: { src: 'assets/oguri_walk.png', frames: 4, ms: 150 } }, // faces left; flipped for right
 };
 
@@ -262,10 +262,22 @@ const EVO_MOVES = {
 // pixel-art special fx by ドット絵作成くん (cast = attacker 4 frames; shot/hit = 128x32 sheets in assets/fx/<sp>_shot|hit.png).
 // cast.spawn = fx anchor inside each 32x32 cast frame (right-facing); fire = order steps that launch a shot; hold = step held until shots land.
 const FX_ART = {
-  oguri: {"cast": {"order": [0, 1, 2, 3], "dur": [270, 90, 360, 180], "spawn": [[29, 14], [30, 21], [31, 21], [30, 20]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16}, "hit": {"ms": 90}},
-  kuuko: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[17, 15], [30, 17], [31, 17], [17, 16]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 90, "ax": 21, "ay": 16}, "hit": {"ms": 90}},
+  oguri: {"cast": {"order": [0, 1, 2, 3], "dur": [270, 90, 360, 180], "spawn": [[29, 14], [30, 21], [31, 21], [30, 20]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90}},
+  kuuko: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[17, 15], [30, 17], [31, 17], [17, 16]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 90, "ax": 21, "ay": 16, "spd": 160}, "hit": {"ms": 90}},
   tsumaguro: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 720, 180], "spawn": [[30, 22], [30, 24], [30, 24], [30, 23]], "fire": [1], "hold": 2}, "shot": {"mode": "beam", "ms": 80, "ax": 0, "ay": 16}, "hit": {"ms": 90}},
   kangarun: {"cast": {"order": [0, 1, 2, 1, 3], "dur": [140, 110, 110, 160], "spawn": [[22, 17], [31, 17], [30, 15], [22, 18]], "fire": [1, 2, 3], "hold": null}, "shot": {"mode": "glove", "ms": 80, "ax": 19, "ay": 16}, "hit": {"ms": 80}},
+  goririn: {"cast": {"order": [0, 1, 2, 3], "dur": [220, 80, 320, 200], "spawn": [[28, 7], [30, 17], [31, 17], [28, 26]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 15, "ay": 15, "spd": 220}, "hit": {"ms": 90}},
+  kitsunen: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 320, 180], "spawn": [[24, 22], [30, 21], [31, 21], [28, 21]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 21, "ay": 18, "spd": 155}, "hit": {"ms": 90}},
+  usagin: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 320, 180], "spawn": [[26, 11], [30, 19], [31, 19], [27, 22]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 20, "ay": 16, "spd": 200}, "hit": {"ms": 90}},
+  kaerun: {"cast": {"order": [0, 1, 2, 1, 2, 1, 3], "dur": [220, 120, 110, 180], "spawn": [[25, 14], [26, 13], [25, 13], [25, 13]], "fire": [1, 3, 5], "hold": null}, "shot": {"mode": "fly", "ms": 100, "ax": 18, "ay": 16, "spd": 125}, "hit": {"ms": 80}},
+  fukuron: {"cast": {"order": [0, 1, 2, 3], "dur": [220, 90, 400, 180], "spawn": [[26, 11], [26, 11], [26, 11], [26, 11]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 70, "ax": 2, "ay": 16, "spd": 200}, "hit": {"ms": 80}},
+  tanukin: {"cast": {"order": [0, 1, 2, 1, 2, 1, 3], "dur": [200, 90, 110, 180], "spawn": [[28, 10], [31, 20], [29, 14], [28, 23]], "fire": [1, 3, 5], "hold": null}, "shot": {"mode": "fly", "ms": 60, "ax": 18, "ay": 16, "spd": 220}, "hit": {"ms": 70}},
+  nyankon: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[26, 21], [28, 21], [29, 21], [27, 21]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 90, "ax": 21, "ay": 17, "spd": 160}, "hit": {"ms": 90}},
+  wankon: {"cast": {"order": [0, 1, 2, 3], "dur": [270, 90, 450, 180], "spawn": [[25, 14], [26, 11], [26, 11], [25, 12]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 16, "ay": 16, "spd": 170}, "hit": {"ms": 90}},
+  pandan: {"cast": {"order": [0, 1, 2, 1, 3], "dur": [180, 110, 110, 160], "spawn": [[26, 15], [28, 20], [28, 17], [25, 21]], "fire": [1, 2, 3], "hold": null}, "shot": {"mode": "fly", "ms": 70, "ax": 19, "ay": 16, "spd": 220}, "hit": {"ms": 80}},
+  pengiin: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 720, 180], "spawn": [[26, 14], [26, 15], [26, 16], [26, 15]], "fire": [1], "hold": 2}, "shot": {"mode": "beam", "ms": 80, "ax": 0, "ay": 16}, "hit": {"ms": 90}},
+  mokomon: {"cast": {"order": [0, 1, 2, 3], "dur": [270, 90, 720, 180], "spawn": [[25, 16], [25, 14], [25, 13], [25, 14]], "fire": [1], "hold": 2}, "shot": {"mode": "beam", "ms": 60, "ax": 0, "ay": 16}, "hit": {"ms": 80}},
+  ressan: {"cast": {"order": [0, 1, 2, 3], "dur": [220, 90, 300, 180], "spawn": [[6, 17], [8, 11], [8, 10], [8, 13]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 16, "ay": 16, "spd": 190}, "hit": {"ms": 90}},
 };
 
 // ---------- stages ----------

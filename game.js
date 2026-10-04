@@ -1543,7 +1543,7 @@
       const p = local(fi), m = A.shot.mode;
       const f = { type: 'ashot', mode: m, img: img.shot, ms: A.shot.ms, ax: A.shot.ax, ay: A.shot.ay, dir, t: 0, hold: 0,
         x0: p.x, y0: p.y, x1: defA.x - dir * 6, y1: p.y };
-      if (m === 'fly') { f.y1 = GROUND - 15; f.dur = Math.max(0.15, Math.abs(f.x1 - f.x0) / 170); }
+      if (m === 'fly') { f.y1 = GROUND - 15; f.dur = Math.max(0.15, Math.abs(f.x1 - f.x0) / (A.shot.spd || 170)); }
       else if (m === 'beam') { f.x1 = defA.x - dir * 2; f.dur = 0.14; f.hold = 99; }
       else { const off = [[-22, -7], [-20, 5], [-14, -1]][k % 3]; f.x1 = defA.x + dir * off[0]; f.y1 = GROUND - 14 + off[1]; f.dur = Math.max(0.08, Math.abs(f.x1 - f.x0) / 260); f.hold = 0.12; }
       shots.push(f); G.fx.push(f); SFX.hit('attack');
