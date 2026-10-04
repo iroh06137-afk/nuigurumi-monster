@@ -241,7 +241,7 @@ for (const sp of ['goririn', 'kuuko', 'tsumaguro', 'oguri', 'kitsunen', 'usagin'
 // fx: fire / orb / beam / wave / multi (hits = number of shots; shape: 'glove' | 'orb'). ★ names other than
 // オグリ波 / くうこ弾 / 水ビーム / パンチングパンチ are provisional.
 const EVO_MOVES = {
-  goririn:   { strong: { name: 'メガドラミング', power: 28 },     special: { name: 'ゴリゴリ大砲',     fx: 'orb',   col: '#ff7ab0', big: 1 } },
+  goririn:   { strong: { name: 'メガドラミング', power: 28 },     special: { name: 'メガパンチ',       fx: 'multi', shape: 'glove', hits: 1, col: '#ff7ab0' } },
   kuuko:     { strong: { name: 'ぎゅうぎゅうハグ', power: 27 },   special: { name: 'くうこ弾',         fx: 'orb',   col: '#7ad8ff' } },
   tsumaguro: { strong: { name: 'シャークひれぎり', power: 29 },   special: { name: '水ビーム',         fx: 'beam',  col: '#4ab8ff' } },
   oguri:     { strong: { name: 'ゴールドスパート', power: 26 },   special: { name: 'オグリ波',         fx: 'fire',  col: '#ff8a2a' } },
