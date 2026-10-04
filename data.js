@@ -27,22 +27,22 @@ const SPRITES = {
   mokomon: { src: 'assets/mokomon.png', native: 1 }, // sheep (わたぐも高原) plush (after town). no walk sheet yet
   ressan: { src: 'assets/ressan.png', native: 1 }, // red panda (あかつち谷) plush (after town). no walk sheet yet
   // evolved forms (EVOLVE below), all right-facing 32x32
-  goririn_evo: { src: 'assets/evo/goririn.png', native: 1 },
-  kuuko_evo: { src: 'assets/evo/kuuko.png', native: 1 },
-  tsumaguro_evo: { src: 'assets/evo/tsumaguro.png', native: 1 },
-  oguri_evo: { src: 'assets/evo/oguri.png', native: 1 },
-  kitsunen_evo: { src: 'assets/evo/kitsunen.png', native: 1 },
-  usagin_evo: { src: 'assets/evo/usagin.png', native: 1 },
-  kangarun_evo: { src: 'assets/evo/kangarun.png', native: 1 },
-  kaerun_evo: { src: 'assets/evo/kaerun.png', native: 1 },
-  fukuron_evo: { src: 'assets/evo/fukuron.png', native: 1 },
-  tanukin_evo: { src: 'assets/evo/tanukin.png', native: 1 },
-  nyankon_evo: { src: 'assets/evo/nyankon.png', native: 1 },
-  wankon_evo: { src: 'assets/evo/wankon.png', native: 1 },
-  pandan_evo: { src: 'assets/evo/pandan.png', native: 1 },
-  pengiin_evo: { src: 'assets/evo/pengiin.png', native: 1 },
-  mokomon_evo: { src: 'assets/evo/mokomon.png', native: 1 },
-  ressan_evo: { src: 'assets/evo/ressan.png', native: 1 },
+  goririn_evo: { src: 'assets/evo/goririn.png', native: 1, walk: { src: 'assets/evo/goririn_walk.png', frames: 4, ms: 150 } },
+  kuuko_evo: { src: 'assets/evo/kuuko.png', native: 1, walk: { src: 'assets/evo/kuuko_walk.png', frames: 4, ms: 150 } },
+  tsumaguro_evo: { src: 'assets/evo/tsumaguro.png', native: 1, walk: { src: 'assets/evo/tsumaguro_walk.png', frames: 4, ms: 150 } },
+  oguri_evo: { src: 'assets/evo/oguri.png', native: 1, walk: { src: 'assets/evo/oguri_walk.png', frames: 4, ms: 150 } },
+  kitsunen_evo: { src: 'assets/evo/kitsunen.png', native: 1, walk: { src: 'assets/evo/kitsunen_walk.png', frames: 4, ms: 150 } },
+  usagin_evo: { src: 'assets/evo/usagin.png', native: 1, walk: { src: 'assets/evo/usagin_walk.png', frames: 4, ms: 150 } },
+  kangarun_evo: { src: 'assets/evo/kangarun.png', native: 1, walk: { src: 'assets/evo/kangarun_walk.png', frames: 4, ms: 150 } },
+  kaerun_evo: { src: 'assets/evo/kaerun.png', native: 1, walk: { src: 'assets/evo/kaerun_walk.png', frames: 4, ms: 150 } },
+  fukuron_evo: { src: 'assets/evo/fukuron.png', native: 1, walk: { src: 'assets/evo/fukuron_walk.png', frames: 4, ms: 150 } },
+  tanukin_evo: { src: 'assets/evo/tanukin.png', native: 1, walk: { src: 'assets/evo/tanukin_walk.png', frames: 4, ms: 150 } },
+  nyankon_evo: { src: 'assets/evo/nyankon.png', native: 1, walk: { src: 'assets/evo/nyankon_walk.png', frames: 4, ms: 150 } },
+  wankon_evo: { src: 'assets/evo/wankon.png', native: 1, walk: { src: 'assets/evo/wankon_walk.png', frames: 4, ms: 150 } },
+  pandan_evo: { src: 'assets/evo/pandan.png', native: 1, walk: { src: 'assets/evo/pandan_walk.png', frames: 4, ms: 150 } },
+  pengiin_evo: { src: 'assets/evo/pengiin.png', native: 1, walk: { src: 'assets/evo/pengiin_walk.png', frames: 4, ms: 150 } },
+  mokomon_evo: { src: 'assets/evo/mokomon.png', native: 1, walk: { src: 'assets/evo/mokomon_walk.png', frames: 4, ms: 150 } },
+  ressan_evo: { src: 'assets/evo/ressan.png', native: 1, walk: { src: 'assets/evo/ressan_walk.png', frames: 4, ms: 150 } },
   oguri:   { src: 'assets/oguri-cap.png', native: -1, walk: { src: 'assets/oguri_walk.png', frames: 4, ms: 150 } }, // faces left; flipped for right
 };
 
