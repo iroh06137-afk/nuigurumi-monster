@@ -1058,6 +1058,12 @@
     });
     burst(a.x, GROUND - 12, 'spark', 8, '#ffffff');
     startBattle(w);
+    // the trainer steps back behind their plush, facing the player; walks home after the battle
+    const B = G.battle;
+    a.homeX = a.homeX != null ? a.homeX : a.x;
+    a.tx = clamp(B.enemyTX + B.side * 22, 12, WORLD_W - 12); a.tface = -B.side;
+    if (B.side > 0) a.tx = Math.min(a.tx, G.camT + W - 10); else a.tx = Math.max(a.tx, G.camT + 10);
+    B.trainerActor = a;
   }
   function openShop() { G.menu = { kind: 'shop', sel: 0 }; G.state = 'menu'; }
   function bagList() { return Object.keys(ITEMS).filter(k => (G.items[k] | 0) > 0); }
@@ -1859,6 +1865,7 @@
   }
   function endBattle() {
     const B = G.battle;
+    if (B.trainerActor) { const t = B.trainerActor; t.tx = t.homeX; t.tface = -1; }
     if (B.w.alive) { B.w.home = B.w.x; B.w.alpha = 1; B.w.moving = false; }
     if (B.w.tutMob) G.wilds = G.wilds.filter(w => w !== B.w);
     if (B.tutorial && !G.flags.tut) { G.flags.tut = 1; persist(); }
@@ -1936,7 +1943,14 @@
     document.body.classList.toggle('has-save', !!G.hasSave);
     animActor(player, dt); animActor(comp, dt);
     for (const w of G.wilds) animActor(w, dt);
-    for (const a of G.npcs) animActor(a, dt);
+    for (const a of G.npcs) {
+      if (a.tx != null) {
+        const d = a.tx - a.x;
+        if (Math.abs(d) > 0.5) { a.face = Math.sign(d); a.moving = true; a.x += Math.sign(d) * Math.min(Math.abs(d), 70 * dt); }
+        else { a.x = a.tx; a.tx = null; a.moving = false; if (a.tface) a.face = a.tface; a.tface = 0; }
+      }
+      animActor(a, dt);
+    }
     G.cam += (G.camT - G.cam) * Math.min(1, dt * 6);
     if (Math.abs(G.camT - G.cam) < 0.3) G.cam = G.camT;
     if (G.shakeT > 0) G.shakeT -= dt;
