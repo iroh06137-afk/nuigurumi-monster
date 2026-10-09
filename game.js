@@ -1037,7 +1037,9 @@
     const m = newMember(t.sp), lv = t.lv || 1, mul = t.mul || 1;
     for (let l = 2; l <= lv; l++) { m.maxHp += 4; m.atk += 1; m.def += 1; if (l % 2 === 0) m.spd += 1; }
     m.maxHp = Math.round(m.maxHp * mul); m.atk = Math.round(m.atk * mul); m.def = Math.round(m.def * mul);
-    m.hp = m.maxHp; m.lv = lv;
+    const ev = t.evo && typeof EVOLVE !== 'undefined' && EVOLVE[t.sp];
+    if (ev) { m.evo = 1; if (ev.name) m.name = ev.name; m.maxHp += ev.hp || 0; m.atk += ev.atk || 0; m.def += ev.def || 0; m.spd += ev.spd || 0; }
+    m.hp = m.maxHp; m.lv = lv; m.spUsed = false;
     return m;
   }
   function startTrainer(a) {
@@ -1045,7 +1047,7 @@
     const team = (bt.team || [{ sp: bt.sp, lv: 1, mul: bt.mul }]).slice();
     const first = team.shift(), m = trainerMember(first);
     const side = Math.sign(a.x - player.x) || 1;
-    const w = Object.assign(newActor(a.x, -side, SPECIES[first.sp].sprite), m, {
+    const w = Object.assign(newActor(a.x, -side, memberKey(m)), m, {
       alive: true, home: a.x, spawnX: a.x, cool: false, wt: 1, wdir: 0, toHome: false,
       trainer: d.id, trainerName: d.name, reward: bt.reward, team, teamTotal: team.length + 1,
     });
@@ -1454,7 +1456,7 @@
     if (e.hp <= 0) yield* enemyFaint();
   }
   function aiChoose(e, a) {
-    const strong = SPECIES[e.sp].moves.strong;
+    const strong = movesOf(e).strong;
     const est = strong.power * e.atk / (e.atk + a.def);
     if (a.hp <= est * 1.05 && rand() < 0.7) return 'strong';
     return rand() < 0.3 ? 'strong' : 'attack';
@@ -1641,7 +1643,7 @@
   }
   function* enemyAttack(kind) {
     const B = G.battle, e = B.w, a = ally();
-    const mv = SPECIES[e.sp].moves[kind];
+    const mv = movesOf(e)[kind];
     e.st -= COST[kind];
     B.msg = `${e.name}の ${mv.name}！`;
     banner('あいての ' + B.msg, 1.3);
@@ -1650,11 +1652,23 @@
   }
   function* enemyTurn() {
     const B = G.battle, e = B.w, a = ally();
-    const kind = aiChoose(e, a), mv = SPECIES[e.sp].moves[kind];
+    if (e.evo && !e.spUsed && e.hp < e.maxHp * 0.75 && rand() < 0.5) { yield* enemySpecial(); return; }
+    const kind = aiChoose(e, a), mv = movesOf(e)[kind];
     e.st -= COST[kind];
     B.msg = `${e.name}の ${mv.name}！`;
     banner(B.msg, 1.3);
     yield* strike(e, e, comp, a, mv, kind);
+    if (a.hp <= 0) yield* allyFaint();
+  }
+  // evolved trainer plush: one projectile special per member
+  function* enemySpecial() {
+    const B = G.battle, e = B.w, a = ally(), mv = specialOf(e);
+    e.spUsed = true; e.st -= COST.special || COST.strong;
+    B.msg = `${e.name}の ${mv.name}！`;
+    banner('あいての ' + B.msg, 1.4);
+    SFX.battleStart(); yield* wait(0.5);
+    const art = mv.fx && typeof FX_ART !== 'undefined' && FX_ART[e.sp] && FXIMG[e.sp] && SPR[e.key] && SPR[e.key].attack;
+    if (art) yield* artStrike(e, e, comp, a, mv, FX_ART[e.sp]); else if (mv.fx) yield* fxStrike(e, e, comp, a, mv); else yield* strike(e, e, comp, a, mv, 'special');
     if (a.hp <= 0) yield* allyFaint();
   }
   function* enemyFaint() {
@@ -1694,7 +1708,7 @@
     if (ups) { SFX.level(); banner(`${ally().name}は レベル ${ally().lv} に あがった！`, 1.8); yield* wait(1.2); yield* tryEvolve(); }
     yield* wait(0.5);
     const t = e.team.shift(), m = trainerMember(t);
-    Object.assign(e, m, { key: SPECIES[t.sp].sprite, guard: false, st: 5 + rand() * 25, oy: 0, alpha: 0 });
+    Object.assign(e, m, { key: memberKey(m), guard: false, st: 5 + rand() * 25, oy: 0, alpha: 0 });
     banner(`${e.trainerName}は ${m.name} Lv${m.lv}を くりだした！`, 1.8);
     burst(e.x, GROUND - 12, 'spark', 8, '#ffffff');
     yield* tween(v => { e.alpha = v; }, 0, 1, 0.35);
