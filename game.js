@@ -438,6 +438,8 @@
       if (!ctx) {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return null;
+        // iPhone: play even when the silent switch is on (iOS 17+ audioSession)
+        try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
         ctx = new AC();
         master = ctx.createGain(); master.gain.value = 0.7; master.connect(ctx.destination);
         bgmGain = ctx.createGain(); bgmGain.gain.value = G.muted ? 0 : 0.22; bgmGain.connect(master);
