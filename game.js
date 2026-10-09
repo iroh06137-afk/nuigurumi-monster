@@ -285,7 +285,7 @@
     hoverBtn: -1, bg: null, signNear: false, forceRecruit: null,
     stage: 0, unlocked: 1, cleared: [], mapSel: 0, mapPos: null, benchUsed: false, benchNear: false, bgCache: {},
     hasSave: false, muted: false, versus: false, vs: null, saveFlash: 0, 
-    coins: 50, items: {}, beaten: [], flags: {}, cookie: false, npcs: [], near: null, talk: null, menu: null,
+    coins: 50, items: {}, beaten: [], fought: [], flags: {}, cookie: false, npcs: [], near: null, talk: null, menu: null,
   };
   const SAVE_KEY = 'nm_save_v1', HERO_KEY = 'nm_hero';
   // ---- hero (gender + color) ----
@@ -830,7 +830,7 @@
   function enterStage(i, opts) {
     const st = STAGES[i];
     const heal = !opts || opts.heal !== false;
-    G.stage = i; WORLD_W = st.width;
+    G.stage = i; WORLD_W = st.width; G.fought = [];
     G.bg = G.bgCache[st.id] || (G.bgCache[st.id] = BG.build(st.width, st.theme, st.theme === 'town' && PROPS.town_road ? Object.assign({}, PROPS, { road: PROPS.town_road }) : PROPS));
     spawnWilds();
     G.npcs = (st.npcs || []).map(n => {
@@ -1013,7 +1013,8 @@
     const n = G.near; if (!n) return;
     if (n.type === 'npc') {
       const d = n.a.def;
-      if (d.battle && !G.beaten.includes(d.id)) say(d.name, d.lines, () => startTrainer(n.a));
+      // town trainers: one battle per visit; leaving and re-entering the stage allows a rematch (half coins)
+      if (d.battle && !G.fought.includes(d.id)) say(d.name, G.beaten.includes(d.id) ? [['また しょうぶだ！']].concat(d.lines.slice(-1)) : d.lines, () => startTrainer(n.a));
       else say(d.name, (d.battle && d.after) || d.lines);
       return;
     }
@@ -1694,8 +1695,9 @@
       yield* trainerNext(e, ups);
       return;
     }
-    const coins = G.friend ? 0 : e.trainer ? e.reward : boss ? 30 : Math.max(2, Math.round(xp / 3));
+    const coins = G.friend ? 0 : e.trainer ? (G.beaten.includes(e.trainer) ? Math.round(e.reward / 2) : e.reward) : boss ? 30 : Math.max(2, Math.round(xp / 3));
     G.coins += coins;
+    if (e.trainer && !G.fought.includes(e.trainer)) G.fought.push(e.trainer);
     if (e.trainer && !G.beaten.includes(e.trainer)) G.beaten.push(e.trainer);
     SFX.win();
     banner(e.trainer ? `${e.trainerName}に かった！ +${coins}コイン`
