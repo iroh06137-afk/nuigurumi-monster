@@ -1034,22 +1034,24 @@
   }
   // a trainer's plush at a given level: same growth as ours (grantXp), times an optional multiplier
   function trainerMember(t) {
-    const m = newMember(t.sp), lv = t.lv || 1, mul = t.mul || 1;
+    const m = newMember(t.sp), lv = t.lv || 1, mul = t.mul || 1, style = t.style;
     for (let l = 2; l <= lv; l++) { m.maxHp += 4; m.atk += 1; m.def += 1; if (l % 2 === 0) m.spd += 1; }
     m.maxHp = Math.round(m.maxHp * mul); m.atk = Math.round(m.atk * mul); m.def = Math.round(m.def * mul);
     const ev = t.evo && typeof EVOLVE !== 'undefined' && EVOLVE[t.sp];
     if (ev) { m.evo = 1; if (ev.name) m.name = ev.name; m.maxHp += ev.hp || 0; m.atk += ev.atk || 0; m.def += ev.def || 0; m.spd += ev.spd || 0; }
+    if (style === 'fast') m.spd += 2;
+    if (style === 'guard') m.def += 2;
     m.hp = m.maxHp; m.lv = lv; m.spUsed = false;
     return m;
   }
   function startTrainer(a) {
     const d = a.def, bt = d.battle;
     const team = (bt.team || [{ sp: bt.sp, lv: 1, mul: bt.mul }]).slice();
-    const first = team.shift(), m = trainerMember(first);
+    const first = team.shift(), m = trainerMember(Object.assign({ style: bt.style }, first));
     const side = Math.sign(a.x - player.x) || 1;
     const w = Object.assign(newActor(a.x, -side, memberKey(m)), m, {
       alive: true, home: a.x, spawnX: a.x, cool: false, wt: 1, wdir: 0, toHome: false,
-      trainer: d.id, trainerName: d.name, reward: bt.reward, team, teamTotal: team.length + 1,
+      trainer: d.id, trainerName: d.name, style: bt.style, reward: bt.reward, team, teamTotal: team.length + 1,
     });
     burst(a.x, GROUND - 12, 'spark', 8, '#ffffff');
     startBattle(w);
@@ -1459,7 +1461,9 @@
     const strong = movesOf(e).strong;
     const est = strong.power * e.atk / (e.atk + a.def);
     if (a.hp <= est * 1.05 && rand() < 0.7) return 'strong';
-    return rand() < 0.3 ? 'strong' : 'attack';
+    if (e.style === 'guard' && !e.guard && e.hp < e.maxHp * 0.6 && rand() < 0.35) return 'guard';
+    const p = e.style === 'fast' ? 0.12 : e.style === 'power' ? 0.6 : 0.3;
+    return rand() < p ? 'strong' : 'attack';
   }
   function* strike(attA, att, defA, def, mv, kind) {
     const dir = Math.sign(defA.x - attA.x) || 1;
@@ -1652,8 +1656,11 @@
   }
   function* enemyTurn() {
     const B = G.battle, e = B.w, a = ally();
-    if (e.evo && !e.spUsed && e.hp < e.maxHp * 0.75 && rand() < 0.5) { yield* enemySpecial(); return; }
-    const kind = aiChoose(e, a), mv = movesOf(e)[kind];
+    const early = e.style === 'trick';
+    if (e.evo && !e.spUsed && e.hp < e.maxHp * (early ? 1.01 : 0.75) && rand() < (early ? 0.6 : 0.5)) { yield* enemySpecial(); return; }
+    const kind = aiChoose(e, a);
+    if (kind === 'guard') { e.st -= COST.guard; e.guard = true; B.msg = `${e.name}は みを まもっている！`; banner(B.msg, 1.2); burst(e.x, GROUND - 16, 'spark', 6, '#a8d8ff'); yield* wait(0.6); return; }
+    const mv = movesOf(e)[kind];
     e.st -= COST[kind];
     B.msg = `${e.name}の ${mv.name}！`;
     banner(B.msg, 1.3);
@@ -1707,7 +1714,7 @@
     const B = G.battle;
     if (ups) { SFX.level(); banner(`${ally().name}は レベル ${ally().lv} に あがった！`, 1.8); yield* wait(1.2); yield* tryEvolve(); }
     yield* wait(0.5);
-    const t = e.team.shift(), m = trainerMember(t);
+    const t = e.team.shift(), m = trainerMember(Object.assign({ style: e.style }, t));
     Object.assign(e, m, { key: memberKey(m), guard: false, st: 5 + rand() * 25, oy: 0, alpha: 0 });
     banner(`${e.trainerName}は ${m.name} Lv${m.lv}を くりだした！`, 1.8);
     burst(e.x, GROUND - 12, 'spark', 8, '#ffffff');

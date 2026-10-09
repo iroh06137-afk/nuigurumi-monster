@@ -328,23 +328,24 @@ const STAGES = [
     ],
     // look = placeholder recolor of the boy until the 5 new human sprites are approved
     npcs: [
+      // style: fast = cheap hits + spd, guard = guards when hurt, power = strong moves, trick = early special
       // rival = the gender the player didn't pick (default colors). resolved in enterStage
       { id: 'rival', x: 120, rival: {
-          girl: { name: 'ユイ', look: 'girl', battle: { team: [{ sp: 'kitsunen', lv: 7 }, { sp: 'usagin', lv: 10, evo: 1 }], reward: 80 },
+          girl: { name: 'ユイ', look: 'girl', battle: { style: 'fast', team: [{ sp: 'kitsunen', lv: 7 }, { sp: 'usagin', lv: 10, evo: 1 }], reward: 80 },
             lines: [['あっ {NAME}も ぬいぐるみと たびしてるの？', 'わたしの キツネンと しょうぶよ！']],
             after: [['くやしい… {NAME} つよいね', 'おみせで どうぐも そろえておきなよ']] },
-          boy: { name: 'ハルト', look: 'player', battle: { team: [{ sp: 'kitsunen', lv: 7 }, { sp: 'usagin', lv: 10, evo: 1 }], reward: 80 },
+          boy: { name: 'ハルト', look: 'player', battle: { style: 'fast', team: [{ sp: 'kitsunen', lv: 7 }, { sp: 'usagin', lv: 10, evo: 1 }], reward: 80 },
             lines: [['よう {NAME}！ ぬいぐるみと たびしてるのか', 'おれの キツネンと しょうぶだ！']],
             after: [['くっそー… {NAME} やるな！', 'おみせで どうぐも そろえておけよ']] } } },
-      { id: 'sota', x: 310, name: 'むしとりの ソウタ', look: 'mushitori', battle: { team: [{ sp: 'kaerun', lv: 7 }, { sp: 'fukuron', lv: 7 }, { sp: 'kaerun', lv: 10, evo: 1 }], reward: 70 },
+      { id: 'sota', x: 310, name: 'むしとりの ソウタ', look: 'mushitori', battle: { style: 'guard', team: [{ sp: 'kaerun', lv: 7 }, { sp: 'fukuron', lv: 8 }, { sp: 'tsumaguro', lv: 10, evo: 1 }], reward: 70 },
         lines: [['おっ その ぬいぐるみ つよそう！', 'ぼくの カエルンと しょうぶだ！']],
         after: [['まけたー！', 'もっと きたえて くるよ']] },
       { id: 'reika', x: 520, name: 'おねえさん レイカ', look: 'oneesan',
         lines: [['かった どうぐは {BAG}で', 'いつでも つかえるわ'], ['ひとの ぬいぐるみは', 'なかまに できないから きをつけてね']] },
-      { id: 'akane', x: 680, name: 'からてかの アカネ', look: 'karate', battle: { team: [{ sp: 'usagin', lv: 8 }, { sp: 'kangarun', lv: 11, evo: 1 }], reward: 100 },
+      { id: 'akane', x: 680, name: 'からてかの アカネ', look: 'karate', battle: { style: 'power', team: [{ sp: 'goririn', lv: 8 }, { sp: 'usagin', lv: 8 }, { sp: 'kangarun', lv: 11, evo: 1 }], reward: 100 },
         lines: [['おす！ しゅぎょう ちゅうだ！', 'うでだめし していけ！']],
         after: [['みごとだ…', 'また しゅぎょうして くる！']] },
-      { id: 'daichi', x: 980, name: 'ガキだいしょう ダイチ', look: 'gaki', battle: { team: [{ sp: 'kitsunen', lv: 9 }, { sp: 'fukuron', lv: 10 }, { sp: 'tanukin', lv: 12, evo: 1 }], reward: 160 },
+      { id: 'daichi', x: 980, name: 'ガキだいしょう ダイチ', look: 'gaki', battle: { style: 'trick', team: [{ sp: 'kitsunen', lv: 9 }, { sp: 'fukuron', lv: 10 }, { sp: 'tanukin', lv: 12, evo: 1 }], reward: 160 },
         lines: [['この まちで いちばん つよいのは', 'おれさまの タヌキンだ！'], ['まちを でる まえに', 'おれと しょうぶ しろ！']],
         after: [['ちぇっ… おまえ つよいな', 'さきへ いっていいぞ']] },
     ],
