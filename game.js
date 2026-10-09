@@ -104,7 +104,9 @@
   let ctlState = '';
   // which job the on-screen buttons do right now
   function ctlMode() {
+    if (G.state === 'field' && G.near) return 'near';
     if (G.state === 'field' || G.state === 'map') return 'field';
+    if (G.state === 'talk') return 'talk';
     if (G.state === 'title') return G.nameEdit ? 'off' : 'title';
     if (G.state === 'menu' || G.state === 'versus' || G.state === 'netroom') return 'back';
     if (G.state === 'battle' && G.battle) {
@@ -125,11 +127,11 @@
   function syncControls() {
     if (!TOUCH) return;
     const st = ctlMode();
-    const key = st + layout.mode;
+    const key = st + layout.mode + (st === 'near' ? G.near.type : '');
     if (key === ctlState) return;
     ctlState = key;
-    $jump.textContent = st === 'field' ? 'ジャンプ' : 'けってい';
-    $swap.textContent = st === 'field' ? 'いれかえ' : st === 'title' || st === 'cmd' ? 'つぎ' : st === 'back' ? 'もどる' : 'いれかえ';
+    $jump.textContent = st === 'field' ? 'ジャンプ' : st === 'near' ? (G.near.type === 'npc' ? 'はなす' : 'はいる') : 'けってい';
+    $swap.textContent = st === 'field' || st === 'near' ? 'いれかえ' : st === 'talk' ? 'つぎ' : st === 'title' || st === 'cmd' ? 'つぎ' : st === 'back' ? 'もどる' : 'いれかえ';
     const hide = st === 'off' && layout.mode === 'overlay';
     for (const el of [$pad, $acts]) { el.classList.toggle('hide', hide); el.classList.toggle('off', st === 'off' && !hide); }
     if (st === 'off') { touchDir.clear(); for (const el of [$bL, $bR, $jump, $swap]) el.classList.remove('on'); }
@@ -150,7 +152,7 @@
   window.addEventListener('pointerup', padEnd);
   window.addEventListener('pointercancel', padEnd);
   for (const [el, code] of [[$jump, 'Space'], [$swap, 'KeyC']]) {
-    el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('on'); const m = ctlMode(); if (m === 'title') { if (el === $swap) onKey('ArrowDown'); } else if (m === 'cmd' || m === 'back') onKey(ctlKey(el === $jump ? 'A' : 'B')); else onKey(code); });
+    el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('on'); const m = ctlMode(); if (m === 'title') { if (el === $swap) onKey('ArrowDown'); } else if (m === 'cmd' || m === 'back') onKey(ctlKey(el === $jump ? 'A' : 'B')); else if (m === 'talk') onKey('Enter'); else if (m === 'near' && el === $jump) onKey('Enter'); else onKey(code); });
     // title けってい fires on release: opening the name box needs a finished tap for the phone keyboard
     el.addEventListener('pointerup', () => { if (G.state === 'title' && el === $jump && el.classList.contains('on')) titleConfirm(); });
     const up = () => el.classList.remove('on');
@@ -2283,8 +2285,8 @@
     // message text (hi-res layer)
     let l1 = '', l2 = '';
     if (!B) {
-      if (G.near && G.near.type === 'npc') { l1 = G.near.a.def.name; l2 = TOUCH ? 'ここタップ:はなす' : 'Enter:はなす'; }
-      else if (G.near && G.near.type === 'bld') { l1 = G.near.b.name; l2 = TOUCH ? 'ここタップ:はいる' : 'Enter:はいる'; }
+      if (G.near && G.near.type === 'npc') { l1 = G.near.a.def.name; l2 = TOUCH ? 'はなしかけられる' : 'Enter:はなす'; }
+      else if (G.near && G.near.type === 'bld') { l1 = G.near.b.name; l2 = TOUCH ? 'なかに はいれる' : 'Enter:はいる'; }
       else if (G.signNear) { [l1, l2] = STAGES[G.stage].exit; }
       else if (G.benchNear) { l1 = 'ベンチ'; l2 = 'ひとやすみ できた'; }
       else { l1 = `${a.name}`; l2 = `HP ${Math.floor(a.hp)}/${a.maxHp}`; }
