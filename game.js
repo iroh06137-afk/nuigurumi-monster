@@ -158,6 +158,7 @@
     const up = () => el.classList.remove('on');
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('pointerleave', up);
   }
+  for (const ev of ['touchend', 'pointerup', 'click']) window.addEventListener(ev, () => { if (typeof SFX !== 'undefined') SFX.unlock(); }, { capture: true, passive: true });
   // no scrolling / zoom / long-press menu / text selection
   for (const ev of ['touchstart', 'touchmove', 'touchend']) document.addEventListener(ev, e => { if (e.target && e.target.closest && e.target.closest('#nameBox')) return; if (e.cancelable) e.preventDefault(); }, { passive: false });
   for (const ev of ['contextmenu', 'gesturestart', 'gesturechange', 'dblclick', 'selectstart']) document.addEventListener(ev, e => e.preventDefault());
@@ -444,7 +445,7 @@
         master = ctx.createGain(); master.gain.value = 0.7; master.connect(ctx.destination);
         bgmGain = ctx.createGain(); bgmGain.gain.value = G.muted ? 0 : 0.22; bgmGain.connect(master);
       }
-      if (ctx.state === 'suspended') ctx.resume();
+      if (ctx.state !== 'running') ctx.resume();
       return ctx;
     }
     function tone(dest, freq, dur, type, vol, slide) {
@@ -557,7 +558,14 @@
       }
       setTheme(name);
     }
+    // iOS: (re)start audio inside a real tap; also wakes an 'interrupted' context after the app was in the background
+    function unlock() {
+      const c = ac(); if (!c) return;
+      if (c.state !== 'running') c.resume();
+      try { const b = c.createBuffer(1, 1, 22050), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); } catch (e) {}
+    }
     return {
+      unlock,
       start, sync, setMuted: applyMute,
       jump() { beep(520, 0.12, 'square', 0.04, 280); },
       hit(kind) {
