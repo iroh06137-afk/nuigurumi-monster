@@ -291,7 +291,7 @@
     hoverBtn: -1, bg: null, signNear: false, forceRecruit: null,
     stage: 0, unlocked: 1, cleared: [], mapSel: 0, mapPos: null, benchUsed: false, benchNear: false, bgCache: {},
     hasSave: false, muted: false, versus: false, vs: null, saveFlash: 0, 
-    coins: 50, items: {}, beaten: [], fought: [], box: [], flags: {}, cookie: false, npcs: [], near: null, talk: null, menu: null,
+    coins: 50, items: {}, beaten: [], fought: [], box: [], world: 0, unl: [1, 0], flags: {}, cookie: false, npcs: [], near: null, talk: null, menu: null,
   };
   const SAVE_KEY = 'nm_save_v1', HERO_KEY = 'nm_hero';
   // ---- hero (gender + color) ----
@@ -393,11 +393,12 @@
         box: (G.box || []).map(serMember),
         muted: !!G.muted,
         active: G.active,
-        unlocked: G.unlocked,
+        unlocked: G.world ? G.unl[0] : G.unlocked,
+        unlocked2: G.world ? G.unlocked : (G.unl[1] | 0),
         cleared: G.cleared,
         stage: G.stage,
         px: Math.round(player.x),
-        coins: G.coins | 0, items: G.items, beaten: G.beaten, flags: G.flags, cookie: !!G.cookie,
+        coins: G.coins | 0, items: G.items, beaten: G.beaten, flags: G.flags, cookie: !!G.cookie, got: G.got || {},
         savedAt: Date.now(),
       }));
       G.hasSave = true;
@@ -645,8 +646,8 @@
   }
 
   function spawnWilds() {
-    G.wilds = STAGES[G.stage].spawns.map((s, i) => Object.assign(newActor(s.x, -1, SPECIES[s.sp].sprite), newMember(s.sp), {
-      home: s.x, spawnX: s.x, alive: true, cool: false, wt: 1 + rand() * 2, wdir: 0, toHome: false, idx: i,
+    G.wilds = STAGES[G.stage].spawns.map((s, i) => Object.assign(newActor(s.x, -1, SPECIES[s.sp].sprite), s.lv ? trainerMember({ sp: s.sp, lv: s.lv }) : newMember(s.sp), {
+      home: s.x, spawnX: s.x, alive: !(SPECIES[s.sp].recruitAfter && G.flags && G.flags['joined_' + s.sp]), cool: false, wt: 1 + rand() * 2, wdir: 0, toHome: false, idx: i,
     }));
   }
 
@@ -828,9 +829,11 @@
       G.cleared = Array.isArray(s.cleared) ? s.cleared.slice() : [];
       // v2 saves (town briefly sat at map index 2): drop that slot so the field stages line up again
       if ((s.v | 0) === 2 && G.unlocked >= 3) G.unlocked -= 1;
+      G.unl = [G.unlocked, s.unlocked2 | 0]; G.world = 0; MAP_NODES = MAP_WORLDS[0];
       G.coins = s.coins != null ? s.coins | 0 : 50;
       G.items = s.items && typeof s.items === 'object' ? Object.assign({}, s.items) : {};
       G.beaten = Array.isArray(s.beaten) ? s.beaten.slice() : [];
+      G.got = s.got && typeof s.got === 'object' ? Object.assign({}, s.got) : {};
       G.flags = s.flags && typeof s.flags === 'object' ? Object.assign({}, s.flags) : {};
       G.cookie = !!s.cookie;
       if (s.muted != null) G.muted = !!s.muted;
@@ -850,6 +853,8 @@
     const st = STAGES[i];
     const heal = !opts || opts.heal !== false;
     G.stage = i; WORLD_W = st.width; G.fought = [];
+    { const wi = worldOf(i); if (wi >= 0 && wi !== (G.world | 0)) setWorld(wi); }
+    if (st.layers) loadLayers(st);
     G.bg = G.bgCache[st.id] || (G.bgCache[st.id] = BG.build(st.width, st.theme, st.theme === 'town' && PROPS.town_road ? Object.assign({}, PROPS, { road: PROPS.town_road }) : PROPS));
     spawnWilds();
     G.npcs = (st.npcs || []).map(n => {
@@ -1105,6 +1110,7 @@
   function menuRows() {
     const M = G.menu;
     if (M.kind === 'bswap') return G.party.map((m, i) => 'p' + i).concat(['_close']);
+    if (M.kind === 'ask') return ['_yes', '_no'];
     if (M.kind === 'house') {
       const box = G.box || [];
       if (M.pi == null) return G.party.map((m, i) => 'p' + i).concat(G.party.length < TUNING.partyMax && box.length ? ['_take'] : [], ['_close']);
@@ -1130,6 +1136,17 @@
     if (k === '_close') { closeMenu(); return; }
     if (M.kind === 'bswap' || M.kind === 'bitem') { battleMenuPick(M, k); return; }
     if (M.kind === 'house') { housePick(M, k); return; }
+    if (M.kind === 'ask') {
+      const nm = SPECIES[M.sp].name;
+      if (k === '_yes') {
+        const m = trainerMember({ sp: M.sp, lv: M.lv }); delete m.spUsed;
+        G.flags['joined_' + M.sp] = 1;
+        if (G.party.length < TUNING.partyMax) { G.party.push(m); banner(`${nm}が なかまに なった！`, 2.4); }
+        else { (G.box = G.box || []).push(m); banner(`${nm}が なかまに なった！ ぬいハウスへ いったよ`, 2.6); }
+        SFX.recruit(); persist();
+      } else banner(`${nm}「そう… また あいましょう」`, 2.0);
+      closeMenu(); return;
+    }
     const it = ITEMS[k];
     if (M.kind === 'shop') {
       if ((G.items[k] | 0) >= 9) { banner('もう もちきれない', 1.2); return; }
@@ -1191,11 +1208,25 @@
     if (i < (M.top | 0) || i >= rows.length || i >= (M.top | 0) + MENU_ROWS) return;
     if (i === M.sel) menuPick(); else M.sel = i;
   }
+  // two worlds share the map screen; G.unlocked is the shown world's count, G.unl keeps both
+  function worldOf(stage) { return MAP_WORLDS.findIndex(w => w.some(n => n.stage === stage)); }
+  function setWorld(w) {
+    if (!G.unl) G.unl = [G.unlocked, 0];
+    G.unl[G.world | 0] = G.unlocked;
+    G.world = w; MAP_NODES = MAP_WORLDS[w]; G.unlocked = Math.max(w ? 0 : 1, G.unl[w] | 0);
+  }
   function clearStage() {
     const i = G.stage;
     if (!G.cleared.includes(i)) G.cleared.push(i);
+    const wi = Math.max(0, worldOf(i)); if (wi !== (G.world | 0)) setWorld(wi);
     const ni = MAP_NODES.findIndex(n => n.stage === i);
     G.unlocked = Math.max(G.unlocked, ni + 2);
+    G.unl[G.world] = G.unlocked;
+    // end of world 1 opens もりの くに
+    if (G.world === 0 && ni === MAP_NODES.length - 1 && !(G.unl[1] > 0)) {
+      G.unl[1] = 1; persist(); setWorld(1); openMap(0);
+      banner('あたらしい ちほう「もりの くに」へ！', 3); return;
+    }
     persist();
     openMap(Math.min(ni + 1, MAP_NODES.length - 1));
   }
@@ -1207,8 +1238,12 @@
   }
   function mapKey(code) {
     const max = Math.min(G.unlocked, MAP_NODES.length) - 1;
-    if (code === 'ArrowLeft' || code === 'KeyA') G.mapSel = Math.max(0, G.mapSel - 1);
-    if (code === 'ArrowRight' || code === 'KeyD') G.mapSel = Math.min(max, G.mapSel + 1);
+    const left = code === 'ArrowLeft' || code === 'KeyA', right = code === 'ArrowRight' || code === 'KeyD';
+    // walk off either end of a world onto the other one
+    if (right && G.world === 0 && G.mapSel === MAP_NODES.length - 1 && G.unl && G.unl[1] > 0) { setWorld(1); openMap(0); banner('もりの くに', 1.4); return; }
+    if (left && G.world === 1 && G.mapSel === 0) { setWorld(0); const L = MAP_NODES.length - 1; openMap(L); G.mapSel = L; G.mapPos = { x: MAP_NODES[L].x, y: MAP_NODES[L].y }; banner('ぬいぐるみの くに', 1.4); return; }
+    if (left) G.mapSel = Math.max(0, G.mapSel - 1);
+    if (right) G.mapSel = Math.min(max, G.mapSel + 1);
     if (['Enter', 'Space', 'NumpadEnter', 'ArrowUp', 'KeyW'].includes(code)) mapEnter();
   }
   function mapTap(x, y) {
@@ -1236,15 +1271,26 @@
       player.moving = true; if (Math.abs(dx) > 0.5) player.face = Math.sign(dx);
     } else { p.x = n.x; p.y = n.y; player.moving = false; }
   }
+  const curPlats = () => (G.state === 'field' || G.state === 'talk' || G.state === 'menu') && !G.battle ? STAGES[G.stage].plats : null;
   function jump(a, lead) {
-    if (a.y !== 0 || a.vy !== 0) return;
-    a.vy = -TUNING.jumpV;
+    if ((a.y !== 0 && !a.plat) || a.vy !== 0) return;
+    a.plat = null;
+    a.vy = -(STAGES[G.stage] && STAGES[G.stage].highJump ? TUNING.jumpV2 : TUNING.jumpV);
     if (lead) { comp.jumpQ = 0.14; SFX.jump(); }
   }
   function physics(a, dt) {
     if (a.jumpQ >= 0) { a.jumpQ -= dt; if (a.jumpQ < 0) { a.jumpQ = -1; jump(a, false); } }
+    const plats = curPlats();
+    if (a.plat) {
+      const p = a.plat;
+      if (!plats || a.x < p.x - 2 || a.x > p.x + p.w + 2) { a.plat = null; a.vy = 1; } else { a.y = -p.h; a.vy = 0; return; }
+    }
     if (a.y < 0 || a.vy < 0) {
+      const py = a.y;
       a.vy += TUNING.gravity * dt; a.y += a.vy * dt;
+      if (a.vy > 0 && plats) for (const p of plats) {
+        if (a.x >= p.x - 2 && a.x <= p.x + p.w + 2 && py <= -p.h + 0.01 && a.y >= -p.h) { a.y = -p.h; a.vy = 0; a.plat = p; dust(a.x, 0); return; }
+      }
       if (a.y >= 0) { a.y = 0; a.vy = 0; dust(a.x, 0); }
     }
   }
@@ -1306,9 +1352,17 @@
       wildUpdate(w, dt);
       const dx = w.x - player.x;
       if (w.cool) { if (Math.abs(dx) > 110) w.cool = false; continue; }
-      if (!w.toHome && Math.abs(dx) < TUNING.encounterDist && player.y === 0) { startBattle(w); return; }
+      if (!w.toHome && Math.abs(dx) < TUNING.encounterDist && (player.y === 0 || SPECIES[w.sp].boss)) { startBattle(w); return; }
     }
     updateNear();
+    for (const [i, pk] of (STAGES[G.stage].pickups || []).entries()) {
+      const key = STAGES[G.stage].id + ':' + i;
+      if ((G.got = G.got || {})[key]) continue;
+      if (Math.abs(player.x - pk.x) < 8 && Math.abs(player.y + pk.h) < 10) {
+        G.got[key] = 1; G.coins += pk.coins; SFX.buy(); burst(pk.x, GROUND - pk.h - 10, 'spark', 8, '#ffe24a');
+        pop(pk.x, GROUND - pk.h - 18, '+' + pk.coins, '#ffe24a'); persist();
+      }
+    }
     G.signNear = Math.abs(player.x - (WORLD_W - 36)) < 22;
     const bx = STAGES[G.stage].bench;
     G.benchNear = bx != null && Math.abs(player.x - bx) < 16;
@@ -1380,6 +1434,19 @@
     if (ax >= 0) drawPattern(['#######', '#yyyyy#', '.#yyy#.', '..#y#..', '...#...'], Math.round(ax) - 1, 66 + bob, { '#': '#5a1a1a', y: '#ffe24a' });
   }
   function startBattle(w) {
+    // しょうこ: if くうこ is with us, she calls her little sister over first (くうこ fights on her side until beaten)
+    G.mind = null;
+    if (SPECIES[w.sp].mindKuuko && !G.friend && !G.versus) {
+      const ki = G.party.findIndex(m => m.sp === 'kuuko');
+      if (ki >= 0 && G.party.some((m, i) => i !== ki && m.hp >= 1)) {
+        const k = G.party[ki], cur = G.party[G.active];
+        G.party.splice(ki, 1);
+        G.active = Math.max(0, G.party.indexOf(cur)); if (G.party[G.active] !== cur) G.active = 0;
+        G.mind = { m: k, idx: ki, boss: { sp: w.sp, name: w.name, maxHp: w.maxHp, hp: w.hp, atk: w.atk, def: w.def, spd: w.spd, lv: w.lv, evo: 0, key: w.key } };
+        Object.assign(w, { sp: 'kuuko', name: k.name, maxHp: k.maxHp, hp: k.maxHp, atk: k.atk, def: k.def, spd: k.spd, lv: k.lv || 1, evo: k.evo ? 1 : 0, mind: true, spUsed: false });
+        w.key = memberKey(k);
+      }
+    }
     if (ally().hp < 1) G.active = Math.max(0, G.party.findIndex(m => m.hp >= 1));
     comp.key = compKey();
     const side = Math.sign(w.x - player.x) || 1;
@@ -1396,6 +1463,7 @@
     G.vs = { t: 0, hot: !!(SPECIES[w.sp].boss || w.trainer) };
     SFX.battleStart();
     player.moving = false; player.face = side; player.ox = 0;
+    for (const a of [player, comp]) { a.y = 0; a.vy = 0; a.plat = null; }
     ally().hp = Math.floor(ally().hp);
     ally().st = 25; w.st = 5 + rand() * 30; w.wdir = 0;
     G.camT = clamp(player.x + side * 45 - W / 2, 0, WORLD_W - W);
@@ -1412,7 +1480,9 @@
         if (side > 0) h.tx = Math.min(h.tx, G.camT + W - 10); else h.tx = Math.max(h.tx, G.camT + 10);
       }
     }
+    if (G.mind) banner(`${G.mind.boss.name}が たちはだかった！`, 2.0);
     B.q.push(introAction());
+    if (G.mind) B.q.push(mindIntro());
   }
   function* walkTo(a, x, speed) {
     while (Math.abs(a.x - x) > 0.5) {
@@ -1420,6 +1490,40 @@
       a.x += Math.sign(d) * Math.min(Math.abs(d), speed * DT); yield;
     }
     a.x = x; a.moving = false;
+  }
+  function* mindIntro() {
+    const B = G.battle, e = B.w;
+    B.msg = 'しょうこ「くうこ、こっちに いらっしゃい」';
+    banner('しょうこ「くうこ、こっちに いらっしゃい」', 2.2); yield* wait(2.0);
+    for (let i = 0; i < 10; i++) { burst(e.x, GROUND - 16, 'spark', 3, '#b060ff'); e.flash = 0.15; yield* wait(0.12); }
+    B.msg = `${e.name}は あやつられている！`;
+    banner(`${e.name}は しょうこの いいなりに なってしまった！`, 2.2); yield* wait(2.0);
+    B.msg = '';
+  }
+  // くうこ beaten: she wakes up, comes home, and しょうこ steps in
+  function* mindWake(e) {
+    const B = G.battle, M = G.mind;
+    e.mind = false;
+    banner(`${M.m.name}は はっと めを さました！`, 2.0);
+    for (let i = 0; i < 6; i++) { e.alpha = i % 2 ? 1 : 0.4; yield* wait(0.1); }
+    restoreMind();
+    yield* tween(v => { e.alpha = v; }, 1, 0, 0.35);
+    Object.assign(e, M.boss, { mind: false, guard: false, st: 5 + rand() * 25, oy: 0, spUsed: false });
+    e.key = SPECIES[M.boss.sp].sprite;
+    banner(`${M.m.name}は なかまの ところへ もどった！ しょうこが でてきた！`, 2.4);
+    burst(e.x, GROUND - 12, 'spark', 10, '#ffffff');
+    yield* tween(v => { e.alpha = v; }, 0, 1, 0.4);
+    yield* wait(0.6);
+    B.phase = 'run'; B.result = null; B.msg = '';
+  }
+  function restoreMind() {
+    const M = G.mind; if (!M) return;
+    G.mind = null;
+    const cur = G.party[G.active];
+    M.m.hp = Math.max(1, Math.round(M.m.maxHp * 0.5));
+    G.party.splice(Math.min(M.idx, G.party.length), 0, M.m);
+    G.active = Math.max(0, G.party.indexOf(cur));
+    G.mindBoss = M.boss;
   }
   function* introAction() {
     const B = G.battle, w = B.w;
@@ -1763,6 +1867,7 @@
   }
   function* enemyFaint() {
     const B = G.battle, e = B.w;
+    if (e.mind && G.mind) { yield* mindWake(e); return; }
     B.phase = 'end'; B.result = 'win';
     const boss = SPECIES[e.sp].boss;
     const xp = Math.max(6, Math.round((e.maxHp + e.atk * 2) * (boss ? 0.55 : e.trainer ? 0.45 : 0.35)));
@@ -1938,6 +2043,8 @@
   }
   function endBattle() {
     const B = G.battle;
+    if (G.mind) { const M = G.mind; restoreMind(); Object.assign(B.w, M.boss, { mind: false }); B.w.key = SPECIES[M.boss.sp].sprite; }
+    const joinAsk = B.result === 'win' && !G.friend && SPECIES[B.w.sp] && SPECIES[B.w.sp].recruitAfter && !(G.flags['joined_' + B.w.sp]) ? B.w : null;
     G.oppHero = null; G.arena = null;
     if (B.trainerActor) { const t = B.trainerActor; t.tx = t.homeX; t.tface = -1; }
     if (B.w.alive) { B.w.home = B.w.x; B.w.alpha = 1; B.w.moving = false; }
@@ -1961,6 +2068,10 @@
     }
     G.state = 'field';
     G.battle = null;
+    if (joinAsk) {
+      const sp = joinAsk.sp, nm = SPECIES[sp].name, lv = joinAsk.lv || 1;
+      say(nm, [['…まけたわ。', 'あなたたち つよいのね'], ['わたしも いっしょに', 'つれていって くれる？']], () => { G.menu = { kind: 'ask', sel: 0, sp, lv }; G.state = 'menu'; });
+    }
   }
   function whiteoutReset() {
     G.battle = null; G.state = 'field';
@@ -2061,6 +2172,46 @@
     swap:  ['...w.....', '..ww.....', '.wwwwwww.', '..ww.....', '...w.w...', '.....ww..', '.wwwwwww.', '.....ww..', '.....w...'],
     run:   ['.........', '...w.....', '..ww.....', '.wwwwwww.', 'wwwwwwwww', '.wwwwwww.', '..ww.....', '...w.....', '.........'],
   };
+  // ---------- world 2: layered backgrounds + platforms (art by ドット絵作成くん, placeholders until it loads) ----------
+  const LAYER = {};
+  function loadLayers(st) {
+    const add = (k, src) => { if (LAYER[k] !== undefined) return; LAYER[k] = null; loadImg(src).then(i => { LAYER[k] = i; }).catch(() => { LAYER[k] = false; }); };
+    for (const k of ['far', 'near', 'ground']) add(st.id + '_' + k, st.layers + '_' + k + '.png');
+    if (st.tiles) for (const k of ['l', 'm', 'r']) add(st.id + '_tile_' + k, st.tiles + '_tile_' + k + '.png');
+  }
+  function tileRow(img, cam, par, y) {
+    const w = img.width, off = Math.floor(cam * par) % w;
+    for (let x = -off; x < W; x += w) g.drawImage(img, x, y);
+  }
+  function drawLayers(cam) {
+    const st = STAGES[G.stage]; if (!st.layers) return false;
+    const far = LAYER[st.id + '_far'], near = LAYER[st.id + '_near'], gr = LAYER[st.id + '_ground'];
+    if (!far || !gr) return false;
+    tileRow(far, cam, 0.25, 0);
+    if (near) tileRow(near, cam, 0.6, 0);
+    tileRow(gr, cam, 1, 63);
+    return true;
+  }
+  function drawPlats(cam) {
+    const st = STAGES[G.stage]; if (!st.plats) return;
+    const tl = LAYER[st.id + '_tile_l'], tm = LAYER[st.id + '_tile_m'], tr = LAYER[st.id + '_tile_r'];
+    for (const p of st.plats) {
+      const x0 = Math.round(p.x - cam), y0 = GROUND - p.h, n = Math.max(1, Math.round(p.w / 16));
+      if (x0 > W || x0 + p.w < 0) continue;
+      for (let i = 0; i < n; i++) {
+        const img = n === 1 ? tm : i === 0 ? tl : i === n - 1 ? tr : tm;
+        if (img) g.drawImage(img, x0 + i * 16, y0);
+        else { rect(x0 + i * 16, y0, 16, 8, '#3a2410'); rect(x0 + i * 16 + 1, y0 + 1, 14, 3, '#8ac04a'); rect(x0 + i * 16 + 1, y0 + 4, 14, 3, '#a0743c'); }
+      }
+    }
+    // coin pickups waiting on the platforms
+    (st.pickups || []).forEach((pk, i) => {
+      if (G.got && G.got[st.id + ':' + i]) return;
+      const x = Math.round(pk.x - cam), y = GROUND - pk.h - 12 + (Math.floor(G.t * 3) % 2);
+      if (x < -6 || x > W + 6) return;
+      drawPattern(['.###.', '#yyy#', '#ywy#', '#yyy#', '.###.'], x - 2, y, { '#': '#8a5a10', y: '#ffd23a', w: '#fff6b0' });
+    });
+  }
   function drawActor(a, cam) {
     if (a.alpha <= 0) return;
     const s = SPR[a.key]; const flip = a.face !== s.native;
@@ -2069,14 +2220,27 @@
     const y = GROUND - 30 + Math.round(a.y + a.oy + a.bob);
     if (a.shake > 0) x += Math.floor(a.shake * 40) % 2 ? 1 : -1;
     // ground shadow
-    const shrink = Math.min(6, Math.floor(-a.y / 3));
+    // shadow on whatever is under the actor (ground or a platform top)
+    let base = 0;
+    const pl = curPlats(); if (pl && a.y < 0) for (const p of pl) if (a.x >= p.x - 2 && a.x <= p.x + p.w + 2 && a.y <= -p.h + 0.5) base = Math.max(base, p.h);
+    const shrink = Math.min(6, Math.floor((-a.y - base) / 3));
     const sw = Math.max(6, Math.min(18, s.w - 6) - shrink * 2);
     g.globalAlpha = 0.28 * a.alpha; g.fillStyle = '#1d4a12';
-    g.fillRect(cx - (sw >> 1), GROUND, sw, 1); g.fillRect(cx - (sw >> 1) + 2, GROUND + 1, sw - 4, 1);
+    g.fillRect(cx - (sw >> 1), GROUND - base, sw, 1); g.fillRect(cx - (sw >> 1) + 2, GROUND + 1 - base, sw - 4, 1);
     g.globalAlpha = a.alpha;
     let fr = s;
-    if (s.walk && a.moving && a.y === 0) fr = s.walk.frames[Math.floor(a.walkT * 1000 / s.walk.ms) % s.walk.frames.length];
+    if (s.walk && a.moving && (a.y === 0 || a.plat)) fr = s.walk.frames[Math.floor(a.walkT * 1000 / s.walk.ms) % s.walk.frames.length];
     if (a.pose) fr = a.pose;
+    if (a.mind) {   // placeholder aura: purple glow + sparks until ドット絵作成くん's overlay arrives
+      const AU = SPR.mind_aura;
+      if (AU) g.drawImage(flip ? AU.f : AU.n, x, y);
+      else {
+        const src = flip ? fr.wf : fr.wn, ck = flip ? '_pf' : '_pn';
+        if (src && !fr[ck]) { const [c, x2] = mk(src.width, src.height); x2.drawImage(src, 0, 0); x2.globalCompositeOperation = 'source-in'; x2.fillStyle = '#a040ff'; x2.fillRect(0, 0, c.width, c.height); fr[ck] = c; }
+        if (fr[ck]) { g.globalAlpha = 0.55 + 0.25 * Math.sin(G.t * 6); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(fr[ck], x + dx, y + dy); g.globalAlpha = a.alpha; }
+      }
+      if (rand() < 0.15) G.particles.push({ type: 'spark', x: a.x + (rand() - 0.5) * 18, y: GROUND - 8 - rand() * 18, vx: 0, vy: -12, life: 0.5, col: '#c080ff' });
+    }
     g.drawImage(flip ? fr.f : fr.n, x, y);
     if (a.flash > 0 && Math.floor(a.flash * 25) % 2 === 0) g.drawImage(flip ? fr.wf : fr.wn, x, y);
     g.globalAlpha = 1;
@@ -2196,9 +2360,9 @@
   }
   // ---------- world map (placeholder art until the 160x90 map picture arrives) ----------
   function drawMap() {
-    const art = PROPS.wmap;
+    const art = G.world ? PROPS.wmap2 : PROPS.wmap;
     if (art) g.drawImage(art, 0, 0);
-    else { if (!MAPBG) MAPBG = buildMapBG(); g.drawImage(MAPBG, 0, 0); }
+    else { if (!MAPBG) MAPBG = buildMapBG(); g.drawImage(MAPBG, 0, 0); if (G.world) { g.fillStyle = 'rgba(20,60,40,0.42)'; g.fillRect(0, 0, W, 72); } }
     // drifting clouds over the sky strip
     if (!art) for (let i = 0; i < 3; i++) {
       const X = Math.round(((i * 61 + G.t * 2) % 200) - 20), Y = 1 + i * 2;
@@ -2244,7 +2408,7 @@
     rect(3, 72, 154, 17, '#5a3418'); rect(4, 73, 152, 15, '#f4e4b8');
     const n = MAP_NODES[G.mapSel], name = n.stage != null ? STAGES[n.stage].name : n.name;
     const clr = n.stage != null && G.cleared.includes(n.stage);
-    T('ぜんたいマップ', 80, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
+    T(G.world ? 'もりの くに' : 'ぜんたいマップ', 80, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
     T(name + (clr ? ' ★クリア' : ''), 7, 75);
     T(n.stage == null ? 'まだ じゅんびちゅう' : (TOUCH ? '◀▶で えらぶ ／ ここを タップで はいる' : '←→で えらぶ ／ Enterで はいる'), 7, 81, { c: '#7a5a30' });
   }
@@ -2419,8 +2583,9 @@
     const { x, y, w, h, row0, rh } = MENU;
     rect(x + 1, y, w - 2, h, '#5a3418'); rect(x, y + 1, w, h - 2, '#5a3418');
     rect(x + 1, y + 1, w - 2, h - 2, '#fff8e0');
-    T(M.kind === 'shop' ? 'ぬいショップ' : M.kind === 'bswap' ? 'いれかえ' : M.kind === 'house' ? 'ぬいハウス' : 'どうぐ', x + 5, y + 4, { c: '#c0502a' });
+    T(M.kind === 'shop' ? 'ぬいショップ' : M.kind === 'bswap' ? 'いれかえ' : M.kind === 'house' ? 'ぬいハウス' : M.kind === 'ask' ? SPECIES[M.sp].name : 'どうぐ', x + 5, y + 4, { c: '#c0502a' });
     if (M.kind === 'house') T(`あずけ ${(G.box || []).length}ひき`, x + w - 5, y + 4, { al: 'right' });
+    else if (M.kind === 'ask') {}
     else if (M.kind !== 'bswap') T(`${G.coins}コイン`, x + w - 5, y + 4, { al: 'right' });
     rect(x + 3, y + 10, w - 6, 1, '#e8d8b0');
     const rows = menuRows();
@@ -2437,6 +2602,8 @@
       if (k === '_back') { T('もどる', x + 10, yy); return; }
       if (k === '_put') { T('ここに あずける', x + 10, yy, { c: '#3c6ad8' }); return; }
       if (k === '_take') { T('あずけた こを つれていく', x + 10, yy, { c: '#3c6ad8' }); return; }
+      if (k === '_yes') { T('なかまに する', x + 10, yy, { c: '#3c6ad8' }); return; }
+      if (k === '_no') { T('こんどに する', x + 10, yy); return; }
       if (M.kind === 'house') {
         const m = k[0] === 'p' ? G.party[+k.slice(1)] : G.box[+k.slice(1)];
         T(m.name, x + 10, yy); T(`Lv${m.lv || 1}`, x + 74, yy, { c: '#7a5a30' }); T(`HP${Math.floor(m.hp)}/${m.maxHp}`, x + w - 5, yy, { al: 'right' });
@@ -2456,7 +2623,7 @@
     });
     const k = rows[M.sel];
     const desc = k === '_close' ? '' : M.kind === 'bswap' ? 'だれと こうたい する？'
-      : M.kind === 'house' ? (M.pi == null ? 'てもちの だれを かえる？' : M.pi < 0 ? 'だれを つれていく？' : (G.box || []).length ? 'だれと いれかえる？' : 'まだ だれも いないよ') : ITEMS[k] ? ITEMS[k].desc : '';
+      : M.kind === 'ask' ? 'なかまに する？' : M.kind === 'house' ? (M.pi == null ? 'てもちの だれを かえる？' : M.pi < 0 ? 'だれを つれていく？' : (G.box || []).length ? 'だれと いれかえる？' : 'まだ だれも いないよ') : ITEMS[k] ? ITEMS[k].desc : '';
     rect(x + 3, y + h - 11, w - 6, 1, '#e8d8b0');
     T(desc, x + 5, y + h - 8, { c: '#7a5a30' });
     if (M.kind === 'bag' && G.cookie) T('クッキー こうかちゅう', x + w - 5, y + h - 8 - 0, { al: 'right', c: '#d4588c' });
@@ -2612,7 +2779,8 @@
     const arena = G.versus && G.battle && G.arena && ARENA[G.arena];
     if (arena) g.drawImage(arena, -cam, 0);
     else {
-      BG.draw(g, G.bg, cam, G.t, W);
+      if (!drawLayers(cam)) BG.draw(g, G.bg, cam, G.t, W);
+      drawPlats(cam);
       drawRoadProps(cam); drawTown(cam); drawSign(cam); drawBench(cam);
       for (const a of G.npcs) drawActor(a, cam);
       for (const w of G.wilds) if (w.alive && w.alpha > 0) drawActor(w, cam);

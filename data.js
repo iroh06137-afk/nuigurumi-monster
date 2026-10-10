@@ -175,6 +175,14 @@ const SPECIES = {
       strong: { name: 'ぐるぐるアタック', power: 24, acc: 0.85 },
     },
   },
+  shouko: {  // ★ くうこの姉 (beige teddy). world-2 final boss; can join after you win. art by the user (placeholder: kuuko)
+    name: 'しょうこ', sprite: 'kuuko', boss: true, recruitAfter: true, mindKuuko: true,
+    hp: 150, atk: 17, def: 13, spd: 11, recruitBase: 0,
+    moves: {
+      attack: { name: 'おねえさんパンチ', power: 12, acc: 0.96 },
+      strong: { name: 'くまくまプレス',   power: 27, acc: 0.86 },
+    },
+  },
   mori_boss: {
     name: 'もりの ぬし', sprite: 'tanukin', boss: true,
     hp: 72, atk: 10, def: 8, spd: 7, recruitBase: 0,
@@ -218,7 +226,7 @@ const COMMANDS = [   // 2 pages of 4: page 1 = keys 1-4, page 2 = keys 5-8 (↑�
 
 const TUNING = {
   walkSpeed: 36,          // logical px / s
-  jumpV: 118, gravity: 430,
+  jumpV: 118, jumpV2: 152, gravity: 430,
   stBase: 8, stPerSpd: 1.2, // stamina / s = stBase + spd * stPerSpd
   recruitHpWeight: 0.6,   // p = base + weight * (1 - hp/maxHp)
   recruitMin: 0.05, recruitMax: 0.95,
@@ -364,8 +372,34 @@ const STAGES = [
     // ★ provisional stage
     id: 'tani', name: 'あかつち谷', width: 1400, theme: 'canyon', bench: 700,
     spawns: [ { sp: 'ressan', x: 260 }, { sp: 'wankon', x: 440 }, { sp: 'nyankon', x: 620 }, { sp: 'ressan', x: 880 }, { sp: 'pandan', x: 1060 }, { sp: 'pengiin', x: 1220 } ],
-    exit: ['このさき', 'じゅんびちゅう'],
+    exit: ['このさき', 'もりの くに'],
     decor: [ { k: 'bush', x: 180 }, { k: 'bush', x: 520 }, { k: 'bush', x: 960 }, { k: 'bush', x: 1300 } ],
+  },
+  // ===== world 2: もりの くに (jump onto platforms: plats = {x, w, h}, h = height of the top above the feet line; tiles 16x8) =====
+  // layers / tiles: art by ドット絵作成くん (far 160x90, near 320x90, ground 160x27, tile_l/m/r 16x8). theme = fallback until they load
+  {
+    id: 'mayoi', name: 'まよいの森', width: 1300, theme: 'forest', world: 1, highJump: true, bench: 640,
+    layers: 'assets/w2/mayoi', tiles: 'assets/w2/mayoi',
+    spawns: [ { sp: 'kitsunen', x: 260, lv: 12 }, { sp: 'fukuron', x: 430, lv: 12 }, { sp: 'tanukin', x: 760, lv: 13 }, { sp: 'nyankon', x: 950, lv: 13 }, { sp: 'usagin', x: 1130, lv: 12 } ],
+    plats: [ { x: 180, w: 48, h: 20 }, { x: 320, w: 32, h: 34 }, { x: 520, w: 64, h: 20 }, { x: 600, w: 32, h: 34 }, { x: 840, w: 48, h: 20 }, { x: 1020, w: 48, h: 20 }, { x: 1080, w: 32, h: 34 } ],
+    pickups: [ { x: 336, h: 34, coins: 15 }, { x: 616, h: 34, coins: 15 }, { x: 1096, h: 34, coins: 20 } ],
+    exit: ['このさき', 'おしろの にわ'],
+  },
+  {
+    id: 'niwa', name: 'おしろの にわ', width: 1300, theme: 'day', world: 1, highJump: true, bench: 660,
+    layers: 'assets/w2/niwa', tiles: 'assets/w2/niwa',
+    spawns: [ { sp: 'pengiin', x: 260, lv: 14 }, { sp: 'mokomon', x: 450, lv: 14 }, { sp: 'wankon', x: 780, lv: 15 }, { sp: 'pandan', x: 960, lv: 15 }, { sp: 'ressan', x: 1150, lv: 14 } ],
+    plats: [ { x: 200, w: 32, h: 20 }, { x: 250, w: 48, h: 34 }, { x: 540, w: 64, h: 20 }, { x: 700, w: 32, h: 20 }, { x: 740, w: 32, h: 34 }, { x: 1040, w: 64, h: 20 }, { x: 1110, w: 32, h: 34 } ],
+    pickups: [ { x: 274, h: 34, coins: 20 }, { x: 756, h: 34, coins: 20 }, { x: 1126, h: 34, coins: 25 } ],
+    exit: ['このさき', 'もりの おしろ'],
+  },
+  {
+    id: 'oshiro', name: 'もりの おしろ', width: 1200, theme: 'night', world: 1, highJump: true, bench: 560,
+    layers: 'assets/w2/oshiro', tiles: 'assets/w2/oshiro',
+    spawns: [ { sp: 'kangarun', x: 260, lv: 16 }, { sp: 'tsumaguro', x: 430, lv: 16 }, { sp: 'nyankon', x: 720, lv: 16 }, { sp: 'pandan', x: 880, lv: 17 }, { sp: 'shouko', x: 1080, lv: 20, boss: 1 } ],
+    plats: [ { x: 170, w: 48, h: 20 }, { x: 330, w: 32, h: 34 }, { x: 500, w: 64, h: 20 }, { x: 580, w: 32, h: 34 }, { x: 780, w: 48, h: 20 } ],
+    pickups: [ { x: 346, h: 34, coins: 25 }, { x: 596, h: 34, coins: 30 } ],
+    exit: ['このさき', 'じゅんびちゅう'],
   },
 ];
 // shop items (price in coins). use: heal = HP of the walking companion, healAll = everyone full, recruit = next なかまにする +
@@ -386,7 +420,7 @@ const PROP_IMGS = {
 };
 // world map nodes (160x90 screen; the bottom 18 rows are covered by the text box). stage = index into STAGES, or null = not made yet
 // order on the map: 5 field stages -> town (STAGES[5]) -> stages beyond it. stage = index into STAGES
-const MAP_NODES = [
+const MAP_W1 = [
   { x: 12,  y: 62, stage: 0 },
   { x: 32,  y: 46, stage: 1 },
   { x: 52,  y: 60, stage: 2 },
@@ -396,6 +430,14 @@ const MAP_NODES = [
   { x: 130, y: 54, stage: 6 },
   { x: 148, y: 34, stage: 7 },
 ];
+// world 2 (もりの くに): opens after あかつち谷
+const MAP_W2 = [
+  { x: 26,  y: 60, stage: 8 },
+  { x: 80,  y: 46, stage: 9 },
+  { x: 134, y: 32, stage: 10 },
+];
+const MAP_WORLDS = [MAP_W1, MAP_W2];
+let MAP_NODES = MAP_W1;   // the world shown on the map (game.js switches it)
 
 let WORLD_W = STAGES[0].width;   // current stage width (set by enterStage)
 
