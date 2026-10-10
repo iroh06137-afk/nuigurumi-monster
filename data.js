@@ -13,6 +13,7 @@ const SPRITES = {
   player:  { src: 'assets/player.png',    native: 1, walk: { src: 'assets/player_walk.png', frames: 4, ms: 150 } },
   goririn: { src: 'assets/goririn.png',   native: 1, walk: { src: 'assets/goririn_walk.png', frames: 4, ms: 150 } },  // near-frontal, symmetric
   kuuko:   { src: 'assets/kuuko.png',     native: 1, walk: { src: 'assets/kuuko_walk.png', frames: 4, ms: 150 } }, // slim white teddy
+  shouko:  { src: 'assets/shouko.png',    native: 1 }, // beige bear, kuuko's sister (art by user)
   tsumaguro: { src: 'assets/tsumaguro.png', native: 1, walk: { src: 'assets/tsumaguro_walk.png', frames: 4, ms: 150 } }, // blacktip shark (hops on pectoral fins)
   kitsunen: { src: 'assets/kitsunen.png', native: 1 }, // fox plush (zako). no walk sheet yet: bobs while moving
   usagin:  { src: 'assets/usagin.png',   native: 1 }, // lop-eared rabbit plush (zako). no walk sheet yet
@@ -176,7 +177,7 @@ const SPECIES = {
     },
   },
   shouko: {  // ★ くうこの姉 (beige teddy). world-2 final boss; can join after you win. art by the user (placeholder: kuuko)
-    name: 'しょうこ', sprite: 'kuuko', boss: true, recruitAfter: true, mindKuuko: true,
+    name: 'しょうこ', sprite: 'shouko', boss: true, recruitAfter: true, mindKuuko: true,
     hp: 150, atk: 17, def: 13, spd: 11, recruitBase: 0,
     moves: {
       attack: { name: 'おねえさんパンチ', power: 12, acc: 0.96 },
