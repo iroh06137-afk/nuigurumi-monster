@@ -988,6 +988,15 @@
         NET.conn.on('open', () => netSend({ t: 'pick', sp: mine.sp, name: mine.name }));
       });
     }
+    // show why it failed instead of waiting forever
+    const ERR = { 'peer-unavailable': 'へやが みつからない（コードを たしかめてね）', 'unavailable-id': 'へやコードが つかわれてる もういちど つくってね', network: 'つうしんが きれた', 'server-error': 'サーバーに つながらない', 'socket-error': 'サーバーに つながらない', 'browser-incompatible': 'この ブラウザでは つかえない', webrtc: 'あいてと つながらなかった' };
+    NET.peer.on('error', err => { NET.status = 'エラー: ' + (ERR[err && err.type] || ((err && err.type) || 'ふめい')); banner(NET.status, 3); });
+    NET.peer.on('disconnected', () => { if (G.state === 'netroom' && !NET.conn) NET.status = 'サーバーと きれた もういちど ためしてね'; });
+    const watchConn = () => { const c = NET.conn; if (!c || c._nmWatch) return; c._nmWatch = 1; c.on('error', () => { NET.status = 'エラー: あいてと つながらなかった'; }); c.on('close', () => { if (G.state === 'netroom') NET.status = 'あいてが いなくなった'; else banner('あいてとの つうしんが きれた', 2.5); }); };
+    NET.peer.on('connection', () => setTimeout(watchConn, 0));
+    if (!host) NET.peer.on('open', () => setTimeout(watchConn, 0));
+    const myPeer = NET.peer;
+    setTimeout(() => { if (NET.peer === myPeer && G.state === 'netroom' && !host && !(NET.conn && NET.conn.open)) NET.status = 'エラー: 20びょう つながらない（モバイルどうしは つながらない ことがある）'; }, 20000);
     G.state = 'netroom';
   }
 
@@ -2519,8 +2528,9 @@
       rect(8, 16, 144, 40, '#5a3418');
       rect(10, 18, 140, 36, '#fff6e4');
       T('オンラインたいせん', 80, 22, { size: 4, c: '#3c6ad8', al: 'center' });
-      T(NET.status || 'せつぞく中', 80, 32, { size: 8, c: '#5a3418', al: 'center' });
-      T(G.netRole === 'host' ? 'この コードを ともだちに つたえて' : 'あいてを まってるよ', 80, 44, { size: 4, c: '#7a5a38', al: 'center' });
+      { const st = NET.status || 'せつぞく中', long = st.length > 11, parts = long ? st.replace('（', '\n（').replace(': ', ':\n').split('\n') : [st];
+        parts.forEach((l, i) => T(l, 80, (long ? 29 : 32) + i * 6, { size: long ? 4 : 8, c: '#5a3418', al: 'center' }));
+        if (!long) T(G.netRole === 'host' ? 'この コードを ともだちに つたえて' : 'あいてを まってるよ', 80, 44, { size: 4, c: '#7a5a38', al: 'center' }); }
       rect(60, 60, 40, 12, '#5a3418'); rect(61, 61, 38, 10, '#a05a3a');
       T('やめる', 80, 63, { size: 4, c: '#ffffff', al: 'center' });
       vctx.drawImage(low, 0, 0, W * S, H * S); flushText();
@@ -2625,6 +2635,6 @@
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN };
+  window.NM = { G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();
