@@ -177,7 +177,7 @@ const SPECIES = {
     },
   },
   shouko: {  // ★ くうこの姉 (beige teddy). world-2 final boss; can join after you win. art by the user (placeholder: kuuko)
-    name: 'しょうこ', sprite: 'shouko', boss: true, recruitAfter: true, mindKuuko: true,
+    name: 'しょうこ', sprite: 'shouko', boss: true, recruitAfter: true, mindKuuko: true, evoOnly: 10,  // always counts as an evolved form, joins at lv10+
     hp: 150, atk: 17, def: 13, spd: 11, recruitBase: 0,
     moves: {
       attack: { name: 'おねえさんパンチ', power: 12, acc: 0.96 },
@@ -249,7 +249,9 @@ for (const sp of ['goririn', 'kuuko', 'tsumaguro', 'oguri', 'kitsunen', 'usagin'
 // evolved moves: strong gets a new name (+power), special becomes its own projectile move.
 // fx: fire / orb / beam / wave / multi (hits = number of shots; shape: 'glove' | 'orb'). ★ names other than
 // オグリ波 / くうこ弾 / 水ビーム / パンチングパンチ are provisional.
+EVOLVE.shouko = { lv: 10, sprite: 'shouko', name: null, hp: 0, atk: 0, def: 0, spd: 0 };
 const EVO_MOVES = {
+  shouko:    { special: { name: 'バン', fx: 'orb', col: '#ffd070' } },  // ★ big-bang energy ball; dedicated fx art coming from ドット絵作成くん
   goririn:   { strong: { name: 'メガドラミング', power: 28 },     special: { name: 'メガパンチ',       fx: 'multi', shape: 'glove', hits: 1, col: '#ff7ab0' } },
   kuuko:     { strong: { name: 'ぎゅうぎゅうハグ', power: 27 },   special: { name: 'くうこ弾',         fx: 'orb',   col: '#7ad8ff' } },
   tsumaguro: { strong: { name: 'シャークひれぎり', power: 29 },   special: { name: '水ビーム',         fx: 'beam',  col: '#4ab8ff' } },

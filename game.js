@@ -646,7 +646,7 @@
   }
 
   function spawnWilds() {
-    G.wilds = STAGES[G.stage].spawns.map((s, i) => Object.assign(newActor(s.x, -1, SPECIES[s.sp].sprite), s.lv ? trainerMember({ sp: s.sp, lv: s.lv }) : newMember(s.sp), {
+    G.wilds = STAGES[G.stage].spawns.map((s, i) => Object.assign(newActor(s.x, -1, SPECIES[s.sp].sprite), s.lv ? trainerMember({ sp: s.sp, lv: s.lv, evo: SPECIES[s.sp].evoOnly }) : newMember(s.sp), {
       home: s.x, spawnX: s.x, alive: !(SPECIES[s.sp].recruitAfter && G.flags && G.flags['joined_' + s.sp]), cool: false, wt: 1 + rand() * 2, wdir: 0, toHome: false, idx: i,
     }));
   }
@@ -1139,7 +1139,7 @@
     if (M.kind === 'ask') {
       const nm = SPECIES[M.sp].name;
       if (k === '_yes') {
-        const m = trainerMember({ sp: M.sp, lv: M.lv }); delete m.spUsed;
+        const eo = SPECIES[M.sp].evoOnly, m = trainerMember({ sp: M.sp, lv: eo ? Math.max(M.lv || 1, eo) : M.lv, evo: !!eo }); delete m.spUsed;
         G.flags['joined_' + M.sp] = 1;
         if (G.party.length < TUNING.partyMax) { G.party.push(m); banner(`${nm}が なかまに なった！`, 2.4); }
         else { (G.box = G.box || []).push(m); banner(`${nm}が なかまに なった！ ぬいハウスへ いったよ`, 2.6); }
