@@ -247,6 +247,9 @@
   function loadImg(src) {
     return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('failed to load ' + src)); i.src = (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src]) ? ASSET_DATA[src] : src; });
   }
+  // versus arena backgrounds (160x90, static): day / night picked per match
+  const ARENA = {};
+  for (const k of ['day', 'night']) loadImg('assets/bg/arena_' + k + '.png').then(i => { ARENA[k] = i; }).catch(() => {});
   function silhouette(src) {
     const [c, x] = mk(32, 32); x.drawImage(src, 0, 0);
     x.globalCompositeOperation = 'source-in'; x.fillStyle = '#ffffff'; x.fillRect(0, 0, 32, 32); return c;
@@ -921,9 +924,10 @@
     const w = Object.assign(newActor(110, -1, SPECIES[sp].sprite), newMember(sp), {
       alive: true, home: 110, spawnX: 110, cool: false,
     });
-    player.x = 36; comp.x = 58; player.face = 1; comp.face = 1;
+    player.x = 32; comp.x = 58; player.face = 1; comp.face = 1;
     G.cam = G.camT = 0;
     G.versus = true;
+    G.arena = rand() < 0.5 ? 'day' : 'night';
     G.friend = !!V.friend || G.netRole === 'host';
     if (G.netRole !== 'host') G.netRole = null;
     G.wilds.forEach(w => { w.alpha = 0; });
@@ -948,7 +952,8 @@
       G.party = [newMember(sp)];
       G.active = 0;
       const w = Object.assign(newActor(110, -1, SPECIES[msg.sp].sprite), newMember(msg.sp), { alive: true, home: 110, spawnX: 110 });
-      player.x = 36; comp.x = 58;
+      player.x = 32; comp.x = 58; G.cam = G.camT = 0;
+      G.arena = msg.arena === 'night' ? 'night' : 'day';
       G.wilds.forEach(a => { a.alpha = 0; });
       G.state = 'field';
       startBattle(w);
@@ -965,7 +970,7 @@
     G.vs.friend = true;
     G.netRole = 'host';
     launchVersus();
-    netSend({ t: 'start', sp: G.party[G.active].sp, name: ally().name, g: G.gender | 0, c: G.hcolor | 0 });
+    netSend({ t: 'start', sp: G.party[G.active].sp, name: ally().name, g: G.gender | 0, c: G.hcolor | 0, arena: G.arena });
   }
   function openNet(host) {
     if (typeof Peer === 'undefined') { banner('つうしんの よみこみに しっぱい', 2); return; }
@@ -1899,7 +1904,7 @@
   }
   function endBattle() {
     const B = G.battle;
-    G.oppHero = null;
+    G.oppHero = null; G.arena = null;
     if (B.trainerActor) { const t = B.trainerActor; t.tx = t.homeX; t.tface = -1; }
     if (B.w.alive) { B.w.home = B.w.x; B.w.alpha = 1; B.w.moving = false; }
     if (B.w.tutMob) G.wilds = G.wilds.filter(w => w !== B.w);
@@ -2555,10 +2560,14 @@
     let cam = Math.round(G.cam);
     const shake = G.shakeT > 0 ? (Math.floor(G.t * 60) % 2 ? 1 : -1) : 0;
     cam += shake;
-    BG.draw(g, G.bg, cam, G.t, W);
-    drawRoadProps(cam); drawTown(cam); drawSign(cam); drawBench(cam);
-    for (const a of G.npcs) drawActor(a, cam);
-    for (const w of G.wilds) if (w.alive && w.alpha > 0) drawActor(w, cam);
+    const arena = G.versus && G.battle && G.arena && ARENA[G.arena];
+    if (arena) g.drawImage(arena, -cam, 0);
+    else {
+      BG.draw(g, G.bg, cam, G.t, W);
+      drawRoadProps(cam); drawTown(cam); drawSign(cam); drawBench(cam);
+      for (const a of G.npcs) drawActor(a, cam);
+      for (const w of G.wilds) if (w.alive && w.alpha > 0) drawActor(w, cam);
+    }
     drawArtFx(cam, 'under');
     if (G.battle && G.battle.w) drawActor(G.battle.w, cam);
     drawActor(comp, cam);
