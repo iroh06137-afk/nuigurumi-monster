@@ -324,6 +324,7 @@ const STAGES = [
     buildings: [
       { k: 'shop',   x: 215, name: 'ぬいショップ' },
       { k: 'clinic', x: 420, name: 'ぬいぐるみびょういん' },
+      { k: 'nuihouse', x: 620, name: 'ぬいハウス' },
       { k: 'house',  x: 830, name: 'おばあさんの いえ' },
     ],
     // look = placeholder recolor of the boy until the 5 new human sprites are approved

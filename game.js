@@ -291,7 +291,7 @@
     hoverBtn: -1, bg: null, signNear: false, forceRecruit: null,
     stage: 0, unlocked: 1, cleared: [], mapSel: 0, mapPos: null, benchUsed: false, benchNear: false, bgCache: {},
     hasSave: false, muted: false, versus: false, vs: null, saveFlash: 0, 
-    coins: 50, items: {}, beaten: [], fought: [], flags: {}, cookie: false, npcs: [], near: null, talk: null, menu: null,
+    coins: 50, items: {}, beaten: [], fought: [], box: [], flags: {}, cookie: false, npcs: [], near: null, talk: null, menu: null,
   };
   const SAVE_KEY = 'nm_save_v1', HERO_KEY = 'nm_hero';
   // ---- hero (gender + color) ----
@@ -384,14 +384,13 @@
     try { saveHero(); } catch (e) {}
     SFX.blip();
   }
+  const serMember = m => ({ sp: m.sp, hp: Math.round(m.hp), maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: m.lv || 1, xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.name });
   function persist() {
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify({
         v: 3,
-        party: G.party.map(m => ({
-          sp: m.sp, hp: Math.round(m.hp), maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd,
-          lv: m.lv || 1, xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.name,
-        })),
+        party: G.party.map(serMember),
+        box: (G.box || []).map(serMember),
         muted: !!G.muted,
         active: G.active,
         unlocked: G.unlocked,
@@ -815,11 +814,15 @@
     SFX.start();
     if (G.state !== 'title') return;
     const s = fromSave ? readSave() : null;
+    G.box = [];
     if (s && Array.isArray(s.party) && s.party.length) {
       G.party = s.party.filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.hp, {
         maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: m.lv || 1, xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.evo && m.name ? m.name : SPECIES[m.sp].name,
       }));
       if (!G.party.length) G.party = [newMember('goririn')];
+      G.box = (Array.isArray(s.box) ? s.box : []).filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.hp, {
+        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: m.lv || 1, xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.evo && m.name ? m.name : SPECIES[m.sp].name,
+      }));
       G.active = Math.max(0, Math.min(s.active | 0, G.party.length - 1));
       G.unlocked = Math.max(1, s.unlocked | 0);
       G.cleared = Array.isArray(s.cleared) ? s.cleared.slice() : [];
@@ -1048,6 +1051,7 @@
     }
     const b = n.b;
     if (b.k === 'shop') say(b.name, [['いらっしゃいませ！', 'ゆっくり みていってね']], openShop);
+    else if (b.k === 'nuihouse') say(b.name, [['ぬいハウスへ ようこそ！', 'ぬいぐるみを あずかるよ'], ['てもちが いっぱいの とき', 'なかまに なった こも ここに くるよ']], openHouse);
     else if (b.k === 'clinic') say(b.name, [['いらっしゃい！', 'ぬいぐるみたちを げんきに するわね']], () => {
       for (const m of G.party) m.hp = m.maxHp;
       burst(comp.x, GROUND - 14, 'spark', 12, '#ffffff'); SFX.level();
@@ -1101,6 +1105,11 @@
   function menuRows() {
     const M = G.menu;
     if (M.kind === 'bswap') return G.party.map((m, i) => 'p' + i).concat(['_close']);
+    if (M.kind === 'house') {
+      const box = G.box || [];
+      if (M.pi == null) return G.party.map((m, i) => 'p' + i).concat(G.party.length < TUNING.partyMax && box.length ? ['_take'] : [], ['_close']);
+      return box.map((m, j) => 'b' + j).concat(M.pi >= 0 && G.party.length > 1 ? ['_put'] : [], ['_back']);
+    }
     return (M.kind === 'shop' ? SHOP_LIST : bagList()).concat(['_close']);
   }
   function closeMenu() {
@@ -1120,6 +1129,7 @@
     const M = G.menu, rows = menuRows(), k = rows[M.sel];
     if (k === '_close') { closeMenu(); return; }
     if (M.kind === 'bswap' || M.kind === 'bitem') { battleMenuPick(M, k); return; }
+    if (M.kind === 'house') { housePick(M, k); return; }
     const it = ITEMS[k];
     if (M.kind === 'shop') {
       if ((G.items[k] | 0) >= 9) { banner('もう もちきれない', 1.2); return; }
@@ -1148,12 +1158,37 @@
     const left = menuRows();
     if (left.length <= 1) closeMenu(); else M.sel = Math.min(M.sel, left.length - 1);
   }
+  // ぬいハウス: pick a party member, then a stored one to swap with (or あずける); _take pulls one into a free slot
+  function openHouse() { G.menu = { kind: 'house', sel: 0, pi: null, top: 0 }; G.state = 'menu'; player.moving = false; }
+  function housePick(M, k) {
+    const box = G.box = G.box || [];
+    if (k === '_back') { M.pi = null; M.sel = 0; M.top = 0; return; }
+    if (M.pi == null) {
+      if (k === '_take') { M.pi = -1; M.sel = 0; M.top = 0; return; }
+      M.pi = +k.slice(1); M.sel = 0; M.top = 0; return;
+    }
+    const cur = G.party[G.active];
+    if (k === '_put') {
+      const [m] = G.party.splice(M.pi, 1); box.push(m);
+      banner(`${m.name}を あずけた`, 1.4);
+    } else {
+      const j = +k.slice(1), b = box[j];
+      if (M.pi < 0) { box.splice(j, 1); G.party.push(b); banner(`${b.name}を つれていく`, 1.4); }
+      else { const m = G.party[M.pi]; G.party[M.pi] = b; box[j] = m; banner(`${m.name}と ${b.name}を いれかえた`, 1.4); }
+    }
+    G.active = Math.max(0, G.party.indexOf(cur));
+    if (G.party[G.active] !== cur) G.active = 0;
+    comp.key = compKey();
+    SFX.buy(); persist();
+    M.pi = null; M.sel = 0; M.top = 0;
+  }
   const MENU = { x: 22, y: 12, w: 116, h: 58, row0: 24, rh: 7 };
+  const MENU_ROWS = 5;   // rows visible at once (the list scrolls when longer)
   function menuTap(x, y) {
     const M = G.menu; if (!M) return;
     if (!inRect(x, y, MENU)) { closeMenu(); return; }
-    const i = Math.floor((y - MENU.row0 + 1) / MENU.rh), rows = menuRows();
-    if (i < 0 || i >= rows.length) return;
+    const i = Math.floor((y - MENU.row0 + 1) / MENU.rh) + (M.top | 0), rows = menuRows();
+    if (i < (M.top | 0) || i >= rows.length || i >= (M.top | 0) + MENU_ROWS) return;
     if (i === M.sel) menuPick(); else M.sel = i;
   }
   function clearStage() {
@@ -1818,13 +1853,12 @@
     if (ok && G.party.length < TUNING.partyMax) {
       yield* takeRecruit(e);
     } else if (ok) {
-      B.pending = newMember(e.sp, Math.max(1, Math.floor(e.hp)));
-      B.swapSel = 0;
-      B.phase = 'swap';
-      B.msg = 'だれを おうちに かえす？';
-      banner('なかまが いっぱい！ 1〜4で いれかえ ／ 0で やめる', 3.2);
-      yield* tween(v => player.ox = v, player.ox, 0, 0.3);
-      while (G.battle && G.battle.phase === 'swap') yield* wait(0.05);
+      // party full: the new friend goes to the ぬいハウス in town
+      B.swappedOut = true;
+      (G.box = G.box || []).push(newMember(e.sp, Math.max(1, Math.floor(e.hp))));
+      yield* takeRecruit(e);
+      banner(`${e.name}は ぬいハウスへ いったよ`, 2.6);
+      yield* wait(1.2);
     } else {
       B.msg = `${e.name}は そっぽを むいた…`;
       banner(`${e.name}は ぷいっと そっぽを むいた…`, 1.8);
@@ -2100,8 +2134,8 @@
     const cx = Math.round(b.x - cam), x0 = cx - 23, top = EDGE - 33, ol = '#3a2410';
     if (x0 > W + 8 || x0 + 46 < -8) return;
     const bi = PROPS['bld_' + b.k]; if (bi) { g.drawImage(bi, x0, top); return; }
-    const wall = { shop: '#f8ecd0', clinic: '#f6f4ee', house: '#e8be88' }[b.k] || '#f0e0c0';
-    const roof = { shop: '#3c78d8', clinic: '#f07aa8', house: '#c84a3a' }[b.k] || '#8a5a2e';
+    const wall = { shop: '#f8ecd0', clinic: '#f6f4ee', house: '#e8be88', nuihouse: '#fff0f6' }[b.k] || '#f0e0c0';
+    const roof = { shop: '#3c78d8', clinic: '#f07aa8', house: '#c84a3a', nuihouse: '#9a6ad8' }[b.k] || '#8a5a2e';
     // wall
     rect(x0 - 1, top + 7, 48, EDGE - top - 6, ol); rect(x0, top + 8, 46, EDGE - top - 8, wall);
     rect(x0, top + 8, 46, 1, 'rgba(255,255,255,0.4)');
@@ -2385,15 +2419,29 @@
     const { x, y, w, h, row0, rh } = MENU;
     rect(x + 1, y, w - 2, h, '#5a3418'); rect(x, y + 1, w, h - 2, '#5a3418');
     rect(x + 1, y + 1, w - 2, h - 2, '#fff8e0');
-    T(M.kind === 'shop' ? 'ぬいショップ' : M.kind === 'bswap' ? 'いれかえ' : 'どうぐ', x + 5, y + 4, { c: '#c0502a' });
-    if (M.kind !== 'bswap') T(`${G.coins}コイン`, x + w - 5, y + 4, { al: 'right' });
+    T(M.kind === 'shop' ? 'ぬいショップ' : M.kind === 'bswap' ? 'いれかえ' : M.kind === 'house' ? 'ぬいハウス' : 'どうぐ', x + 5, y + 4, { c: '#c0502a' });
+    if (M.kind === 'house') T(`あずけ ${(G.box || []).length}ひき`, x + w - 5, y + 4, { al: 'right' });
+    else if (M.kind !== 'bswap') T(`${G.coins}コイン`, x + w - 5, y + 4, { al: 'right' });
     rect(x + 3, y + 10, w - 6, 1, '#e8d8b0');
     const rows = menuRows();
+    if (M.sel >= rows.length) M.sel = rows.length - 1;
+    M.top = Math.max(0, Math.min(M.top | 0, M.sel, rows.length - MENU_ROWS)); if (M.sel >= M.top + MENU_ROWS) M.top = M.sel - MENU_ROWS + 1;
+    if (M.top > 0) T('▲', x + w - 5, row0 - 6, { al: 'right', c: '#c0502a' });
+    if (M.top + MENU_ROWS < rows.length) T('▼', x + w - 5, row0 + MENU_ROWS * rh - 2, { al: 'right', c: '#c0502a' });
     rows.forEach((k, i) => {
-      const yy = row0 + i * rh, sel = i === M.sel;
+      if (i < M.top || i >= M.top + MENU_ROWS) return;
+      const yy = row0 + (i - M.top) * rh, sel = i === M.sel;
       if (sel) rect(x + 3, yy - 1, w - 6, rh, '#ffe98a');
       if (sel && Math.floor(G.t * 4) % 2) drawPattern(['#..', '##.', '###', '##.', '#..'], x + 5, yy, { '#': '#c0502a' });
-      if (k === '_close') { T(M.kind === 'shop' ? 'でる' : M.kind === 'bswap' || M.kind === 'bitem' ? 'やめる' : 'とじる', x + 10, yy); return; }
+      if (k === '_close') { T(M.kind === 'shop' || M.kind === 'house' ? 'でる' : M.kind === 'bswap' || M.kind === 'bitem' ? 'やめる' : 'とじる', x + 10, yy); return; }
+      if (k === '_back') { T('もどる', x + 10, yy); return; }
+      if (k === '_put') { T('ここに あずける', x + 10, yy, { c: '#3c6ad8' }); return; }
+      if (k === '_take') { T('あずけた こを つれていく', x + 10, yy, { c: '#3c6ad8' }); return; }
+      if (M.kind === 'house') {
+        const m = k[0] === 'p' ? G.party[+k.slice(1)] : G.box[+k.slice(1)];
+        T(m.name, x + 10, yy); T(`Lv${m.lv || 1}`, x + 74, yy, { c: '#7a5a30' }); T(`HP${Math.floor(m.hp)}/${m.maxHp}`, x + w - 5, yy, { al: 'right' });
+        return;
+      }
       if (M.kind === 'bswap') {
         const m = G.party[+k.slice(1)], out = +k.slice(1) === G.active, down = m.hp < 1;
         T(m.name + (out ? ' (でている)' : ''), x + 10, yy, { c: down ? '#b0a080' : '#4a2c12' });
@@ -2407,7 +2455,8 @@
       else T(`x${have}`, x + w - 5, yy, { al: 'right' });
     });
     const k = rows[M.sel];
-    const desc = k === '_close' ? '' : M.kind === 'bswap' ? 'だれと こうたい する？' : ITEMS[k].desc;
+    const desc = k === '_close' ? '' : M.kind === 'bswap' ? 'だれと こうたい する？'
+      : M.kind === 'house' ? (M.pi == null ? 'てもちの だれを かえる？' : M.pi < 0 ? 'だれを つれていく？' : (G.box || []).length ? 'だれと いれかえる？' : 'まだ だれも いないよ') : ITEMS[k] ? ITEMS[k].desc : '';
     rect(x + 3, y + h - 11, w - 6, 1, '#e8d8b0');
     T(desc, x + 5, y + h - 8, { c: '#7a5a30' });
     if (M.kind === 'bag' && G.cookie) T('クッキー こうかちゅう', x + w - 5, y + h - 8 - 0, { al: 'right', c: '#d4588c' });
