@@ -1493,7 +1493,7 @@
   }
   function* mindIntro() {
     const B = G.battle, e = B.w;
-    B.msg = 'しょうこ「くうこ、おねえちゃんの もとへ きなさい」';
+    B.msg = 'しょうこが よびかけた！';
     banner('しょうこ「くうこ、おねえちゃんの もとへ きなさい」', 2.2); yield* wait(2.0);
     for (let i = 0; i < 10; i++) { burst(e.x, GROUND - 16, 'spark', 3, '#b060ff'); e.flash = 0.15; yield* wait(0.12); }
     B.msg = `${e.name}は あやつられている！`;
