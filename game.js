@@ -319,12 +319,13 @@
     }
     x.putImageData(id, 0, 0); return c;
   }
-  function buildHero() {
-    const gd = HERO_GENDERS[G.gender | 0] || HERO_GENDERS[0], src = SPR[gd.key] || SPR.player;
-    const col = (HERO_COLORS[G.hcolor | 0] || HERO_COLORS[0]).c;
-    SPR.hero = Object.assign({}, src, { n: recolor(src.n, gd, col), f: recolor(src.f, gd, col) });
-    if (src.walk) SPR.hero.walk = { ms: src.walk.ms, frames: src.walk.frames.map(fr => Object.assign({}, fr, { n: recolor(fr.n, gd, col), f: recolor(fr.f, gd, col) })) };
-    player.key = 'hero';
+  function buildHero(gi, ci, key) {
+    const own = !key; key = key || 'hero'; gi = own ? G.gender | 0 : gi | 0; ci = own ? G.hcolor | 0 : ci | 0;
+    const gd = HERO_GENDERS[gi] || HERO_GENDERS[0], src = SPR[gd.key] || SPR.player;
+    const col = (HERO_COLORS[ci] || HERO_COLORS[0]).c;
+    SPR[key] = Object.assign({}, src, { n: recolor(src.n, gd, col), f: recolor(src.f, gd, col) });
+    if (src.walk) SPR[key].walk = { ms: src.walk.ms, frames: src.walk.frames.map(fr => Object.assign({}, fr, { n: recolor(fr.n, gd, col), f: recolor(fr.f, gd, col) })) };
+    if (own) player.key = 'hero';
   }
   function saveHero() { try { localStorage.setItem(HERO_KEY, JSON.stringify({ g: G.gender | 0, c: G.hcolor | 0, n: G.pname || '', r: G.rname || '' })); } catch (e) {} }
   const pName = () => G.pname || 'きみ';
@@ -939,6 +940,7 @@
       NET.status = msg.name + ' が きた';
       if (G.netRole === 'host' && NET.mine) beginNetBattle();
     } else if (msg.t === 'start') {
+      NET.opp = msg;
       G.netRole = 'guest';
       G.friend = true;
       G.versus = true;
@@ -963,7 +965,7 @@
     G.vs.friend = true;
     G.netRole = 'host';
     launchVersus();
-    netSend({ t: 'start', sp: G.party[G.active].sp, name: ally().name });
+    netSend({ t: 'start', sp: G.party[G.active].sp, name: ally().name, g: G.gender | 0, c: G.hcolor | 0 });
   }
   function openNet(host) {
     if (typeof Peer === 'undefined') { banner('つうしんの よみこみに しっぱい', 2); return; }
@@ -975,7 +977,7 @@
       G.netRole = 'host';
       NET.status = 'へや ' + NET.code;
       NET.peer = new Peer('nmg-' + NET.code);
-      NET.peer.on('connection', c => { NET.conn = c; c.on('data', onNet); c.on('open', () => netSend({ t: 'pick', sp: mine.sp, name: mine.name })); });
+      NET.peer.on('connection', c => { NET.conn = c; c.on('data', onNet); c.on('open', () => netSend({ t: 'pick', sp: mine.sp, name: mine.name, g: G.gender | 0, c: G.hcolor | 0 })); });
     } else {
       const code = (window.prompt('あいての へやコード') || '').trim().toLowerCase();
       if (!code) return;
@@ -985,7 +987,7 @@
       NET.peer.on('open', () => {
         NET.conn = NET.peer.connect('nmg-' + code);
         NET.conn.on('data', onNet);
-        NET.conn.on('open', () => netSend({ t: 'pick', sp: mine.sp, name: mine.name }));
+        NET.conn.on('open', () => netSend({ t: 'pick', sp: mine.sp, name: mine.name, g: G.gender | 0, c: G.hcolor | 0 }));
       });
     }
     // show why it failed instead of waiting forever
@@ -1358,6 +1360,18 @@
     ally().st = 25; w.st = 5 + rand() * 30; w.wdir = 0;
     G.camT = clamp(player.x + side * 45 - W / 2, 0, WORLD_W - W);
     banner(G.friend ? `たいせん！ ${w.name} が むかってきた！` : w.trainer ? `${w.trainerName}が しょうぶを しかけてきた！` : (SPECIES[w.sp].boss ? `${w.name}が たちはだかった！` : `やせいの ${w.name}が あらわれた！`), 2.0);
+    // versus: the other player stands behind their plush (their own look online, the other gender offline)
+    G.oppHero = null;
+    if (G.versus) {
+      const o = G.netRole && NET.opp && NET.opp.g != null ? NET.opp : { g: (G.gender | 0) ? 0 : 1, c: null };
+      const gi = (o.g | 0) % HERO_GENDERS.length, ci = o.c != null ? o.c : HERO_GENDERS[gi].def;
+      try { buildHero(gi, ci, 'hero_opp'); } catch (e) {}
+      if (SPR.hero_opp) {
+        const h = G.oppHero = newActor(clamp(B.enemyTX + side * 60, 8, WORLD_W - 8), -side, 'hero_opp');
+        h.tx = clamp(B.enemyTX + side * 22, 8, WORLD_W - 8); h.tface = -side;
+        if (side > 0) h.tx = Math.min(h.tx, G.camT + W - 10); else h.tx = Math.max(h.tx, G.camT + 10);
+      }
+    }
     B.q.push(introAction());
   }
   function* walkTo(a, x, speed) {
@@ -1885,6 +1899,7 @@
   }
   function endBattle() {
     const B = G.battle;
+    G.oppHero = null;
     if (B.trainerActor) { const t = B.trainerActor; t.tx = t.homeX; t.tface = -1; }
     if (B.w.alive) { B.w.home = B.w.x; B.w.alpha = 1; B.w.moving = false; }
     if (B.w.tutMob) G.wilds = G.wilds.filter(w => w !== B.w);
@@ -1963,7 +1978,7 @@
     document.body.classList.toggle('has-save', !!G.hasSave);
     animActor(player, dt); animActor(comp, dt);
     for (const w of G.wilds) animActor(w, dt);
-    for (const a of G.npcs) {
+    for (const a of G.oppHero ? G.npcs.concat([G.oppHero]) : G.npcs) {
       if (a.tx != null) {
         const d = a.tx - a.x;
         if (Math.abs(d) > 0.5) { a.face = Math.sign(d); a.moving = true; a.x += Math.sign(d) * Math.min(Math.abs(d), 70 * dt); }
@@ -2548,6 +2563,7 @@
     if (G.battle && G.battle.w) drawActor(G.battle.w, cam);
     drawActor(comp, cam);
     drawActor(player, cam);
+    if (G.oppHero && G.battle) drawActor(G.oppHero, cam);
     if (G.battle && G.battle.phase !== 'done') { drawBars(G.battle.w, G.battle.w, cam); if (comp.alpha > 0) drawBars(comp, ally(), cam); }
     if (G.battle && G.battle.phase !== 'done' && ally().guard && comp.alpha > 0) drawPattern(ICONS.shield, Math.round(comp.x - cam) - 4, GROUND - 42, { w: '#ffffff', y: '#6aa8e8' });
     drawFxShots(cam);
