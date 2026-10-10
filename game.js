@@ -1675,6 +1675,7 @@
   }
   function* enemyAttack(kind) {
     const B = G.battle, e = B.w, a = ally();
+    if (!movesOf(e)[kind]) kind = 'attack';   // unknown / blocked command from the other phone
     const mv = movesOf(e)[kind];
     e.st -= COST[kind];
     B.msg = `${e.name}の ${mv.name}！`;
@@ -2333,7 +2334,7 @@
     else if (B.phase === 'input') {
       const c = COMMANDS[B.sel];
       l1 = (B.who === 'opp' ? 'あいて ' : '') + `${c.label}`;
-      if (B.who === 'opp') l2 = SPECIES[B.w.sp].moves[c.kind].name;
+      if (B.who === 'opp') { const om = movesOf(B.w)[c.kind]; l2 = om ? om.name : ''; }
       else if (c.kind === 'recruit') l2 = B.w.trainer ? 'ひとの こは だめ' : SPECIES[B.w.sp].boss ? 'ボスは なかまに できない' : `せいこう ${Math.round(recruitChance(B.w) * 100)}%` + (G.cookie ? '♪' : '');
       else if (c.kind === 'run' && (SPECIES[B.w.sp].boss || B.w.trainer)) l2 = B.w.trainer ? 'にげられない' : 'ボスからは にげられない';
       else if (c.kind === 'run') l2 = `にげる ${Math.round(runChance(a, B.w, B.runTries) * 100)}%`;
@@ -2341,7 +2342,7 @@
       else if (c.kind === 'item') l2 = `もちもの ${bagList().reduce((n, k) => n + (G.items[k] | 0), 0)}こ`;
       else if (c.kind === 'swap') l2 = 'なかまと こうたい';
       else if (c.kind === 'special') l2 = (B.bond | 0) >= 100 ? specialOf(a).name : `きずな ${Math.floor(B.bond | 0)}%`;
-      else l2 = movesOf(a)[c.kind].name;
+      else { const mm = movesOf(a)[c.kind]; l2 = mm ? mm.name : ''; }
     } else if (B.cur || B.phase === 'end') { [l1, l2] = wrap2(B.msg, 12); }
     else { l1 = 'スタミナ'; l2 = 'ためちゅう…'; }
     T(l1, 4.5, 79); T(l2, 4.5, 83.5);
