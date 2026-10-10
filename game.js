@@ -272,11 +272,11 @@
     }
     SPR[key].walk = { frames, ms: def.ms };
   }
-  function sheetFrames(img, count) {
+  function sheetFrames(img, count, S = 32) {
     const frames = [];
     for (let i = 0; i < count; i++) {
-      const [n, nx] = mk(32, 32); nx.drawImage(img, i * 32, 0, 32, 32, 0, 0, 32, 32);
-      const [f, fx] = mk(32, 32); fx.translate(32, 0); fx.scale(-1, 1); fx.drawImage(n, 0, 0);
+      const [n, nx] = mk(S, S); nx.drawImage(img, i * S, 0, S, S, 0, 0, S, S);
+      const [f, fx] = mk(S, S); fx.translate(S, 0); fx.scale(-1, 1); fx.drawImage(n, 0, 0);
       frames.push({ n, f, wn: silhouette(n), wf: silhouette(f) });
     }
     return frames;
@@ -1726,7 +1726,7 @@
       if (guarded && landed === 1) pop(defA.x, GROUND - 46, 'GUARD', '#a8d8ff');
       const hx = f.mode === 'glove' ? f.x1 + dir * 9 : f.mode === 'beam' ? defA.x - dir * 4 : defA.x - dir * 2;
       const hy = f.mode === 'glove' ? f.y1 : GROUND - 14;
-      G.fx.push({ type: 'ahit', img: img.hit, ms: A.hit.ms, x: hx, y: hy, t: 0, dur: 4 * A.hit.ms / 1000, hold: 0, loopHit: f.mode === 'beam' ? f : null });
+      G.fx.push({ type: 'ahit', img: img.hit, ms: A.hit.ms, x: hx, y: hy, t: 0, dur: img.hit.length * A.hit.ms / 1000, hold: 0, loopHit: f.mode === 'beam' ? f : null });
       G.hitStop = landed === hits ? 0.16 : 0.05; G.flashT = 0.08; G.shakeT = 0.35;
       SFX.hit('strong');
       if (G.battle && def === ally()) addBond(dmg / def.maxHp * 110);
@@ -1763,8 +1763,8 @@
         if (layer !== 'top') continue;
         let fi = Math.floor(f.t * 1000 / f.ms);
         if (f.loopHit && G.fx.includes(f.loopHit)) fi %= 2;
-        else if (fi >= 4) { G.fx.splice(i, 1); continue; }
-        g.drawImage(f.img[fi].n, Math.round(f.x - cam) - 16, Math.round(f.y) - 16);
+        else if (fi >= f.img.length) { G.fx.splice(i, 1); continue; }
+        const hw = f.img[fi].n.width >> 1; g.drawImage(f.img[fi].n, Math.round(f.x - cam) - hw, Math.round(f.y) - hw);
         continue;
       }
       if (f.type !== 'ashot' || layer !== 'under') continue;
@@ -2858,7 +2858,7 @@
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.walk).map(([k, s]) => loadImg(s.walk.src).then(img => prepWalk(k, img, s.walk)).catch(() => {})));
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.attack).map(([k, s]) => loadImg(s.attack.src).then(img => { SPR[k].attack = sheetFrames(img, s.attack.frames); }).catch(() => {})));
     if (typeof FX_ART !== 'undefined') await Promise.all(Object.keys(FX_ART).map(sp => Promise.all([loadImg('assets/fx/' + sp + '_shot.png'), loadImg('assets/fx/' + sp + '_hit.png')])
-      .then(([a, b]) => { FXIMG[sp] = { shot: sheetFrames(a, 4), hit: sheetFrames(b, 4) }; }).catch(() => {})));
+      .then(([a, b]) => { FXIMG[sp] = { shot: sheetFrames(a, 4), hit: sheetFrames(b, FX_ART[sp].hit.n || 4, FX_ART[sp].hit.size || 32) }; }).catch(() => {})));
     await Promise.all(Object.entries(PROP_IMGS).map(([k, src]) => loadImg(src).then(img => { PROPS[k] = img; }).catch(e => console.warn(e))));
     makeNpcSprites();
     try { await document.fonts.load('8px Misaki'); await document.fonts.load("8px 'DotGothic16'"); } catch (e) { console.warn('font load failed', e); }

@@ -13,7 +13,7 @@ const SPRITES = {
   player:  { src: 'assets/player.png',    native: 1, walk: { src: 'assets/player_walk.png', frames: 4, ms: 150 } },
   goririn: { src: 'assets/goririn.png',   native: 1, walk: { src: 'assets/goririn_walk.png', frames: 4, ms: 150 } },  // near-frontal, symmetric
   kuuko:   { src: 'assets/kuuko.png',     native: 1, walk: { src: 'assets/kuuko_walk.png', frames: 4, ms: 150 } }, // slim white teddy
-  shouko:  { src: 'assets/shouko.png',    native: 1, walk: { src: 'assets/shouko_walk.png', frames: 4, ms: 150 } }, // beige bear, kuuko's sister (art by user)
+  shouko:  { src: 'assets/shouko.png',    native: 1, walk: { src: 'assets/shouko_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/evo/shouko_attack.png', frames: 4 } }, // beige bear, kuuko's sister (art by user)
   tsumaguro: { src: 'assets/tsumaguro.png', native: 1, walk: { src: 'assets/tsumaguro_walk.png', frames: 4, ms: 150 } }, // blacktip shark (hops on pectoral fins)
   kitsunen: { src: 'assets/kitsunen.png', native: 1 }, // fox plush (zako). no walk sheet yet: bobs while moving
   usagin:  { src: 'assets/usagin.png',   native: 1 }, // lop-eared rabbit plush (zako). no walk sheet yet
@@ -273,6 +273,7 @@ const EVO_MOVES = {
 // pixel-art special fx by ドット絵作成くん (cast = attacker 4 frames; shot/hit = 128x32 sheets in assets/fx/<sp>_shot|hit.png).
 // cast.spawn = fx anchor inside each 32x32 cast frame (right-facing); fire = order steps that launch a shot; hold = step held until shots land.
 const FX_ART = {
+  shouko: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 400, 200], "spawn": [[17, 13], [30, 15], [31, 15], [17, 14]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 90, "ax": 20, "ay": 16, "spd": 160}, "hit": {"ms": 70, "n": 5, "size": 48}},
   oguri: {"cast": {"order": [0, 1, 2, 3], "dur": [270, 90, 360, 180], "spawn": [[29, 14], [30, 21], [31, 21], [30, 20]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90}},
   kuuko: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[17, 15], [30, 17], [31, 17], [17, 16]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 90, "ax": 21, "ay": 16, "spd": 160}, "hit": {"ms": 90}},
   tsumaguro: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 720, 180], "spawn": [[30, 22], [30, 24], [30, 24], [30, 23]], "fire": [1], "hold": 2}, "shot": {"mode": "beam", "ms": 80, "ax": 0, "ay": 16}, "hit": {"ms": 90}},
