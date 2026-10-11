@@ -1569,7 +1569,7 @@
       wildUpdate(w, dt);
       const dx = w.x - player.x;
       if (w.cool) { if (Math.abs(dx) > 110) w.cool = false; continue; }
-      if (!w.toHome && Math.abs(dx) < TUNING.encounterDist && (SPECIES[w.sp].boss || (w.pl ? player.plat === w.pl : player.y === 0))) { startBattle(w); return; }
+      if (!w.toHome && Math.abs(dx) < TUNING.encounterDist && (SPECIES[w.sp].boss || (w.pl ? player.plat === w.pl : player.y === 0))) { if (!mindTalk(w)) startBattle(w); return; }
     }
     updateNear();
     for (const [i, pk] of (STAGES[G.stage].pickups || []).entries()) {
@@ -1712,6 +1712,21 @@
       a.x += Math.sign(d) * Math.min(Math.abs(d), speed * DT); yield;
     }
     a.x = x; a.moving = false;
+  }
+  // しょうこ meets くうこ: a short talk on the field before the battle (and the mind control) starts
+  function mindTalk(w) {
+    const sp = SPECIES[w.sp], k = sp.mindKuuko && G.party.find(m => m.sp === 'kuuko');
+    if (!k) return false;
+    w.cool = true; w.toHome = false;
+    const K = k.name;
+    say('', [
+      ['しょうこ「……' + K + '？', 'やっと みつけたわ」'],
+      [K + '「おねえちゃん！？', 'どうして ここに…」'],
+      ['しょうこ「いつまで にんげんと', 'あそんでいるの？ かえるわよ」'],
+      [K + '「いやだ！ わたしは', 'みんなと いっしょに いたいの！」'],
+      ['しょうこ「わがままね…', 'それなら ちからずくよ」'],
+    ], () => { w.cool = false; startBattle(w); });
+    return true;
   }
   function* mindIntro() {
     const B = G.battle, e = B.w;
