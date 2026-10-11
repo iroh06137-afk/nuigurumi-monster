@@ -186,7 +186,7 @@ const SPECIES = {
     },
   },
   risurin: {  // ★ provisional: まよいの森 (squirrel), very fast
-    name: 'リスリン', sprite: 'risurin',
+    name: 'リスリン', evoOnly: 10, sprite: 'risurin',
     hp: 38, atk: 10, def: 7, spd: 14, recruitBase: 0.16,
     moves: {
       attack: { name: 'どんぐりなげ', power: 11, acc: 0.97 },
@@ -194,7 +194,7 @@ const SPECIES = {
     },
   },
   kinokon: {  // ★ provisional: まよいの森 (mushroom), sleepy spores
-    name: 'キノコン', sprite: 'kinokon',
+    name: 'キノコン', evoOnly: 10, sprite: 'kinokon',
     hp: 46, atk: 10, def: 9, spd: 8, recruitBase: 0.16,
     moves: {
       attack: { name: 'ほうしパフ', power: 10, acc: 0.97 },
@@ -202,7 +202,7 @@ const SPECIES = {
     },
   },
   shikanon: {  // ★ provisional: まよいの森 (fawn), antler charge (power)
-    name: 'シカノン', sprite: 'shikanon',
+    name: 'シカノン', evoOnly: 10, sprite: 'shikanon',
     hp: 42, atk: 12, def: 8, spd: 11, recruitBase: 0.13,
     moves: {
       attack: { name: 'ぴょこぴょこキック', power: 11, acc: 0.96 },
@@ -210,7 +210,7 @@ const SPECIES = {
     },
   },
   haririn: {  // ★ provisional: おしろの にわ (hedgehog), spiky defense
-    name: 'ハリリン', sprite: 'haririn',
+    name: 'ハリリン', evoOnly: 10, sprite: 'haririn',
     hp: 44, atk: 10, def: 13, spd: 8, recruitBase: 0.14,
     moves: {
       attack: { name: 'ちくちくタッチ', power: 11, acc: 0.96 },
@@ -218,7 +218,7 @@ const SPECIES = {
     },
   },
   chouran: {  // ★ provisional: おしろの にわ (butterfly), scale powder, fast
-    name: 'チョウラン', sprite: 'chouran',
+    name: 'チョウラン', evoOnly: 10, sprite: 'chouran',
     hp: 38, atk: 11, def: 7, spd: 13, recruitBase: 0.14,
     moves: {
       attack: { name: 'ひらひらはたき', power: 11, acc: 0.97 },
@@ -226,7 +226,7 @@ const SPECIES = {
     },
   },
   hakuchon: {  // ★ provisional: おしろの にわ (swan), elegant, fountain pond
-    name: 'ハクチョン', sprite: 'hakuchon',
+    name: 'ハクチョン', evoOnly: 10, sprite: 'hakuchon',
     hp: 46, atk: 11, def: 9, spd: 10, recruitBase: 0.13,
     moves: {
       attack: { name: 'つばさビンタ', power: 11, acc: 0.96 },
@@ -234,7 +234,7 @@ const SPECIES = {
     },
   },
   kujakun: {  // ★ provisional: おしろの にわ (peacock), eye feathers make foes flinch
-    name: 'クジャクン', sprite: 'kujakun',
+    name: 'クジャクン', evoOnly: 10, sprite: 'kujakun',
     hp: 44, atk: 12, def: 9, spd: 10, recruitBase: 0.12,
     moves: {
       attack: { name: 'はねつつき', power: 11, acc: 0.96 },
@@ -242,7 +242,7 @@ const SPECIES = {
     },
   },
   koumon: {  // ★ provisional: もりの おしろ (bat), night flyer
-    name: 'コウモン', sprite: 'koumon',
+    name: 'コウモン', evoOnly: 10, sprite: 'koumon',
     hp: 40, atk: 12, def: 7, spd: 13, recruitBase: 0.13,
     moves: {
       attack: { name: 'かぷっとかみつき', power: 12, acc: 0.96 },
@@ -250,7 +250,7 @@ const SPECIES = {
     },
   },
   naiton: {  // ★ provisional: もりの おしろ (bear knight), しょうこの けらい, rare, strongest of w2
-    name: 'ナイトン', sprite: 'naiton',
+    name: 'ナイトン', evoOnly: 10, sprite: 'naiton',
     hp: 54, atk: 14, def: 12, spd: 9, recruitBase: 0.06,
     moves: {
       attack: { name: 'くまのけん', power: 13, acc: 0.95 },
@@ -339,8 +339,19 @@ for (const sp of ['goririn', 'kuuko', 'tsumaguro', 'oguri', 'kitsunen', 'usagin'
 // evolved moves: strong gets a new name (+power), special becomes its own projectile move.
 // fx: fire / orb / beam / wave / multi (hits = number of shots; shape: 'glove' | 'orb'). ★ names other than
 // オグリ波 / くうこ弾 / 水ビーム / パンチングパンチ are provisional.
+for (const sp of ['tenton', 'risurin', 'kinokon', 'shikanon', 'haririn', 'chouran', 'hakuchon', 'kujakun', 'koumon', 'naiton']) EVOLVE[sp] = { lv: 10, sprite: sp, name: null, hp: 0, atk: 0, def: 0, spd: 0 };
 EVOLVE.shouko = { lv: 10, sprite: 'shouko', name: null, hp: 0, atk: 0, def: 0, spd: 0 };
 const EVO_MOVES = {
+  tenton: { special: { name: 'てんとうミサイル', fx: 'orb', col: '#e83a3a' } },
+  risurin: { special: { name: 'どんぐりマシンガン', fx: 'multi', shape: 'orb', hits: 3, col: '#b07a3a' } },
+  kinokon: { special: { name: 'ねむりほうし弾', fx: 'orb', col: '#e8a0e0' } },
+  shikanon: { special: { name: 'つのビーム', fx: 'beam', col: '#ffe0a0' } },
+  haririn: { special: { name: 'トゲトゲショット', fx: 'multi', shape: 'orb', hits: 3, col: '#c8a070' } },
+  chouran: { special: { name: 'にじいろりんぷん', fx: 'wave', col: '#ffb0ff' } },
+  hakuchon: { special: { name: 'アクアジェット', fx: 'beam', col: '#7ad8ff' } },
+  kujakun: { special: { name: 'めだまフラッシュ', fx: 'orb', col: '#40c0a0' } },
+  koumon: { special: { name: 'ちょうおんぱカッター', fx: 'wave', col: '#a080ff' } },
+  naiton: { special: { name: 'ナイトブレイド', fx: 'fire', col: '#ffd040' } },
   shouko:    { special: { name: 'バン', fx: 'orb', col: '#ffd070' } },  // ★ big-bang energy ball; dedicated fx art coming from ドット絵作成くん
   goririn:   { strong: { name: 'メガドラミング', power: 28 },     special: { name: 'メガパンチ',       fx: 'multi', shape: 'glove', hits: 1, col: '#ff7ab0' } },
   kuuko:     { strong: { name: 'ぎゅうぎゅうハグ', power: 27 },   special: { name: 'くうこ弾',         fx: 'orb',   col: '#7ad8ff' } },
