@@ -325,6 +325,7 @@ const TUNING = {
   regenPerSec: 1,         // party HP regen while walking
   encounterDist: 70,
   partyMax: 4,
+  maxLv: 30,             // level cap (no xp gain at the cap)
 };
 
 // ---------- evolution ----------

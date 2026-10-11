@@ -384,7 +384,7 @@
     try { saveHero(); } catch (e) {}
     SFX.blip();
   }
-  const serMember = m => ({ sp: m.sp, hp: Math.round(m.hp), maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: m.lv || 1, xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.name });
+  const serMember = m => ({ sp: m.sp, hp: Math.round(m.hp), maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.name });
   function persist() {
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify({
@@ -421,12 +421,15 @@
     return m;
   }
   function xpNeed(lv) { return 14 + (lv || 1) * 12; }
+  const MAX_LV = TUNING.maxLv || 30;
+  const capLv = v => Math.max(1, Math.min(MAX_LV, (v | 0) || 1));
   function grantXp(amt) {
     const m = ally();
     if (!m || amt <= 0) return 0;
+    if ((m.lv || 1) >= MAX_LV) { m.lv = MAX_LV; m.xp = 0; return 0; }
     m.xp = (m.xp || 0) + amt;
     let n = 0;
-    while (m.xp >= xpNeed(m.lv || 1)) {
+    while (m.xp >= xpNeed(m.lv || 1) && (m.lv || 1) < MAX_LV) {
       m.xp -= xpNeed(m.lv || 1);
       m.lv = (m.lv || 1) + 1;
       m.maxHp += 4; m.hp = Math.min(m.maxHp, m.hp + 4);
@@ -434,6 +437,7 @@
       if (m.lv % 2 === 0) m.spd += 1;
       n++;
     }
+    if (m.lv >= MAX_LV) m.xp = 0;
     return n;
   }
   const SFX = (() => {
@@ -826,11 +830,11 @@
     G.box = [];
     if (s && Array.isArray(s.party) && s.party.length) {
       G.party = s.party.filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.hp, {
-        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: m.lv || 1, xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.evo && m.name ? m.name : SPECIES[m.sp].name,
+        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.evo && m.name ? m.name : SPECIES[m.sp].name,
       }));
       if (!G.party.length) G.party = [newMember('goririn')];
       G.box = (Array.isArray(s.box) ? s.box : []).filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.hp, {
-        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: m.lv || 1, xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.evo && m.name ? m.name : SPECIES[m.sp].name,
+        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.evo && m.name ? m.name : SPECIES[m.sp].name,
       }));
       G.active = Math.max(0, Math.min(s.active | 0, G.party.length - 1));
       G.unlocked = Math.max(1, s.unlocked | 0);
@@ -888,8 +892,8 @@
     SFX.start();
     const s = readSave();
     if (s && Array.isArray(s.party) && s.party.length) {
-      G.party = s.party.filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.maxHp || m.hp, {
-        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: m.lv || 1, xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.evo && m.name ? m.name : SPECIES[m.sp].name,
+      G.party = s.party.filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.hp != null ? m.hp : m.maxHp, {
+        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.evo && m.name ? m.name : SPECIES[m.sp].name,
       }));
     }
     if (!G.party.length) G.party = [newMember('goririn')];
@@ -934,12 +938,12 @@
   }
   function launchVersus() {
     const V = G.vs; if (!V) return;
-    G.active = V.mine;
-    for (const m of G.party) { m.hp = m.maxHp; m.st = 0; }
-    const sp = VS_LIST[V.opp];
-    const w = Object.assign(newActor(110, -1, SPECIES[sp].sprite), newMember(sp), {
-      alive: true, home: 110, spawnX: 110, cool: false,
-    });
+    G.active = Math.min(V.mine, G.party.length - 1);
+    vsPrep();
+    const sp = VS_LIST[V.opp], net = G.netRole === 'host' && NET.opp;
+    const team = net ? (Array.isArray(net.team) && net.team.length ? net.team.slice(0, TUNING.partyMax).map(vsMember) : [vsMember(net)]) : cpuTeam(sp);
+    G.vsTeam = team; G.vsLead = net ? clamp(net.lead | 0, 0, team.length - 1) : 0;
+    const w = vsActor(team[G.vsLead]);
     player.x = 32; comp.x = 58; player.face = 1; comp.face = 1;
     G.cam = G.camT = 0;
     G.versus = true;
@@ -949,6 +953,62 @@
     G.wilds.forEach(w => { w.alpha = 0; });
     G.state = 'field';
     startBattle(w);
+  }
+
+  // ---------- versus: full-party (up to partyMax) teams ----------
+  // party HP is snapshotted before a match and restored after it, so versus never changes the saved field HP
+  function vsPrep() { G.vsHp = G.party.map(m => m.hp); for (const m of G.party) { m.hp = m.maxHp; m.st = 0; m.guard = false; } }
+  function vsRestore() { if (!G.vsHp) return; G.party.forEach((m, i) => { if (G.vsHp[i] != null) m.hp = Math.min(m.maxHp, G.vsHp[i]); }); G.vsHp = null; }
+  // net payload: the whole party in party order (+ lead index), so swap / next indexes match on both peers
+  function vsTeamMsg() { return G.party.slice(0, TUNING.partyMax).map(m => ({ sp: m.sp, name: m.name, lv: m.lv || 1, evo: m.evo ? 1 : 0, maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd })); }
+  function vsMember(t) {
+    t = t || {}; const sp = SPECIES[t.sp] && !SPECIES[t.sp].boss ? t.sp : 'goririn', d = SPECIES[sp], n = (v, f) => Math.max(1, Math.min(9999, Math.round(+v) || f));
+    const hp = n(t.maxHp, d.hp);
+    return { sp, name: String(t.name || d.name).slice(0, 12), lv: capLv(n(t.lv, 1)), evo: t.evo ? 1 : 0, maxHp: hp, hp, atk: n(t.atk, d.atk), def: n(t.def, d.def), spd: n(t.spd, d.spd), st: 0 };
+  }
+  // vs CPU: the picked species leads, the rest are random; same size and levels as your party
+  function cpuTeam(first) {
+    const lvs = G.party.map(m => m.lv || 1).sort((a, b) => b - a), pool = VS_LIST.filter(k => k !== first), picks = [first];
+    while (picks.length < Math.min(TUNING.partyMax, G.party.length) && pool.length) picks.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    return picks.map((sp, i) => {
+      const lv = lvs[i] || lvs[0] || 1, eo = SPECIES[sp].evoOnly, ev = typeof EVOLVE !== 'undefined' && EVOLVE[sp];
+      const m = trainerMember({ sp, lv: eo ? Math.max(lv, eo) : lv, evo: !!eo || !!(ev && lv >= ev.lv && SPR[ev.sprite]) });
+      delete m.spUsed; m.st = 0; return m;
+    });
+  }
+  function vsActor(m) {
+    const w = Object.assign(newActor(110, -1, SPECIES[m.sp].sprite), m, { alive: true, home: 110, spawnX: 110, cool: false });
+    w.key = memberKey(m); return w;
+  }
+  // make team member i the opponent's active plush (the old one's HP is written back)
+  function oppSet(i) {
+    const B = G.battle, e = B.w, T = B.oppTeam;
+    if (T[B.oppIdx]) T[B.oppIdx].hp = Math.max(0, e.hp);
+    B.oppIdx = i; const m = T[i];
+    Object.assign(e, { sp: m.sp, name: m.name, lv: m.lv, evo: m.evo ? 1 : 0, maxHp: m.maxHp, hp: m.hp, atk: m.atk, def: m.def, spd: m.spd, guard: false, spUsed: false });
+    e.key = memberKey(m);
+  }
+  function* oppSwapAction(i) {
+    const B = G.battle, e = B.w, st = Math.max(0, e.st - COST.swap);
+    B.msg = `もどれ ${e.name}！`; banner(B.msg, 1.0);
+    yield* tween(v => e.alpha = v, 1, 0, 0.25);
+    burst(e.x, GROUND - 12, 'spark', 8, '#ffffff');
+    oppSet(i); e.st = st;
+    yield* wait(0.25);
+    B.msg = `いけっ ${e.name}！`; banner(B.msg, 1.2); SFX.blip();
+    yield* tween(v => e.alpha = v, 0, 1, 0.25);
+    burst(e.x, GROUND - 14, 'spark', 10, '#ff9ac8');
+    yield* wait(0.4);
+  }
+  // after your plush fainted in versus: the one picked in the (forced) いれかえ menu comes out
+  function* sendInAction(i) {
+    const B = G.battle, n = G.party[i];
+    G.active = i; comp.key = compKey(); n.st = 0; n.guard = false;
+    B.msg = `いけっ ${n.name}！`; banner(B.msg, 1.2); SFX.blip();
+    yield* tween(v => comp.alpha = v, 0, 1, 0.25);
+    burst(comp.x, GROUND - 14, 'spark', 10, '#ffe24a');
+    yield* wait(0.5);
+    B.phase = 'run'; B.msg = '';
   }
   const NET = { peer: null, conn: null, code: '', status: '' };
   function netSend(msg) { try { if (NET.conn && NET.conn.open) NET.conn.send(msg); } catch (e) {} }
@@ -964,10 +1024,11 @@
       G.netRole = 'guest';
       G.friend = true;
       G.versus = true;
-      const sp = NET.mine.sp;
-      G.party = [newMember(sp)];
-      G.active = 0;
-      const w = Object.assign(newActor(110, -1, SPECIES[msg.sp].sprite), newMember(msg.sp), { alive: true, home: 110, spawnX: 110 });
+      G.active = clamp(NET.mine && NET.mine.lead | 0, 0, G.party.length - 1);
+      vsPrep();
+      const team = Array.isArray(msg.team) && msg.team.length ? msg.team.slice(0, TUNING.partyMax).map(vsMember) : [vsMember(msg)];
+      G.vsTeam = team; G.vsLead = clamp(msg.lead | 0, 0, team.length - 1);
+      const w = vsActor(team[G.vsLead]);
       player.x = 32; comp.x = 58; G.cam = G.camT = 0;
       G.arena = msg.arena === 'night' ? 'night' : 'day';
       G.wilds.forEach(a => { a.alpha = 0; });
@@ -975,6 +1036,11 @@
       startBattle(w);
     } else if (msg.t === 'cmd' && G.battle && G.battle.phase === 'input' && G.battle.who === 'opp') {
       choose(COMMANDS.findIndex(c => c.kind === msg.kind));
+    } else if (msg.t === 'swap' && G.battle && G.battle.oppTeam && G.battle.phase === 'input' && G.battle.who === 'opp') {
+      const B = G.battle, i = msg.i | 0, m = B.oppTeam[i];
+      if (m && i !== B.oppIdx && m.hp >= 1) { B.phase = 'run'; B.q.push(oppSwapAction(i)); }
+    } else if (msg.t === 'next' && G.battle && G.battle.oppTeam) {
+      G.battle.oppNext = msg.i | 0;   // consumed by enemyFaint (may arrive before this peer gets there)
     } else if (msg.t === 'bye') {
       banner('あいてが きれた', 1.6);
     }
@@ -986,19 +1052,19 @@
     G.vs.friend = true;
     G.netRole = 'host';
     launchVersus();
-    netSend({ t: 'start', sp: G.party[G.active].sp, name: ally().name, g: G.gender | 0, c: G.hcolor | 0, arena: G.arena });
+    netSend({ t: 'start', sp: G.party[G.active].sp, name: ally().name, g: G.gender | 0, c: G.hcolor | 0, arena: G.arena, team: vsTeamMsg(), lead: G.active });
   }
   function openNet(host) {
     if (typeof Peer === 'undefined') { banner('つうしんの よみこみに しっぱい', 2); return; }
     SFX.start();
     const mine = G.party[G.vs.mine] || G.party[0];
-    NET.mine = { sp: mine.sp, name: mine.name };
+    NET.mine = { sp: mine.sp, name: mine.name, lead: G.party.indexOf(mine) };
     if (host) {
       NET.code = netCode();
       G.netRole = 'host';
       NET.status = 'へや ' + NET.code;
       NET.peer = new Peer('nmg-' + NET.code);
-      NET.peer.on('connection', c => { NET.conn = c; c.on('data', onNet); c.on('open', () => netSend({ t: 'pick', sp: mine.sp, name: mine.name, g: G.gender | 0, c: G.hcolor | 0 })); });
+      NET.peer.on('connection', c => { NET.conn = c; c.on('data', onNet); c.on('open', () => netSend({ t: 'pick', sp: mine.sp, name: mine.name, g: G.gender | 0, c: G.hcolor | 0, team: vsTeamMsg(), lead: NET.mine.lead })); });
     } else {
       const code = (window.prompt('あいての へやコード') || '').trim().toLowerCase();
       if (!code) return;
@@ -1008,7 +1074,7 @@
       NET.peer.on('open', () => {
         NET.conn = NET.peer.connect('nmg-' + code);
         NET.conn.on('data', onNet);
-        NET.conn.on('open', () => netSend({ t: 'pick', sp: mine.sp, name: mine.name, g: G.gender | 0, c: G.hcolor | 0 }));
+        NET.conn.on('open', () => netSend({ t: 'pick', sp: mine.sp, name: mine.name, g: G.gender | 0, c: G.hcolor | 0, team: vsTeamMsg(), lead: NET.mine.lead }));
       });
     }
     // show why it failed instead of waiting forever
@@ -1080,7 +1146,7 @@
   }
   // a trainer's plush at a given level: same growth as ours (grantXp), times an optional multiplier
   function trainerMember(t) {
-    const m = newMember(t.sp), lv = t.lv || 1, mul = t.mul || 1, style = t.style;
+    const m = newMember(t.sp), lv = capLv(t.lv), mul = t.mul || 1, style = t.style;
     for (let l = 2; l <= lv; l++) { m.maxHp += 4; m.atk += 1; m.def += 1; if (l % 2 === 0) m.spd += 1; }
     m.maxHp = Math.round(m.maxHp * mul); m.atk = Math.round(m.atk * mul); m.def = Math.round(m.def * mul);
     const ev = t.evo && typeof EVOLVE !== 'undefined' && EVOLVE[t.sp];
@@ -1117,7 +1183,7 @@
   }
   function menuRows() {
     const M = G.menu;
-    if (M.kind === 'bswap') return G.party.map((m, i) => 'p' + i).concat(['_close']);
+    if (M.kind === 'bswap') return swapList(M).map((m, i) => 'p' + i).concat(M.forced ? [] : ['_close']);
     if (M.kind === 'ask') return ['_yes', '_no'];
     if (M.kind === 'house') {
       const box = G.box || [];
@@ -1126,7 +1192,10 @@
     }
     return (M.kind === 'shop' ? SHOP_LIST : bagList()).concat(['_close']);
   }
+  // いれかえ list: your party, or (local friend versus) the opponent's team with the active one's live HP
+  function swapList(M) { const B = G.battle; return M && M.opp && B && B.oppTeam ? B.oppTeam.map((m, i) => i === B.oppIdx ? B.w : m) : G.party; }
   function closeMenu() {
+    if (G.menu && G.menu.forced) return;   // a fainted plush must be replaced
     G.menu = null;
     if (G.state === 'battle' && G.battle) { if (G.battle.phase === 'menu') G.battle.phase = 'input'; return; }
     G.state = 'field';
@@ -1462,6 +1531,8 @@
       w, side, phase: 'intro', q: [], cur: null, sel: 0, runTries: 0, result: null, msg: '',
       allyTX: player.x + side * 26, enemyTX: clamp(player.x + side * 90, 20, WORLD_W - 20),
     };
+    B.oppTeam = null; B.oppIdx = 0; B.oppNext = null;
+    if (G.versus && G.vsTeam) { B.oppTeam = G.vsTeam; B.oppIdx = G.vsLead | 0; G.vsTeam = null; }
     if (G.netRole) {
       let s = 12345;
       netRng = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
@@ -1564,12 +1635,16 @@
       banner(kind === 'recruit' ? 'ひとの ぬいぐるみは なかまに できない！' : 'しょうぶの とちゅうで にげられない！', 1.4);
       return;
     }
-    if (G.friend && ['guard', 'item', 'swap', 'special'].includes(kind)) { banner('たいせんでは つかえない', 1.1); return; }
+    if (G.friend && ['guard', 'item', 'special'].includes(kind)) { banner('たいせんでは つかえない', 1.1); return; }
     const a = ally();
     if (kind === 'special' && (B.bond | 0) < 100) { SFX.miss(); banner('きずなゲージが まだ たまっていない', 1.4); return; }
     if (kind === 'item') {
       if (!bagList().length) { SFX.miss(); banner('どうぐを もっていない', 1.2); return; }
       B.phase = 'menu'; G.menu = { kind: 'bitem', sel: 0 }; SFX.blip(); return;
+    }
+    if (kind === 'swap' && B.who === 'opp') {
+      if (G.netRole || !B.oppTeam || !B.oppTeam.some((m, i) => i !== B.oppIdx && m.hp >= 1)) { SFX.miss(); banner('こうたい できる なかまが いない', 1.4); return; }
+      B.phase = 'menu'; G.menu = { kind: 'bswap', sel: 0, opp: true }; SFX.blip(); return;
     }
     if (kind === 'swap') {
       if (!G.party.some((m, i) => i !== G.active && m.hp >= 1)) { SFX.miss(); banner('こうたい できる なかまが いない', 1.4); return; }
@@ -1585,10 +1660,13 @@
     const B = G.battle, a = ally();
     if (k === '_close') { closeMenu(); return; }
     if (M.kind === 'bswap') {
-      const i = +k.slice(1), m = G.party[i];
-      if (i === G.active) { banner(`${m.name}は もう たたかっている`, 1.2); return; }
+      const i = +k.slice(1), m = swapList(M)[i];
+      if (i === (M.opp ? B.oppIdx : G.active) && !M.forced) { banner(`${m.name}は もう たたかっている`, 1.2); return; }
       if (m.hp < 1) { banner(`${m.name}は たおれている`, 1.2); return; }
-      G.menu = null; a.guard = false; B.phase = 'run'; B.q.push(swapAction(i)); return;
+      G.menu = null;
+      if (M.forced) { B.phase = 'run'; if (G.netRole) netSend({ t: 'next', i }); B.q.push(sendInAction(i)); return; }
+      if (M.opp) { B.w.guard = false; B.phase = 'run'; B.q.push(oppSwapAction(i)); return; }
+      a.guard = false; B.phase = 'run'; if (G.netRole) netSend({ t: 'swap', i }); B.q.push(swapAction(i)); return;
     }
     const it = ITEMS[k];
     if (it.use === 'heal' && a.hp >= a.maxHp) { banner(`${a.name}は げんき いっぱい`, 1.2); return; }
@@ -1883,6 +1961,29 @@
   function* enemyFaint() {
     const B = G.battle, e = B.w;
     if (e.mind && G.mind) { yield* mindWake(e); return; }
+    if (G.versus && B.oppTeam) {
+      const T = B.oppTeam; T[B.oppIdx].hp = 0;
+      if (T.some(m => m.hp >= 1)) {
+        banner(`${e.name}を たおした！`, 1.6);
+        for (let i = 0; i < 8; i++) { e.alpha = i % 2 ? 1 : 0.25; yield* wait(0.08); }
+        yield* tween(v => { e.alpha = v; }, 1, 0, 0.3);
+        let i = -1;
+        if (G.netRole) {   // the other peer picks; its 'next' message may already be here
+          B.msg = 'あいてが えらんでいる…';
+          while (B.oppNext == null && G.battle === B) yield;
+          if (G.battle !== B) return;
+          i = B.oppNext; B.oppNext = null;
+        }
+        if (!T[i] || T[i].hp < 1) i = T.findIndex(m => m.hp >= 1);
+        oppSet(i); e.st = 0; e.oy = 0;
+        banner(`あいては ${e.name}を くりだした！`, 1.6); SFX.blip();
+        yield* tween(v => { e.alpha = v; }, 0, 1, 0.3);
+        burst(e.x, GROUND - 14, 'spark', 10, '#ff9ac8');
+        yield* wait(0.5);
+        B.phase = 'run'; B.result = null; B.msg = '';
+        return;
+      }
+    }
     B.phase = 'end'; B.result = 'win';
     const boss = SPECIES[e.sp].boss;
     const xp = Math.max(6, Math.round((e.maxHp + e.atk * 2) * (boss ? 0.55 : e.trainer ? 0.45 : 0.35)));
@@ -1929,8 +2030,16 @@
   function* allyFaint() {
     const B = G.battle, a = ally();
     if (G.versus) {
-      B.phase = 'end'; B.result = 'lose';
       banner(`${a.name}は たおれた…`, 1.8);
+      const left = G.party.findIndex(m => m.hp >= 1);
+      if (left >= 0 && B.oppTeam) {
+        for (let i = 0; i < 8; i++) { comp.alpha = i % 2 ? 1 : 0.25; yield* wait(0.08); }
+        comp.alpha = 0; a.st = 0;
+        yield* wait(0.5);
+        B.phase = 'menu'; B.who = 'me'; G.menu = { kind: 'bswap', sel: left, forced: true };
+        return;
+      }
+      B.phase = 'end'; B.result = 'lose';
       yield* wait(1.2);
       endBattle();
       return;
@@ -2080,6 +2189,7 @@
     G.lastResult = B.result;
     if (G.versus) {
       const result = B.result;
+      vsRestore(); G.vsTeam = null;
       G.versus = false;
       G.friend = false;
       G.wilds.forEach(w => { w.alpha = 1; });
@@ -2280,7 +2390,11 @@
     rect(x + 1, t + 4, 20, 1, '#3a4a5a');
     const full = unit.st >= 100;
     rect(x + 1, t + 4, Math.floor(20 * unit.st / 100), 1, full ? (Math.floor(G.t * 6) % 2 ? '#ffe24a' : '#fff6b0') : '#48b8f0');
-    if (unit.teamTotal > 1) {
+    const VB = G.versus && G.battle && G.battle.oppTeam;
+    if (VB) {
+      const list = unit === G.battle.w ? swapList({ opp: true }) : G.party;
+      if (list.length > 1) list.forEach((m, i) => { const dx = x + i * 5; rect(dx, t - 5, 4, 4, '#2a1a10'); rect(dx + 1, t - 4, 2, 2, m.hp >= 1 ? (unit === G.battle.w ? '#ff6a9a' : '#6ad0ff') : '#5a4a40'); });
+    } else if (unit.teamTotal > 1) {
       const left = (unit.hp > 0 ? 1 : 0) + (unit.team ? unit.team.length : 0);
       for (let i = 0; i < unit.teamTotal; i++) {
         const dx = x + i * 4, on = i < left;
@@ -2638,7 +2752,7 @@
         return;
       }
       if (M.kind === 'bswap') {
-        const m = G.party[+k.slice(1)], out = +k.slice(1) === G.active, down = m.hp < 1;
+        const m = swapList(M)[+k.slice(1)], out = +k.slice(1) === (M.opp ? G.battle.oppIdx : G.active) && !M.forced, down = m.hp < 1;
         T(m.name + (out ? ' (でている)' : ''), x + 10, yy, { c: down ? '#b0a080' : '#4a2c12' });
         T(`Lv${m.lv}`, x + 74, yy, { c: '#7a5a30' });
         T(down ? 'たおれている' : `HP${Math.floor(m.hp)}/${m.maxHp}`, x + w - 5, yy, { al: 'right', c: down ? '#c0502a' : '#4a2c12' });
@@ -2650,7 +2764,7 @@
       else T(`x${have}`, x + w - 5, yy, { al: 'right' });
     });
     const k = rows[M.sel];
-    const desc = k === '_close' ? '' : M.kind === 'bswap' ? 'だれと こうたい する？'
+    const desc = k === '_close' ? '' : M.kind === 'bswap' ? (M.forced ? 'つぎは だれを だす？' : M.opp ? 'あいての こうたい' : 'だれと こうたい する？')
       : M.kind === 'ask' ? 'なかまに する？' : M.kind === 'house' ? (M.pi == null ? 'てもちの だれを かえる？' : M.pi < 0 ? 'だれを つれていく？' : (G.box || []).length ? 'だれと いれかえる？' : 'まだ だれも いないよ') : ITEMS[k] ? ITEMS[k].desc : '';
     rect(x + 3, y + h - 11, w - 6, 1, '#e8d8b0');
     T(desc, x + 5, y + h - 8, { c: '#7a5a30' });
