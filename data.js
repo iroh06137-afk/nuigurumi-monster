@@ -27,16 +27,16 @@ const SPRITES = {
   pengiin: { src: 'assets/pengiin.png', native: 1 }, // penguin plush (after town). no walk sheet yet
   mokomon: { src: 'assets/mokomon.png', native: 1 }, // sheep (わたぐも高原) plush (after town). no walk sheet yet
   ressan: { src: 'assets/ressan.png', native: 1 }, // red panda (あかつち谷) plush (after town). no walk sheet yet
-  tenton: { src: 'assets/tenton.png', native: 1, walk: { src: 'assets/tenton_walk.png', frames: 4, ms: 150 } }, // w2 ladybug plush.
-  risurin: { src: 'assets/risurin.png', native: 1, walk: { src: 'assets/risurin_walk.png', frames: 4, ms: 150 } }, // w2 squirrel w/ acorn plush.
-  kinokon: { src: 'assets/kinokon.png', native: 1, walk: { src: 'assets/kinokon_walk.png', frames: 4, ms: 150 } }, // w2 mushroom plush.
-  shikanon: { src: 'assets/shikanon.png', native: 1, walk: { src: 'assets/shikanon_walk.png', frames: 4, ms: 150 } }, // w2 fawn plush.
-  haririn: { src: 'assets/haririn.png', native: 1, walk: { src: 'assets/haririn_walk.png', frames: 4, ms: 150 } }, // w2 hedgehog plush.
-  chouran: { src: 'assets/chouran.png', native: 1, walk: { src: 'assets/chouran_walk.png', frames: 4, ms: 150 } }, // w2 butterfly plush.
-  hakuchon: { src: 'assets/hakuchon.png', native: 1, walk: { src: 'assets/hakuchon_walk.png', frames: 4, ms: 150 } }, // w2 swan plush.
-  kujakun: { src: 'assets/kujakun.png', native: 1, walk: { src: 'assets/kujakun_walk.png', frames: 4, ms: 150 } }, // w2 peacock plush.
-  koumon: { src: 'assets/koumon.png', native: 1, walk: { src: 'assets/koumon_walk.png', frames: 4, ms: 150 } }, // w2 bat plush.
-  naiton: { src: 'assets/naiton.png', native: 1, walk: { src: 'assets/naiton_walk.png', frames: 4, ms: 150 } }, // w2 bear knight, しょうこの けらい (rare) plush.
+  tenton: { src: 'assets/tenton.png', native: 1, walk: { src: 'assets/tenton_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/evo/tenton_attack.png', frames: 4 } }, // w2 ladybug plush.
+  risurin: { src: 'assets/risurin.png', native: 1, walk: { src: 'assets/risurin_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/evo/risurin_attack.png', frames: 4 } }, // w2 squirrel w/ acorn plush.
+  kinokon: { src: 'assets/kinokon.png', native: 1, walk: { src: 'assets/kinokon_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/evo/kinokon_attack.png', frames: 4 } }, // w2 mushroom plush.
+  shikanon: { src: 'assets/shikanon.png', native: 1, walk: { src: 'assets/shikanon_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/evo/shikanon_attack.png', frames: 4 } }, // w2 fawn plush.
+  haririn: { src: 'assets/haririn.png', native: 1, walk: { src: 'assets/haririn_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/evo/haririn_attack.png', frames: 4 } }, // w2 hedgehog plush.
+  chouran: { src: 'assets/chouran.png', native: 1, walk: { src: 'assets/chouran_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/evo/chouran_attack.png', frames: 4 } }, // w2 butterfly plush.
+  hakuchon: { src: 'assets/hakuchon.png', native: 1, walk: { src: 'assets/hakuchon_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/evo/hakuchon_attack.png', frames: 4 } }, // w2 swan plush.
+  kujakun: { src: 'assets/kujakun.png', native: 1, walk: { src: 'assets/kujakun_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/evo/kujakun_attack.png', frames: 4 } }, // w2 peacock plush.
+  koumon: { src: 'assets/koumon.png', native: 1, walk: { src: 'assets/koumon_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/evo/koumon_attack.png', frames: 4 } }, // w2 bat plush.
+  naiton: { src: 'assets/naiton.png', native: 1, walk: { src: 'assets/naiton_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/evo/naiton_attack.png', frames: 4 } }, // w2 bear knight, しょうこの けらい (rare) plush.
   // evolved forms (EVOLVE below), all right-facing 32x32
   goririn_evo: { src: 'assets/evo/goririn.png', native: 1, attack: { src: 'assets/evo/goririn_attack.png', frames: 4 }, walk: { src: 'assets/evo/goririn_walk.png', frames: 4, ms: 150 } },
   kuuko_evo: { src: 'assets/evo/kuuko.png', native: 1, attack: { src: 'assets/evo/kuuko_attack.png', frames: 4 }, walk: { src: 'assets/evo/kuuko_walk.png', frames: 4, ms: 150 } },
@@ -374,6 +374,16 @@ const EVO_MOVES = {
 // pixel-art special fx by ドット絵作成くん (cast = attacker 4 frames; shot/hit = 128x32 sheets in assets/fx/<sp>_shot|hit.png).
 // cast.spawn = fx anchor inside each 32x32 cast frame (right-facing); fire = order steps that launch a shot; hold = step held until shots land.
 const FX_ART = {
+  tenton: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[20, 20], [29, 21], [30, 21], [22, 20]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 19, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  risurin: {"cast": {"order": [0, 1, 1, 1, 2, 3], "dur": [180, 120, 360, 180], "spawn": [[26, 20], [30, 20], [30, 20], [26, 20]], "fire": [1, 2, 3], "hold": 4}, "shot": {"mode": "fly", "ms": 80, "ax": 16, "ay": 19, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  kinokon: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[20, 14], [28, 15], [28, 15], [20, 14]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 90, "ax": 19, "ay": 17, "spd": 170}, "hit": {"ms": 100, "n": 4, "size": 32}},
+  shikanon: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[22, 3], [25, 4], [25, 4], [22, 3]], "fire": [1], "hold": 2}, "shot": {"mode": "beam", "ms": 80, "ax": 0, "ay": 16}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  haririn: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[20, 16], [29, 17], [29, 17], [20, 16]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 24, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  chouran: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[22, 14], [27, 14], [27, 14], [22, 14]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 90, "ax": 20, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  hakuchon: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[25, 9], [29, 9], [29, 9], [25, 9]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 28, "ay": 15, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  kujakun: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[22, 8], [28, 8], [28, 8], [22, 9]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 90, "ax": 19, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  koumon: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[20, 21], [31, 18], [31, 18], [20, 21]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 24, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  naiton: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[16, 10], [30, 16], [30, 16], [18, 14]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 21, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   shouko: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 400, 200], "spawn": [[17, 13], [30, 15], [31, 15], [17, 14]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 90, "ax": 20, "ay": 16, "spd": 160}, "hit": {"ms": 70, "n": 5, "size": 48}},
   oguri: {"cast": {"order": [0, 1, 2, 3], "dur": [270, 90, 360, 180], "spawn": [[29, 14], [30, 21], [31, 21], [30, 20]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90}},
   kuuko: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[17, 15], [30, 17], [31, 17], [17, 16]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 90, "ax": 21, "ay": 16, "spd": 160}, "hit": {"ms": 90}},

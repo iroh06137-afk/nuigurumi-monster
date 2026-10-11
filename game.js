@@ -1975,7 +1975,7 @@
     } else if (ok) {
       // party full: the new friend goes to the ぬいハウス in town
       B.swappedOut = true;
-      (G.box = G.box || []).push(newMember(e.sp, Math.max(1, Math.floor(e.hp))));
+      (G.box = G.box || []).push(recruitMember(e));
       yield* takeRecruit(e);
       banner(`${e.name}は ぬいハウスへ いったよ`, 2.6);
       yield* wait(1.2);
@@ -1987,6 +1987,14 @@
       yield* wait(0.4);
     }
   }
+  // a recruited wild joins at lv1 base stats, except evolved-only species (evoOnly): they keep their level and evolved form
+  function recruitMember(e) {
+    const eo = SPECIES[e.sp].evoOnly, hp = Math.max(1, Math.floor(e.hp));
+    if (!eo) return newMember(e.sp, hp);
+    const m = trainerMember({ sp: e.sp, lv: Math.max(e.lv || 1, eo), evo: true }); delete m.spUsed;
+    m.hp = Math.min(m.maxHp, hp);
+    return m;
+  }
   function* takeRecruit(e) {
     const B = G.battle;
     B.phase = 'end'; B.result = 'recruit';
@@ -1997,7 +2005,7 @@
     banner(`やった！ ${e.name}が なかまに なった！`, 2.6);
     e.flash = 0.4;
     yield* wait(1.0);
-    if (!B.swappedOut) G.party.push(newMember(e.sp, Math.max(1, Math.floor(e.hp))));
+    if (!B.swappedOut) G.party.push(recruitMember(e));
     persist();
     yield* tween(v => e.alpha = v, 1, 0, 0.35);
     burst(e.x, GROUND - 12, 'spark', 8, '#ffffff');
