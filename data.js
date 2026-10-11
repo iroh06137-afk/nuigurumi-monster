@@ -316,7 +316,8 @@ const COMMANDS = [   // 2 pages of 4: page 1 = keys 1-4, page 2 = keys 5-8 (↑�
 ];
 
 const TUNING = {
-  townBoost: 6,   // town trainers' +lv once あかつち谷 is cleared (world 2 open)
+  townBoost: 6,
+  townBoost2: 12,   // ... and +12 lv plus one extra plush (EXTRA) once もりの おしろ is cleared   // town trainers' +lv once あかつち谷 is cleared (world 2 open)
   walkSpeed: 36,          // logical px / s
   jumpV: 118, jumpV2: 152, gravity: 430,
   stBase: 8, stPerSpd: 1.2, // stamina / s = stBase + spd * stPerSpd
@@ -457,22 +458,22 @@ const STAGES = [
       // style: fast = cheap hits + spd, guard = guards when hurt, power = strong moves, trick = early special
       // rival = the gender the player didn't pick (default colors). resolved in enterStage
       { id: 'rival', x: 120, rival: {
-          girl: { name: 'ユイ', look: 'girl', battle: { style: 'fast', team: [{ sp: 'kitsunen', lv: 7 }, { sp: 'usagin', lv: 10, evo: 1 }], reward: 80 },
+          girl: { name: 'ユイ', look: 'girl', battle: { style: 'fast', extra: [{ sp: 'risurin', lv: 12 }, { sp: 'chouran', lv: 12 }], team: [{ sp: 'kitsunen', lv: 7 }, { sp: 'usagin', lv: 10, evo: 1 }], reward: 80 },
             lines: [['あっ {NAME}も ぬいぐるみと たびしてるの？', 'わたしの キツネンと しょうぶよ！']],
             after: [['くやしい… {NAME} つよいね', 'おみせで どうぐも そろえておきなよ']] },
-          boy: { name: 'ハルト', look: 'player', battle: { style: 'fast', team: [{ sp: 'kitsunen', lv: 7 }, { sp: 'usagin', lv: 10, evo: 1 }], reward: 80 },
+          boy: { name: 'ハルト', look: 'player', battle: { style: 'fast', extra: [{ sp: 'risurin', lv: 12 }, { sp: 'chouran', lv: 12 }], team: [{ sp: 'kitsunen', lv: 7 }, { sp: 'usagin', lv: 10, evo: 1 }], reward: 80 },
             lines: [['よう {NAME}！ ぬいぐるみと たびしてるのか', 'おれの キツネンと しょうぶだ！']],
             after: [['くっそー… {NAME} やるな！', 'おみせで どうぐも そろえておけよ']] } } },
-      { id: 'sota', x: 310, name: 'むしとりの ソウタ', look: 'mushitori', battle: { style: 'guard', team: [{ sp: 'kaerun', lv: 7 }, { sp: 'fukuron', lv: 8 }, { sp: 'tsumaguro', lv: 10, evo: 1 }], reward: 70 },
+      { id: 'sota', x: 310, name: 'むしとりの ソウタ', look: 'mushitori', battle: { style: 'guard', extra: [{ sp: 'kinokon', lv: 12 }], team: [{ sp: 'kaerun', lv: 7 }, { sp: 'fukuron', lv: 8 }, { sp: 'tsumaguro', lv: 10, evo: 1 }], reward: 70 },
         lines: [['おっ その ぬいぐるみ つよそう！', 'ぼくの カエルンと しょうぶだ！']],
         after: [['まけたー！', 'もっと きたえて くるよ']] },
-      { id: 'reika', x: 520, name: 'おねえさん レイカ', look: 'oneesan', battle: { style: 'guard', team: [{ sp: 'nyankon', lv: 9 }, { sp: 'pengiin', lv: 10 }, { sp: 'usagin', lv: 11, evo: 1 }], reward: 110 },
+      { id: 'reika', x: 520, name: 'おねえさん レイカ', look: 'oneesan', battle: { style: 'guard', extra: [{ sp: 'hakuchon', lv: 12 }], team: [{ sp: 'nyankon', lv: 9 }, { sp: 'pengiin', lv: 10 }, { sp: 'usagin', lv: 11, evo: 1 }], reward: 110 },
         lines: [['かった どうぐは {BAG}で', 'いつでも つかえるわ'], ['ひとの ぬいぐるみは なかまに できないの', 'さあ おねえさんと しょうぶよ！']],
         after: [['あら つよいのね', 'どうぐも じょうずに つかってね']] },
-      { id: 'akane', x: 680, name: 'からてかの アカネ', look: 'karate', battle: { style: 'power', team: [{ sp: 'goririn', lv: 8 }, { sp: 'usagin', lv: 8 }, { sp: 'kangarun', lv: 11, evo: 1 }], reward: 100 },
+      { id: 'akane', x: 680, name: 'からてかの アカネ', look: 'karate', battle: { style: 'power', extra: [{ sp: 'shikanon', lv: 12 }], team: [{ sp: 'goririn', lv: 8 }, { sp: 'usagin', lv: 8 }, { sp: 'kangarun', lv: 11, evo: 1 }], reward: 100 },
         lines: [['おす！ しゅぎょう ちゅうだ！', 'うでだめし していけ！']],
         after: [['みごとだ…', 'また しゅぎょうして くる！']] },
-      { id: 'daichi', x: 980, name: 'ガキだいしょう ダイチ', look: 'gaki', battle: { style: 'trick', team: [{ sp: 'kitsunen', lv: 9 }, { sp: 'fukuron', lv: 10 }, { sp: 'tanukin', lv: 12, evo: 1 }], reward: 160 },
+      { id: 'daichi', x: 980, name: 'ガキだいしょう ダイチ', look: 'gaki', battle: { style: 'trick', extra: [{ sp: 'naiton', lv: 13 }], team: [{ sp: 'kitsunen', lv: 9 }, { sp: 'fukuron', lv: 10 }, { sp: 'tanukin', lv: 12, evo: 1 }], reward: 160 },
         lines: [['この まちで いちばん つよいのは', 'おれさまの タヌキンだ！'], ['まちを でる まえに', 'おれと しょうぶ しろ！']],
         after: [['ちぇっ… おまえ つよいな', 'さきへ いっていいぞ']] },
     ],

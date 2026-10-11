@@ -1285,17 +1285,20 @@
   function startTrainer(a) {
     const d = a.def, bt = d.battle;
     // after あかつち谷 (world 2 open) every town trainer comes back a bit stronger: +lv, and lv10+ members evolve
-    const boost = G.world === 0 && G.unl && G.unl[1] > 0 ? ((typeof TUNING !== 'undefined' && TUNING.townBoost) || 6) : 0;
-    const team = (bt.team || [{ sp: bt.sp, lv: 1, mul: bt.mul }]).map(t => {
+    // after もりの おしろ: +townBoost2 lv and each trainer brings their extra plush too
+    const oi = STAGES.findIndex(st => st.id === 'oshiro'), late = oi >= 0 && G.cleared.includes(oi);
+    const boost = G.world === 0 && G.unl && G.unl[1] > 0 ? (late ? (TUNING.townBoost2 || 12) : (TUNING.townBoost || 6)) : 0;
+    const base = (bt.team || [{ sp: bt.sp, lv: 1, mul: bt.mul }]);
+    const team = (late && bt.extra ? base.slice(0, -1).concat(bt.extra, base.slice(-1)) : base).slice(0, TUNING.partyMax || 4).map(t => {
       if (!boost) return t;
       const lv = Math.min((TUNING && TUNING.maxLv) || 30, (t.lv || 1) + boost);
-      return Object.assign({}, t, { lv, evo: t.evo || (lv >= 10 && EVOLVE[t.sp] ? 1 : 0) });
+      return Object.assign({}, t, { lv: SPECIES[t.sp].evoOnly ? Math.max(lv, SPECIES[t.sp].evoOnly) : lv, evo: t.evo || SPECIES[t.sp].evoOnly || (lv >= 10 && EVOLVE[t.sp] ? 1 : 0) });
     });
     const first = team.shift(), m = trainerMember(Object.assign({ style: bt.style }, first));
     const side = Math.sign(a.x - player.x) || 1;
     const w = Object.assign(newActor(a.x, -side, memberKey(m)), m, {
       alive: true, home: a.x, spawnX: a.x, cool: false, wt: 1, wdir: 0, toHome: false,
-      trainer: d.id, trainerName: d.name, style: bt.style, reward: boost ? Math.round(bt.reward * 1.5) : bt.reward, team, teamTotal: team.length + 1,
+      trainer: d.id, trainerName: d.name, style: bt.style, reward: boost ? Math.round(bt.reward * (late ? 2.5 : 1.5)) : bt.reward, team, teamTotal: team.length + 1,
     });
     burst(a.x, GROUND - 12, 'spark', 8, '#ffffff');
     startBattle(w);
