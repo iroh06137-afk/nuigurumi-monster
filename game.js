@@ -1730,7 +1730,7 @@
   }
   function* mindIntro() {
     const B = G.battle, e = B.w;
-    B.msg = 'しょうこが よびかけた！';
+    B.msg = 'しょうこの こえ…';
     banner('しょうこ「くうこ、おねえちゃんの もとへ きなさい」', 2.2); yield* wait(2.0);
     for (let i = 0; i < 10; i++) { burst(e.x, GROUND - 16, 'spark', 3, '#b060ff'); e.flash = 0.15; yield* wait(0.12); }
     B.msg = `${e.name}は あやつられている！`;
@@ -2903,10 +2903,12 @@
 
   function drawTalk() {
     const t = G.talk; if (G.state !== 'talk' || !t) return;
-    const x = 4, y = 47, w = 152, h = 23;
-    const nw = Math.ceil(measure(t.name)) + 8;
-    rect(x + 3, y - 7, nw, 8, '#5a3418'); rect(x + 4, y - 6, nw - 2, 7, '#ffd23a');
-    T(t.name, x + 7, y - 5);
+    const x = 4, y = 14, w = 152, h = 23;   // top of the screen so the speakers stay visible
+    if (t.name) {
+      const nw = Math.ceil(measure(t.name)) + 8;
+      rect(x + 3, y - 7, nw, 8, '#5a3418'); rect(x + 4, y - 6, nw - 2, 7, '#ffd23a');
+      T(t.name, x + 7, y - 5);
+    }
     rect(x + 1, y, w - 2, h, '#5a3418'); rect(x, y + 1, w, h - 2, '#5a3418');
     rect(x + 1, y + 1, w - 2, h - 2, '#fff8e0'); rect(x + 2, y + h - 3, w - 4, 1, '#e8d8b0');
     const [l1, l2] = t.pages[t.i] || ['', ''];
