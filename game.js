@@ -648,8 +648,16 @@
   function spawnWilds() {
     G.wilds = STAGES[G.stage].spawns.map((s, i) => Object.assign(newActor(s.x, -1, SPECIES[s.sp].sprite), s.lv ? trainerMember({ sp: s.sp, lv: s.lv, evo: SPECIES[s.sp].evoOnly }) : newMember(s.sp), {
       home: s.x, spawnX: s.x, alive: !(SPECIES[s.sp].recruitAfter && G.flags && G.flags['joined_' + s.sp]), cool: false, wt: 1 + rand() * 2, wdir: 0, toHome: false, idx: i,
-    }));
+    }, platOf(s)));
   }
+  // spawn entry with plat: <index> stands / patrols on that platform (only reachable by jumping)
+  function platOf(s) {
+    const ps = STAGES[G.stage].plats, p = s.plat != null && ps ? ps[s.plat] : null;
+    if (!p) return {};
+    const x = clamp(s.x, p.x + 6, p.x + p.w - 6);
+    return { pl: p, y: -p.h, home: x, spawnX: x, x };
+  }
+  function putOnPlat(w) { if (w.pl) { w.x = w.home = w.spawnX; w.y = -w.pl.h; w.vy = 0; w.toHome = false; } }
 
   function banner(text, dur = 1.6) { G.banner = { text, t: dur }; }
   function pop(x, y, text, col) { G.pops.push({ x, y, text, col, life: 0.9 }); }
@@ -1332,7 +1340,7 @@
     }
     if (w.wdir) {
       const nx = w.x + w.wdir * 10 * dt;
-      if (Math.abs(nx - w.home) > 24) { w.wdir = -w.wdir; }
+      if (Math.abs(nx - w.home) > 24 || (w.pl && (nx < w.pl.x + 6 || nx > w.pl.x + w.pl.w - 6))) { w.wdir = -w.wdir; }
       else { w.x = nx; w.face = w.wdir; }
       w.moving = true;
     } else w.moving = false;
@@ -1352,7 +1360,7 @@
       wildUpdate(w, dt);
       const dx = w.x - player.x;
       if (w.cool) { if (Math.abs(dx) > 110) w.cool = false; continue; }
-      if (!w.toHome && Math.abs(dx) < TUNING.encounterDist && (player.y === 0 || SPECIES[w.sp].boss)) { startBattle(w); return; }
+      if (!w.toHome && Math.abs(dx) < TUNING.encounterDist && (SPECIES[w.sp].boss || (w.pl ? player.plat === w.pl : player.y === 0))) { startBattle(w); return; }
     }
     updateNear();
     for (const [i, pk] of (STAGES[G.stage].pickups || []).entries()) {
@@ -1463,7 +1471,7 @@
     G.vs = { t: 0, hot: !!(SPECIES[w.sp].boss || w.trainer) };
     SFX.battleStart();
     player.moving = false; player.face = side; player.ox = 0;
-    for (const a of [player, comp]) { a.y = 0; a.vy = 0; a.plat = null; }
+    for (const a of [player, comp, w]) { a.y = 0; a.vy = 0; a.plat = null; }
     ally().hp = Math.floor(ally().hp);
     ally().st = 25; w.st = 5 + rand() * 30; w.wdir = 0;
     G.camT = clamp(player.x + side * 45 - W / 2, 0, WORLD_W - W);
@@ -2054,7 +2062,7 @@
     const joinAsk = B.result === 'win' && !G.friend && SPECIES[B.w.sp] && SPECIES[B.w.sp].recruitAfter && !(G.flags['joined_' + B.w.sp]) ? B.w : null;
     G.oppHero = null; G.arena = null;
     if (B.trainerActor) { const t = B.trainerActor; t.tx = t.homeX; t.tface = -1; }
-    if (B.w.alive) { B.w.home = B.w.x; B.w.alpha = 1; B.w.moving = false; }
+    if (B.w.alive) { B.w.home = B.w.x; B.w.alpha = 1; B.w.moving = false; putOnPlat(B.w); }
     if (B.w.tutMob) G.wilds = G.wilds.filter(w => w !== B.w);
     if (B.tutorial && !G.flags.tut) { G.flags.tut = 1; persist(); }
     player.ox = comp.ox = 0; player.moving = comp.moving = false; comp.alpha = 1;
@@ -2085,7 +2093,7 @@
     for (const m of G.party) m.hp = m.maxHp;
     G.active = 0; comp.key = compKey();
     player.x = 40; player.face = 1; player.ox = 0; comp.x = 18; comp.ox = 0; comp.alpha = 1;
-    for (const w of G.wilds) if (w.alive) Object.assign(w, { x: w.spawnX, home: w.spawnX, hp: w.maxHp, cool: false, alpha: 1, st: 0 });
+    for (const w of G.wilds) if (w.alive) { Object.assign(w, { x: w.spawnX, home: w.spawnX, hp: w.maxHp, cool: false, alpha: 1, st: 0 }); putOnPlat(w); }
     G.cam = G.camT = 0;
     G.fadeSpeed = -1.2;
     banner(`${STAGES[G.stage].name}の いりぐちで めを さました`, 2.4);
@@ -2194,7 +2202,7 @@
     const st = STAGES[G.stage]; if (!st.layers) return false;
     const far = LAYER[st.id + '_far'], near = LAYER[st.id + '_near'], gr = LAYER[st.id + '_ground'];
     if (!far || !gr) return false;
-    tileRow(far, cam, 0.25, 0);
+    tileRow(far, cam, 0.2, 0);
     if (near) tileRow(near, cam, 0.6, 0);
     tileRow(gr, cam, 1, 63);
     return true;
@@ -2203,7 +2211,7 @@
     const st = STAGES[G.stage]; if (!st.plats) return;
     const tl = LAYER[st.id + '_tile_l'], tm = LAYER[st.id + '_tile_m'], tr = LAYER[st.id + '_tile_r'];
     for (const p of st.plats) {
-      const x0 = Math.round(p.x - cam), y0 = GROUND - p.h, n = Math.max(1, Math.round(p.w / 16));
+      const x0 = Math.round(p.x - cam), y0 = GROUND - p.h + 1, n = Math.max(1, Math.round(p.w / 16));
       if (x0 > W || x0 + p.w < 0) continue;
       for (let i = 0; i < n; i++) {
         const img = n === 1 ? tm : i === 0 ? tl : i === n - 1 ? tr : tm;
@@ -2369,7 +2377,7 @@
   function drawMap() {
     const art = G.world ? PROPS.wmap2 : PROPS.wmap;
     if (art) g.drawImage(art, 0, 0);
-    else { if (!MAPBG) MAPBG = buildMapBG(); g.drawImage(MAPBG, 0, 0); if (G.world) { g.fillStyle = 'rgba(20,60,40,0.42)'; g.fillRect(0, 0, W, 72); } }
+    else { if (!MAPBG) MAPBG = buildMapBG(); g.drawImage(MAPBG, 0, 0);  }
     // drifting clouds over the sky strip
     if (!art) for (let i = 0; i < 3; i++) {
       const X = Math.round(((i * 61 + G.t * 2) % 200) - 20), Y = 1 + i * 2;
@@ -2379,7 +2387,7 @@
     for (let k = 0; k < MAP_NODES.length - 1; k++) {
       const a = MAP_NODES[k], b = MAP_NODES[k + 1], n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y));
       const open = k + 1 < G.unlocked;
-      if (art) { if (open && PROPS['wseg' + k]) g.drawImage(PROPS['wseg' + k], 0, 0); continue; }
+      if (art) { const sg = PROPS[(G.world ? 'w2seg' : 'wseg') + k]; if (open && sg) g.drawImage(sg, 0, 0); continue; }
       for (let j = 0; j <= n; j++) {
         const X = Math.round(a.x + (b.x - a.x) * j / n), Y = Math.round(a.y + (b.y - a.y) * j / n);
         if (open) { rect(X - 1, Y - 1, 3, 3, '#a0743c'); }
@@ -2417,7 +2425,12 @@
     const clr = n.stage != null && G.cleared.includes(n.stage);
     T(G.world ? 'もりの くに' : 'ぜんたいマップ', 80, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
     T(name + (clr ? ' ★クリア' : ''), 7, 75);
-    T(n.stage == null ? 'まだ じゅんびちゅう' : (TOUCH ? '◀▶で えらぶ ／ ここを タップで はいる' : '←→で えらぶ ／ Enterで はいる'), 7, 81, { c: '#7a5a30' });
+    // world-to-world guidance at the ends of the map
+    const blink = Math.floor(G.t * 3) % 2;
+    const toW2 = G.world === 0 && G.mapSel === MAP_NODES.length - 1 && G.unl && G.unl[1] > 0, toW1 = G.world === 1 && G.mapSel === 0;
+    if (toW2 && blink) T('もりの くに →', 157, 64, { size: 4, c: '#ffffff', ol: '#1a4a2a', al: 'right' });
+    if (toW1 && blink) T('← ぜんたいマップ', 3, 64, { size: 4, c: '#ffffff', ol: '#1a3a5a' });
+    T(n.stage == null ? 'まだ じゅんびちゅう' : (toW2 ? (TOUCH ? '▶で もりの くにへ ／ タップで はいる' : '→で もりの くにへ ／ Enterで はいる') : toW1 ? (TOUCH ? '◀で ぜんたいマップへ ／ タップで はいる' : '←で ぜんたいマップへ ／ Enterで はいる') : (TOUCH ? '◀▶で えらぶ ／ ここを タップで はいる' : '←→で えらぶ ／ Enterで はいる')), 7, 81, { c: '#7a5a30' });
   }
   // world-map background, drawn once in code: each place gets its own patch of scenery (placeholder until map art for 8 places)
   let MAPBG = null;
