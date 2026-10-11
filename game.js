@@ -1312,7 +1312,7 @@
     if (M.kind === 'house') {
       const box = G.box || [];
       if (M.pi == null) return G.party.map((m, i) => 'p' + i).concat(G.party.length < TUNING.partyMax && box.length ? ['_take'] : [], ['_close']);
-      return box.map((m, j) => 'b' + j).concat(M.pi >= 0 && G.party.length > 1 ? ['_put'] : [], ['_back']);
+      return (M.pi > 0 ? ['_lead'].concat(M.pi > 1 ? ['_up'] : []) : []).concat(box.map((m, j) => 'b' + j), M.pi >= 0 && G.party.length > 1 ? ['_put'] : [], ['_back']);
     }
     return (M.kind === 'shop' ? SHOP_LIST : bagList()).concat(['_close']);
   }
@@ -1386,7 +1386,12 @@
       M.pi = +k.slice(1); M.sel = 0; M.top = 0; return;
     }
     const cur = G.party[G.active];
-    if (k === '_put') {
+    if (k === '_lead' || k === '_up') {
+      const [m] = G.party.splice(M.pi, 1), to = k === '_lead' ? 0 : M.pi - 1;
+      G.party.splice(to, 0, m);
+      if (k === '_lead') { G.active = 0; comp.key = compKey(); SFX.buy(); persist(); banner(`${m.name}を せんとうに した`, 1.4); M.pi = null; M.sel = 0; M.top = 0; return; }
+      banner(`${m.name}を まえに した`, 1.4);
+    } else if (k === '_put') {
       const [m] = G.party.splice(M.pi, 1); box.push(m);
       banner(`${m.name}を あずけた`, 1.4);
     } else {
@@ -2876,6 +2881,8 @@
       if (sel && Math.floor(G.t * 4) % 2) drawPattern(['#..', '##.', '###', '##.', '#..'], x + 5, yy, { '#': '#c0502a' });
       if (k === '_close') { T(M.kind === 'shop' || M.kind === 'house' ? 'でる' : M.kind === 'bswap' || M.kind === 'bitem' ? 'やめる' : 'とじる', x + 10, yy); return; }
       if (k === '_back') { T('もどる', x + 10, yy); return; }
+      if (k === '_lead') { T('せんとうに する', x + 10, yy, { c: '#3c6ad8' }); return; }
+      if (k === '_up') { T('ひとつ まえへ', x + 10, yy, { c: '#3c6ad8' }); return; }
       if (k === '_put') { T('ここに あずける', x + 10, yy, { c: '#3c6ad8' }); return; }
       if (k === '_take') { T('あずけた こを つれていく', x + 10, yy, { c: '#3c6ad8' }); return; }
       if (k === '_yes') { T('なかまに する', x + 10, yy, { c: '#3c6ad8' }); return; }
