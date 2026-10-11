@@ -1037,7 +1037,7 @@
     } else if (G.netRole === 'host' && ['cmd', 'swap', 'next', 'rejoin'].includes(msg.t)) {
       // guest requests: accepted only on the guest's turn; anything else just gets a fresh snapshot back
       const B = G.battle, ok = B && B.oppTeam && B.phase === 'input' && B.who === 'opp';
-      if (msg.t === 'cmd' && ok) { const ci = COMMANDS.findIndex(c => c.kind === msg.kind); if (ci >= 0 && !['swap', 'recruit', 'run', 'guard', 'item', 'special'].includes(msg.kind)) choose(ci, true); }
+      if (msg.t === 'cmd' && ok) { const ci = COMMANDS.findIndex(c => c.kind === msg.kind); if (ci >= 0 && !['swap', 'recruit', 'run', 'item'].includes(msg.kind)) choose(ci, true); }
       else if (msg.t === 'swap' && ok) {
         const i = msg.i | 0, m = B.oppTeam[i];
         if (m && i !== B.oppIdx && m.hp >= 1) { netEv({ k: 'swap', side: 'g' }); B.phase = 'run'; B.q.push(oppSwapAction(i)); }
@@ -1070,6 +1070,7 @@
       turn: pickG ? 'pg' : inp ? (B.who === 'opp' ? 'g' : 'h') : null,
       hi: G.active, hh: G.party.map(m => Math.max(0, Math.round(m.hp))),
       gi: B.oppIdx, gh: T.map((m, i) => Math.max(0, Math.round(i === B.oppIdx ? B.w.hp : m.hp))),
+      hb: B.bond | 0, gb: B.obond | 0, hg: ally().guard ? 1 : 0, gg: B.w.guard ? 1 : 0,
       ban: G.banner ? G.banner.text : '', res: B.phase === 'end' || B.phase === 'done' ? B.result : null,
     };
   }
@@ -1097,6 +1098,7 @@
     const a = ally(), pa = a.hp;
     G.party.forEach((m, i) => { if (s.gh[i] != null) m.hp = s.gh[i]; });
     if (s.gs != null) a.st = s.gs;
+    if (s.gb != null) { B.bond = s.gb; B.obond = s.hb; a.guard = !!s.gg; e.guard = !!s.hg; }
     if (a.hp < pa) netHitFx(comp, pa - a.hp);
     e.alpha = e.hp >= 1 ? 1 : 0.25; comp.alpha = a.hp >= 1 ? 1 : 0.25;
     if (s.ban && s.ban !== NET.lastBan) banner(guestBan(s.ban), 1.6);
@@ -1664,7 +1666,7 @@
     if (G.versus && G.vsTeam) { B.oppTeam = G.vsTeam; B.oppIdx = G.vsLead | 0; G.vsTeam = null; }
     netRng = null; NET.seq = 0; NET.rseq = 0; NET.lastKey = ''; NET.lastSent = 0; NET.sentAt = 0; NET.pend = null; NET.paused = null; NET.lastBan = '';
     G.state = 'battle';
-    B.bond = 0; for (const m of G.party) m.guard = false; w.guard = false;
+    B.bond = 0; B.obond = 0; for (const m of G.party) m.guard = false; w.guard = false;
     G.vs = { t: 0, hot: !!(SPECIES[w.sp].boss || w.trainer) };
     SFX.battleStart();
     player.moving = false; player.face = side; player.ox = 0;
@@ -1766,9 +1768,9 @@
       banner(kind === 'recruit' ? 'ひとの ぬいぐるみは なかまに できない！' : 'しょうぶの とちゅうで にげられない！', 1.4);
       return;
     }
-    if (G.friend && ['guard', 'item', 'special'].includes(kind)) { banner('たいせんでは つかえない', 1.1); return; }
+    if (G.friend && kind === 'item') { banner('たいせんでは つかえない', 1.1); return; }
     const a = ally();
-    if (kind === 'special' && (B.bond | 0) < 100) { SFX.miss(); banner('きずなゲージが まだ たまっていない', 1.4); return; }
+    if (kind === 'special' && sideBond() < 100) { SFX.miss(); banner('きずなゲージが まだ たまっていない', 1.4); return; }
     if (kind === 'item') {
       if (!bagList().length) { SFX.miss(); banner('どうぐを もっていない', 1.2); return; }
       B.phase = 'menu'; G.menu = { kind: 'bitem', sel: 0 }; SFX.blip(); return;
@@ -1785,7 +1787,7 @@
     a.guard = false;
     if (G.netRole === 'host' && G.versus) netEv({ k: 'act', side: B.who === 'opp' ? 'g' : 'h', kind });
     B.phase = 'run';
-    if (B.who === 'opp') B.q.push(enemyAttack(kind));
+    if (B.who === 'opp') B.q.push(kind === 'guard' ? oppGuard() : kind === 'special' ? oppSpecialVs() : enemyAttack(kind));
     else B.q.push(kind === 'recruit' ? recruitAction() : kind === 'run' ? runAction() : kind === 'guard' ? guardAction() : kind === 'special' ? specialAction() : allyAttack(kind));
   }
   function battleMenuPick(M, k) {
@@ -1854,7 +1856,12 @@
     burst(comp.x, GROUND - 14, 'spark', 10, '#ffe24a');
     yield* wait(0.4);
   }
-  function addBond(v) { const B = G.battle; if (!B || G.friend) return; const was = B.bond | 0; B.bond = Math.min(100, (B.bond || 0) + v); if (was < 100 && B.bond >= 100) { banner('きずなゲージ MAX！ ひっさつが つかえる！', 1.6); burst(comp.x, GROUND - 30, 'spark', 10, '#ffb04a'); } }
+  // versus: each side has its own きずな (B.bond = this side / host, B.obond = the other side)
+  function sideBond() { const B = G.battle; return B ? ((G.friend && B.who === 'opp' ? B.obond : B.bond) | 0) : 0; }
+  function addBond(v, opp) {
+    const B = G.battle; if (!B || (opp && !G.friend)) return;
+    if (opp) { const w0 = B.obond | 0; B.obond = Math.min(100, (B.obond || 0) + v); if (w0 < 100 && B.obond >= 100) banner('あいての きずなゲージ MAX！', 1.4); return; }
+    const was = B.bond | 0; B.bond = Math.min(100, (B.bond || 0) + v); if (was < 100 && B.bond >= 100) { banner('きずなゲージ MAX！ ひっさつが つかえる！', 1.6); burst(comp.x, GROUND - 30, 'spark', 10, '#ffb04a'); } }
   function* specialAction() {
     const B = G.battle, a = ally(), e = B.w;
     const mv = specialOf(a);
@@ -1900,6 +1907,7 @@
       if (big || crit) G.shakeT = kind === 'special' ? 0.5 : 0.3;
       SFX.hit(big || crit ? 'strong' : kind);
       if (G.battle) { if (att === ally() && kind !== 'special') addBond(dmg / def.maxHp * 90); if (def === ally()) addBond(dmg / def.maxHp * 110); }
+      if (G.battle && G.friend) { if (att === G.battle.w && kind !== 'special') addBond(dmg / def.maxHp * 90, true); if (def === G.battle.w) addBond(dmg / def.maxHp * 110, true); }
     } else { pop(defA.x, GROUND - 38, 'MISS', '#cfe8ff'); SFX.miss(); }
     yield* tween(v => attA.ox = v, attA.ox, 0, 0.2);
     yield* wait(0.35);
@@ -1928,6 +1936,7 @@
       burst(defA.x - dir * 6, GROUND - 14, 'hit', 10);
       SFX.hit('strong');
       if (G.battle && def === ally()) addBond(dmg / def.maxHp * 110);
+      if (G.battle && G.friend && def === G.battle.w) addBond(dmg / def.maxHp * 110, true);
       while (f.t < f.dur + f.hold) yield;
       G.fx.splice(G.fx.indexOf(f), 1);
       if (def.hp <= 0) break;
@@ -1956,6 +1965,7 @@
       G.hitStop = landed === hits ? 0.16 : 0.05; G.flashT = 0.08; G.shakeT = 0.35;
       SFX.hit('strong');
       if (G.battle && def === ally()) addBond(dmg / def.maxHp * 110);
+      if (G.battle && G.friend && def === G.battle.w) addBond(dmg / def.maxHp * 110, true);
     };
     const launch = (fi, k) => {
       const p = local(fi), m = A.shot.mode;
@@ -2078,6 +2088,26 @@
     B.msg = `${e.name}の ${mv.name}！`;
     banner(B.msg, 1.3);
     yield* strike(e, e, comp, a, mv, kind);
+    if (a.hp <= 0) yield* allyFaint();
+  }
+  // versus: the other side's ガード / ひっさつ
+  function* oppGuard() {
+    const B = G.battle, e = B.w;
+    e.st -= COST.guard; e.guard = true;
+    B.msg = `${e.name}は みを まもっている！`; banner('あいての ' + B.msg, 1.2);
+    SFX.blip(); burst(e.x, GROUND - 16, 'spark', 6, '#a8d8ff');
+    addBond(8, true); yield* wait(0.6);
+  }
+  function* oppSpecialVs() {
+    const B = G.battle, e = B.w, a = ally(), mv = specialOf(e);
+    e.st -= COST.special; B.obond = 0;
+    G.cutin = { t: 0, dur: 1.15, key: e.key, name: mv.fx ? mv.name : mv.name.replace(/^きずなの /, ''), who: e.name };
+    SFX.battleStart();
+    while (G.cutin && G.cutin.t < G.cutin.dur) yield;
+    G.cutin = null;
+    B.msg = `${e.name}の ${mv.name}！`; banner('あいての ' + B.msg, 1.3);
+    const art = mv.fx && e.evo && typeof FX_ART !== 'undefined' && FX_ART[e.sp] && FXIMG[e.sp] && SPR[e.key] && SPR[e.key].attack;
+    if (art) yield* artStrike(e, e, comp, a, mv, FX_ART[e.sp]); else if (mv.fx) yield* fxStrike(e, e, comp, a, mv); else yield* strike(e, e, comp, a, mv, 'special');
     if (a.hp <= 0) yield* allyFaint();
   }
   // evolved trainer plush: one projectile special per member
@@ -2801,7 +2831,7 @@
       rect(b.x, b.y + oy, b.w, b.h - oy, '#3a2410');
       rect(b.x + 1, b.y + 1 + oy, b.w - 2, b.h - 2 - oy, c.color);
       if (c.kind === 'special' && B && !swapping) {
-        const bond = clamp(B.bond | 0, 0, 100), fh = Math.round((b.h - 2 - oy) * (1 - bond / 100));
+        const bond = clamp(sideBond(), 0, 100), fh = Math.round((b.h - 2 - oy) * (1 - bond / 100));
         if (bond < 100) rect(b.x + 1, b.y + 1 + oy, b.w - 2, fh, '#7a6a5a');
         else if (Math.floor(G.t * 6) % 2) rect(b.x + 1, b.y + 1 + oy, b.w - 2, b.h - 2 - oy, '#ffb04a');
       }
@@ -2832,14 +2862,14 @@
     else if (B.phase === 'input') {
       const c = COMMANDS[B.sel];
       l1 = (B.who === 'opp' ? 'あいて ' : '') + `${c.label}`;
-      if (B.who === 'opp') { const om = movesOf(B.w)[c.kind]; l2 = om ? om.name : ''; }
+      if (B.who === 'opp') { const om = c.kind === 'special' ? (sideBond() >= 100 ? specialOf(B.w) : { name: `きずな ${sideBond()}%` }) : c.kind === 'guard' ? { name: 'ダメージ はんぶん' } : movesOf(B.w)[c.kind]; l2 = om ? om.name : ''; }
       else if (c.kind === 'recruit') l2 = B.w.trainer ? 'ひとの こは だめ' : SPECIES[B.w.sp].boss ? 'ボスは なかまに できない' : `せいこう ${Math.round(recruitChance(B.w) * 100)}%` + (G.cookie ? '♪' : '');
       else if (c.kind === 'run' && (SPECIES[B.w.sp].boss || B.w.trainer)) l2 = B.w.trainer ? 'にげられない' : 'ボスからは にげられない';
       else if (c.kind === 'run') l2 = `にげる ${Math.round(runChance(a, B.w, B.runTries) * 100)}%`;
       else if (c.kind === 'guard') l2 = 'ダメージ はんぶん';
       else if (c.kind === 'item') l2 = `もちもの ${bagList().reduce((n, k) => n + (G.items[k] | 0), 0)}こ`;
       else if (c.kind === 'swap') l2 = 'なかまと こうたい';
-      else if (c.kind === 'special') l2 = (B.bond | 0) >= 100 ? specialOf(a).name : `きずな ${Math.floor(B.bond | 0)}%`;
+      else if (c.kind === 'special') l2 = sideBond() >= 100 ? specialOf(a).name : `きずな ${sideBond()}%`;
       else { const mm = movesOf(a)[c.kind]; l2 = mm ? mm.name : ''; }
     } else if (B.cur || B.phase === 'end') { [l1, l2] = wrap2(B.msg, 12); }
     else { l1 = 'スタミナ'; l2 = 'ためちゅう…'; }
