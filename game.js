@@ -1442,7 +1442,7 @@
         const k = G.party[ki], cur = G.party[G.active];
         G.party.splice(ki, 1);
         G.active = Math.max(0, G.party.indexOf(cur)); if (G.party[G.active] !== cur) G.active = 0;
-        G.mind = { m: k, idx: ki, boss: { sp: w.sp, name: w.name, maxHp: w.maxHp, hp: w.hp, atk: w.atk, def: w.def, spd: w.spd, lv: w.lv, evo: 0, key: w.key } };
+        G.mind = { m: k, idx: ki, boss: { sp: w.sp, name: w.name, maxHp: w.maxHp, hp: w.hp, atk: w.atk, def: w.def, spd: w.spd, lv: w.lv, evo: w.evo ? 1 : 0, key: w.key } };
         Object.assign(w, { sp: 'kuuko', name: k.name, maxHp: k.maxHp, hp: k.maxHp, atk: k.atk, def: k.def, spd: k.spd, lv: k.lv || 1, evo: k.evo ? 1 : 0, mind: true, spUsed: false });
         w.key = memberKey(k);
       }
@@ -1481,6 +1481,12 @@
       }
     }
     if (G.mind) banner(`${G.mind.boss.name}が たちはだかった！`, 2.0);
+    if (G.mind) {  // しょうこ stands behind the controlled くうこ until くうこ wakes up
+      const sd = Math.sign(B.enemyTX - player.x) || 1, k = memberKey(G.mind.boss);
+      const h = G.oppHero = newActor(clamp(B.enemyTX + sd * 60, 8, WORLD_W - 8), -sd, k);
+      h.tx = clamp(B.enemyTX + sd * 26, 8, WORLD_W - 8); h.tface = -sd;
+      if (sd > 0) h.tx = Math.min(h.tx, G.camT + W - 10); else h.tx = Math.max(h.tx, G.camT + 10);
+    }
     B.q.push(introAction());
     if (G.mind) B.q.push(mindIntro());
   }
@@ -1507,7 +1513,8 @@
     banner(`${M.m.name}は はっと めを さました！`, 2.0);
     for (let i = 0; i < 6; i++) { e.alpha = i % 2 ? 1 : 0.4; yield* wait(0.1); }
     restoreMind();
-    yield* tween(v => { e.alpha = v; }, 1, 0, 0.35);
+    yield* tween(v => { e.alpha = v; if (G.oppHero) G.oppHero.alpha = v; }, 1, 0, 0.35);
+    G.oppHero = null;
     Object.assign(e, M.boss, { mind: false, guard: false, st: 5 + rand() * 25, oy: 0, spUsed: false });
     e.key = SPECIES[M.boss.sp].sprite;
     banner(`${M.m.name}は なかまの ところへ もどった！ しょうこが でてきた！`, 2.4);
