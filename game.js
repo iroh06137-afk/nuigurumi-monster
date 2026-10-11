@@ -403,7 +403,31 @@
       }));
       G.hasSave = true;
       G.saveFlash = 1.2;
+      cloudSave();
     } catch (e) { /* ignore quota / private mode */ }
+  }
+  // player records -> Supabase (players table via save_player RPC; the public key can only write, not read)
+  const CLOUD = { url: 'https://acwibplypgkutrfeuejq.supabase.co', key: 'sb_publishable_H9BXr00nglxIaHOvTeVPlw_mJ8C5vhP', t: null, last: 0 };
+  function cloudId() {
+    try {
+      let id = localStorage.getItem('nm_pid');
+      if (!id) { id = (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, () => (Math.random() * 16 | 0).toString(16))); localStorage.setItem('nm_pid', id); }
+      return id;
+    } catch (e) { return null; }
+  }
+  function cloudSave(now) {
+    if (typeof fetch === 'undefined') return;
+    clearTimeout(CLOUD.t);
+    const wait = now ? 0 : Math.max(0, 15000 - (Date.now() - CLOUD.last));
+    CLOUD.t = setTimeout(() => {
+      const id = cloudId(); if (!id) return;
+      CLOUD.last = Date.now();
+      const F = G.flags || {};
+      const p = { id, name: G.pname || '', party: G.party.map(m => ({ sp: m.sp, name: m.name, lv: m.lv | 0, evo: m.evo ? 1 : 0 })),
+        cleared: (G.cleared || []).map(i => STAGES[i] ? STAGES[i].name : i), vs_win: F.vsW | 0, vs_lose: F.vsL | 0, coins: G.coins | 0, recruited: F.rec | 0 };
+      fetch(CLOUD.url + '/rest/v1/rpc/save_player', { method: 'POST', keepalive: true,
+        headers: { apikey: CLOUD.key, 'Content-Type': 'application/json' }, body: JSON.stringify({ p }) }).catch(() => {});
+    }, wait);
   }
   function readSave() {
     try { return JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { return null; }
@@ -2285,6 +2309,7 @@
   }
   // a recruited wild joins at lv1 base stats, except evolved-only species (evoOnly): they keep their level and evolved form
   function recruitMember(e) {
+    G.flags = G.flags || {}; G.flags.rec = (G.flags.rec | 0) + 1;
     const eo = SPECIES[e.sp].evoOnly, hp = Math.max(1, Math.floor(e.hp));
     if (!eo) return newMember(e.sp, hp);
     const m = trainerMember({ sp: e.sp, lv: Math.max(e.lv || 1, eo), evo: true }); delete m.spUsed;
@@ -2376,6 +2401,7 @@
     G.lastResult = B.result;
     if (G.versus) {
       const result = B.result;
+      if (result === 'win' || result === 'lose') { G.flags = G.flags || {}; const k = result === 'win' ? 'vsW' : 'vsL'; G.flags[k] = (G.flags[k] | 0) + 1; }
       if (G.netRole === 'host' && B.oppTeam) netHostTick(true);
       vsRestore(); G.vsTeam = null;
       G.versus = false;
