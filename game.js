@@ -3004,7 +3004,7 @@
     if (G.flashT > 0) { g.globalAlpha = Math.min(1, G.flashT / 0.08) * 0.8; rect(0, 0, W, H, '#ffffff'); g.globalAlpha = 1; }
   }
   function drawBanner() {
-    if (!G.banner) return;
+    if (!G.banner || G.state === 'talk') return;   // the talk box sits where the banner would
     const s = G.banner.text, w = Math.ceil(measure(s)) + 8;
     const x = Math.floor((W - w) / 2), y = 8;
     rect(x + 1, y, w - 2, 9, '#5a3418'); rect(x, y + 1, w, 7, '#5a3418');
