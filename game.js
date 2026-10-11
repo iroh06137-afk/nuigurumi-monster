@@ -1034,17 +1034,141 @@
       G.wilds.forEach(a => { a.alpha = 0; });
       G.state = 'field';
       startBattle(w);
-    } else if (msg.t === 'cmd' && G.battle && G.battle.phase === 'input' && G.battle.who === 'opp') {
-      choose(COMMANDS.findIndex(c => c.kind === msg.kind));
-    } else if (msg.t === 'swap' && G.battle && G.battle.oppTeam && G.battle.phase === 'input' && G.battle.who === 'opp') {
-      const B = G.battle, i = msg.i | 0, m = B.oppTeam[i];
-      if (m && i !== B.oppIdx && m.hp >= 1) { B.phase = 'run'; B.q.push(oppSwapAction(i)); }
-    } else if (msg.t === 'next' && G.battle && G.battle.oppTeam) {
-      G.battle.oppNext = msg.i | 0;   // consumed by enemyFaint (may arrive before this peer gets there)
+    } else if (G.netRole === 'host' && ['cmd', 'swap', 'next', 'rejoin'].includes(msg.t)) {
+      // guest requests: accepted only on the guest's turn; anything else just gets a fresh snapshot back
+      const B = G.battle, ok = B && B.oppTeam && B.phase === 'input' && B.who === 'opp';
+      if (msg.t === 'cmd' && ok) { const ci = COMMANDS.findIndex(c => c.kind === msg.kind); if (ci >= 0 && !['swap', 'recruit', 'run', 'guard', 'item', 'special'].includes(msg.kind)) choose(ci, true); }
+      else if (msg.t === 'swap' && ok) {
+        const i = msg.i | 0, m = B.oppTeam[i];
+        if (m && i !== B.oppIdx && m.hp >= 1) { netEv({ k: 'swap', side: 'g' }); B.phase = 'run'; B.q.push(oppSwapAction(i)); }
+      } else if (msg.t === 'next' && B && B.oppTeam && B.w.hp < 1) B.oppNext = msg.i | 0;   // consumed by enemyFaint
+      if (msg.t === 'rejoin' && NET.paused) netResume();
+      NET.lastKey = '';   // resend state now
+    } else if (G.netRole === 'guest' && msg.t === 'st') {
+      if ((msg.seq | 0) <= (NET.rseq | 0)) return;   // stale / out of order
+      NET.rseq = msg.seq | 0;
+      if (NET.paused) netResume();
+      guestApply(msg);
+    } else if (G.netRole === 'guest' && msg.t === 'ev') {
+      if ((msg.seq | 0) <= (NET.rseq | 0)) return;
+      NET.rseq = msg.seq | 0;
+      guestEv(msg);
     } else if (msg.t === 'bye') {
       banner('あいてが きれた', 1.6);
     }
   }
+
+  // ---------- online versus: host-authoritative ----------
+  // the host runs the only simulation (its own RNG) and streams numbered state snapshots ('st') + action events ('ev');
+  // the guest never simulates: it renders the snapshots, and sends requests (cmd / swap / next) on its own turn only.
+  function netEv(ev) { if (G.netRole === 'host') netSend(Object.assign({ t: 'ev', seq: ++NET.seq }, ev)); }
+  function hostState() {
+    const B = G.battle, T = B.oppTeam;
+    const pickG = B.w.hp < 1 && T.some((m, i) => i !== B.oppIdx && m.hp >= 1) && B.phase !== 'end' && B.phase !== 'done';
+    const inp = B.phase === 'input' || B.phase === 'menu';
+    return {
+      turn: pickG ? 'pg' : inp ? (B.who === 'opp' ? 'g' : 'h') : null,
+      hi: G.active, hh: G.party.map(m => Math.max(0, Math.round(m.hp))),
+      gi: B.oppIdx, gh: T.map((m, i) => Math.max(0, Math.round(i === B.oppIdx ? B.w.hp : m.hp))),
+      ban: G.banner ? G.banner.text : '', res: B.phase === 'end' || B.phase === 'done' ? B.result : null,
+    };
+  }
+  function netHostTick(force) {
+    const B = G.battle; if (G.netRole !== 'host' || !G.versus || !B || !B.oppTeam || NET.paused) return;
+    const s = hostState(), key = JSON.stringify(s), now = performance.now();
+    if (!force && key === NET.lastKey && now - NET.lastSent < 250) return;   // 4/s keepalive carries stamina + acts as checksum
+    NET.lastKey = key; NET.lastSent = now;
+    netSend(Object.assign({ t: 'st', seq: ++NET.seq, hs: Math.round(ally().st), gs: Math.round(B.w.st) }, s));
+  }
+  function netHitFx(act, dmg) { act.flash = 0.3; act.shake = 0.5; pop(act.x, GROUND - 38, dmg, '#ffdf3a'); SFX.hit('attack'); }
+  function guestApply(s) {
+    const B = G.battle; if (!B || !B.oppTeam || B.phase === 'done') return;
+    if (B.phase === 'intro' || B.cur) { NET.pend = s; return; }   // finish the intro / current animation first
+    const T = B.oppTeam, e = B.w;
+    // host's side = opponent here
+    if (T[s.hi] && s.hi !== B.oppIdx) { T.forEach((m, i) => { if (s.hh[i] != null) m.hp = s.hh[i]; }); oppSet(s.hi); e.alpha = 1; burst(e.x, GROUND - 14, 'spark', 10, '#ff9ac8'); }
+    const pe = e.hp;
+    T.forEach((m, i) => { if (i !== B.oppIdx && s.hh[i] != null) m.hp = s.hh[i]; });
+    if (s.hh[B.oppIdx] != null) e.hp = s.hh[B.oppIdx];
+    if (s.hs != null) e.st = s.hs;
+    if (e.hp < pe) netHitFx(e, pe - e.hp);
+    // guest's own side
+    if (G.party[s.gi] && s.gi !== G.active) { G.active = s.gi; comp.key = compKey(); comp.alpha = 1; burst(comp.x, GROUND - 14, 'spark', 10, '#ffe24a'); }
+    const a = ally(), pa = a.hp;
+    G.party.forEach((m, i) => { if (s.gh[i] != null) m.hp = s.gh[i]; });
+    if (s.gs != null) a.st = s.gs;
+    if (a.hp < pa) netHitFx(comp, pa - a.hp);
+    e.alpha = e.hp >= 1 ? 1 : 0.25; comp.alpha = a.hp >= 1 ? 1 : 0.25;
+    if (s.ban && s.ban !== NET.lastBan) banner(guestBan(s.ban), 1.6);
+    NET.lastBan = s.ban;
+    if (s.res) { G.menu = null; B.result = s.res === 'win' ? 'lose' : s.res === 'lose' ? 'win' : null; B.phase = 'end'; B.q.push((function* () { yield* wait(1.4); endBattle(); })()); return; }
+    const recent = performance.now() - (NET.sentAt || 0) < 2500;   // our request is in flight
+    if (s.turn === 'pg') {
+      if (!(G.menu && G.menu.forced) && !recent) { B.phase = 'menu'; B.who = 'me'; G.menu = { kind: 'bswap', sel: Math.max(0, G.party.findIndex(m => m.hp >= 1)), forced: true }; }
+      return;
+    }
+    if (G.menu && G.menu.forced) G.menu = null;
+    if (s.turn === 'g') { if (B.phase !== 'menu' && !recent) { B.phase = 'input'; B.who = 'me'; } }
+    else { if (B.phase === 'menu') G.menu = null; B.phase = s.turn === 'h' ? 'input' : 'run'; B.who = s.turn === 'h' ? 'opp' : null; NET.sentAt = 0; }
+  }
+  // host banners are written from the host's side: flip あいて / いけっ for the guest
+  function guestBan(t) {
+    const on = G.battle && G.battle.w.name;
+    if (t.startsWith('あいての ')) return t.slice(5);
+    if (t.startsWith('あいては ')) return t.slice(5);
+    if (t.startsWith('いけっ ')) return 'あいては ' + t.slice(4).replace(/！$/, '') + 'を くりだした！';
+    if (on && t.startsWith(on + 'の ')) return 'あいての ' + t;
+    return t;
+  }
+  function guestEv(ev) {
+    const B = G.battle; if (!B) return;
+    if (ev.k === 'act') {
+      const at = ev.side === 'h' ? B.w : comp, d = Math.sign((ev.side === 'h' ? comp.x : B.w.x) - at.x) || 1;
+      B.q.push((function* () { yield* tween(v => at.ox = v, 0, d * 8, 0.12); yield* tween(v => at.ox = v, d * 8, 0, 0.15); })());
+    }
+  }
+  function guestTick() {
+    const B = G.battle;
+    if (NET.pend && B.phase !== 'intro' && !B.cur && !B.q.length) { const s = NET.pend; NET.pend = null; guestApply(s); }
+  }
+  // ---------- reconnect (mid-match drop / phone sleep): pause, retry ~60s, host re-sends a full snapshot ----------
+  function netPause() {
+    if (!G.versus || !G.battle || !G.netRole || NET.paused) return;
+    NET.paused = { t: 0, try: 0 };
+    banner('つうしんが きれた… つなぎなおしちゅう', 3);
+  }
+  function netResume() { NET.paused = null; NET.lastKey = ''; banner('つながった！', 1.2); netHostTick(true); }
+  function netPausedTick(dt) {
+    const P = NET.paused; P.t += dt;
+    if (!G.banner || G.banner.t < 0.3) banner('つうしんが きれた… つなぎなおしちゅう', 1.5);
+    if (P.t > 60) { NET.paused = null; banner('あいてとの つうしんが きれた', 2.5); const B = G.battle; B.result = null; B.phase = 'end'; endBattle(); return; }
+    if (P.t < P.try * 3) return;
+    P.try++;
+    const p = NET.peer; if (!p || p.destroyed) return;
+    if (p.disconnected) { try { p.reconnect(); } catch (e) {} return; }
+    if (G.netRole === 'guest' && NET.code && !(NET.conn && NET.conn.open)) {
+      try {
+        const c = p.connect('nmg-' + NET.code);
+        c.on('data', onNet);
+        c.on('open', () => { if (NET.conn && NET.conn !== c) try { NET.conn.close(); } catch (e) {} NET.conn = c; netWatch(c); c.send({ t: 'rejoin' }); });
+      } catch (e) {}
+    }
+  }
+  function netWatch(c) {
+    if (!c || c._nmWatch) return; c._nmWatch = 1;
+    c.on('error', () => { if (G.state === 'netroom') NET.status = 'エラー: あいてと つながらなかった'; });
+    c.on('close', () => {
+      if (c !== NET.conn) return;   // an old connection replaced by a reconnect
+      if (G.state === 'netroom') NET.status = 'あいてが いなくなった';
+      else if (G.versus && G.battle) netPause();
+      else banner('あいてとの つうしんが きれた', 2.5);
+    });
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !G.versus || !G.battle || !G.netRole) return;
+    if (!(NET.conn && NET.conn.open) || (NET.peer && NET.peer.disconnected)) netPause();
+    else if (G.netRole === 'guest') netSend({ t: 'rejoin' });   // woke up: ask for a fresh snapshot
+  });
   function beginNetBattle() {
     const opp = NET.opp; if (!opp) return;
     const i = VS_LIST.indexOf(opp.sp);
@@ -1064,11 +1188,11 @@
       G.netRole = 'host';
       NET.status = 'へや ' + NET.code;
       NET.peer = new Peer('nmg-' + NET.code);
-      NET.peer.on('connection', c => { NET.conn = c; c.on('data', onNet); c.on('open', () => netSend({ t: 'pick', sp: mine.sp, name: mine.name, g: G.gender | 0, c: G.hcolor | 0, team: vsTeamMsg(), lead: NET.mine.lead })); });
+      NET.peer.on('connection', c => { if (G.versus && G.battle && NET.conn && NET.conn !== c) { try { NET.conn.close(); } catch (e) {} } NET.conn = c; c.on('data', onNet); netWatch(c); c.on('open', () => (G.versus && G.battle) ? (NET.paused && netResume()) : netSend({ t: 'pick', sp: mine.sp, name: mine.name, g: G.gender | 0, c: G.hcolor | 0, team: vsTeamMsg(), lead: NET.mine.lead })); });
     } else {
       const code = (window.prompt('あいての へやコード') || '').trim().toLowerCase();
       if (!code) return;
-      G.netRole = 'guest';
+      G.netRole = 'guest'; NET.code = code;
       NET.status = code + ' に せつぞく中';
       NET.peer = new Peer();
       NET.peer.on('open', () => {
@@ -1080,8 +1204,8 @@
     // show why it failed instead of waiting forever
     const ERR = { 'peer-unavailable': 'へやが みつからない（コードを たしかめてね）', 'unavailable-id': 'へやコードが つかわれてる もういちど つくってね', network: 'つうしんが きれた', 'server-error': 'サーバーに つながらない', 'socket-error': 'サーバーに つながらない', 'browser-incompatible': 'この ブラウザでは つかえない', webrtc: 'あいてと つながらなかった' };
     NET.peer.on('error', err => { NET.status = 'エラー: ' + (ERR[err && err.type] || ((err && err.type) || 'ふめい')); banner(NET.status, 3); });
-    NET.peer.on('disconnected', () => { if (G.state === 'netroom' && !NET.conn) NET.status = 'サーバーと きれた もういちど ためしてね'; });
-    const watchConn = () => { const c = NET.conn; if (!c || c._nmWatch) return; c._nmWatch = 1; c.on('error', () => { NET.status = 'エラー: あいてと つながらなかった'; }); c.on('close', () => { if (G.state === 'netroom') NET.status = 'あいてが いなくなった'; else banner('あいてとの つうしんが きれた', 2.5); }); };
+    NET.peer.on('disconnected', () => { if (G.state === 'netroom' && !NET.conn) NET.status = 'サーバーと きれた もういちど ためしてね'; else if (G.versus && G.battle) netPause(); });
+    const watchConn = () => netWatch(NET.conn);
     NET.peer.on('connection', () => setTimeout(watchConn, 0));
     if (!host) NET.peer.on('open', () => setTimeout(watchConn, 0));
     const myPeer = NET.peer;
@@ -1533,10 +1657,7 @@
     };
     B.oppTeam = null; B.oppIdx = 0; B.oppNext = null;
     if (G.versus && G.vsTeam) { B.oppTeam = G.vsTeam; B.oppIdx = G.vsLead | 0; G.vsTeam = null; }
-    if (G.netRole) {
-      let s = 12345;
-      netRng = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
-    }
+    netRng = null; NET.seq = 0; NET.rseq = 0; NET.lastKey = ''; NET.lastSent = 0; NET.sentAt = 0; NET.pend = null; NET.paused = null; NET.lastBan = '';
     G.state = 'battle';
     B.bond = 0; for (const m of G.party) m.guard = false; w.guard = false;
     G.vs = { t: 0, hot: !!(SPECIES[w.sp].boss || w.trainer) };
@@ -1621,9 +1742,14 @@
     yield* wait(0.3);
     B.phase = 'run';
   }
-  function choose(i) {
+  function choose(i, fromNet) {
     const B = G.battle;
     if (!B || B.phase !== 'input' || tutOn()) return;
+    // online: only the side whose turn it is may act (host decides; the guest only sends requests)
+    if (G.netRole && G.versus) {
+      if (NET.paused) { banner('つなぎなおしちゅう…', 1.0); return; }
+      if (G.netRole === 'host' ? (B.who === 'opp') !== !!fromNet : B.who !== 'me') { SFX.miss(); banner('あいての ばん', 1.0); return; }
+    }
     const kind = COMMANDS[i].kind;
     B.sel = i;
     if (SPECIES[B.w.sp].boss && (kind === 'recruit' || kind === 'run')) {
@@ -1650,8 +1776,9 @@
       if (!G.party.some((m, i) => i !== G.active && m.hp >= 1)) { SFX.miss(); banner('こうたい できる なかまが いない', 1.4); return; }
       B.phase = 'menu'; G.menu = { kind: 'bswap', sel: 0 }; SFX.blip(); return;
     }
+    if (G.netRole === 'guest' && G.versus) { netSend({ t: 'cmd', kind }); NET.sentAt = performance.now(); B.phase = 'run'; B.who = null; return; }
     a.guard = false;
-    if (G.netRole && (!B.who || B.who === 'me')) netSend({ t: 'cmd', kind });
+    if (G.netRole === 'host' && G.versus) netEv({ k: 'act', side: B.who === 'opp' ? 'g' : 'h', kind });
     B.phase = 'run';
     if (B.who === 'opp') B.q.push(enemyAttack(kind));
     else B.q.push(kind === 'recruit' ? recruitAction() : kind === 'run' ? runAction() : kind === 'guard' ? guardAction() : kind === 'special' ? specialAction() : allyAttack(kind));
@@ -1664,9 +1791,10 @@
       if (i === (M.opp ? B.oppIdx : G.active) && !M.forced) { banner(`${m.name}は もう たたかっている`, 1.2); return; }
       if (m.hp < 1) { banner(`${m.name}は たおれている`, 1.2); return; }
       G.menu = null;
-      if (M.forced) { B.phase = 'run'; if (G.netRole) netSend({ t: 'next', i }); B.q.push(sendInAction(i)); return; }
+      if (G.netRole === 'guest' && G.versus) { netSend({ t: M.forced ? 'next' : 'swap', i }); NET.sentAt = performance.now(); B.phase = 'run'; B.who = null; return; }
+      if (M.forced) { B.phase = 'run'; B.q.push(sendInAction(i)); return; }
       if (M.opp) { B.w.guard = false; B.phase = 'run'; B.q.push(oppSwapAction(i)); return; }
-      a.guard = false; B.phase = 'run'; if (G.netRole) netSend({ t: 'swap', i }); B.q.push(swapAction(i)); return;
+      a.guard = false; B.phase = 'run'; B.q.push(swapAction(i)); return;
     }
     const it = ITEMS[k];
     if (it.use === 'heal' && a.hp >= a.maxHp) { banner(`${a.name}は げんき いっぱい`, 1.2); return; }
@@ -2189,6 +2317,7 @@
     G.lastResult = B.result;
     if (G.versus) {
       const result = B.result;
+      if (G.netRole === 'host' && B.oppTeam) netHostTick(true);
       vsRestore(); G.vsTeam = null;
       G.versus = false;
       G.friend = false;
@@ -2219,12 +2348,15 @@
   }
   function updateBattle(dt) {
     const B = G.battle;
+    if (G.netRole && G.versus && NET.paused) { netPausedTick(dt); return; }
+    if (G.netRole === 'host' && G.versus) netHostTick();
     if (G.hitStop > 0) { G.hitStop -= dt; return; }
     if (G.cutin) G.cutin.t += dt;
     if (G.fx) for (const f of G.fx) f.t += dt;
     if (B.phase === 'menu') return;
     if (!B.cur && B.q.length) B.cur = B.q.shift();
     if (B.cur) { const r = B.cur.next(); if (r.done) B.cur = null; }
+    if (G.battle && G.netRole === 'guest' && G.versus) { guestTick(); return; }
     if (!G.battle || B.phase === 'end' || B.phase === 'intro' || B.phase === 'done' || B.phase === 'swap') return;
     const a = ally(), e = B.w;
     const busy = !!B.cur || B.q.length > 0;
@@ -2653,7 +2785,8 @@
     rect(3, 79, 50, 8, '#ead7a8'); rect(3, 79, 50, 1, '#d6bf8a');
     // command buttons (all 8 in one row)
     const swapping = B && B.phase === 'swap';
-    const enabled = (B && B.phase === 'input') || swapping;
+    const netWait = !!(B && G.netRole && G.versus && (NET.paused || (B.phase === 'input' && B.who === 'opp')));
+    const enabled = ((B && B.phase === 'input') || swapping) && !netWait;
     for (let slot = 0; slot < NBTN; slot++) {
       const ci = slot, c = COMMANDS[ci], b = BTN[slot];
       if (!c) continue;
@@ -2705,6 +2838,7 @@
       else { const mm = movesOf(a)[c.kind]; l2 = mm ? mm.name : ''; }
     } else if (B.cur || B.phase === 'end') { [l1, l2] = wrap2(B.msg, 12); }
     else { l1 = 'スタミナ'; l2 = 'ためちゅう…'; }
+    if (netWait) { if (NET.paused) { l1 = 'つうしんが きれた…'; l2 = 'つなぎなおしちゅう'; } else { l1 = 'あいての ばん'; l2 = 'まってね'; } }
     T(l1, 4.5, 79); T(l2, 4.5, 83.5);
   }
 
