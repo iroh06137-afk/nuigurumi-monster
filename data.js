@@ -316,6 +316,7 @@ const COMMANDS = [   // 2 pages of 4: page 1 = keys 1-4, page 2 = keys 5-8 (↑�
 ];
 
 const TUNING = {
+  townBoost: 6,   // town trainers' +lv once あかつち谷 is cleared (world 2 open)
   walkSpeed: 36,          // logical px / s
   jumpV: 118, jumpV2: 152, gravity: 430,
   stBase: 8, stPerSpd: 1.2, // stamina / s = stBase + spd * stPerSpd
@@ -465,8 +466,9 @@ const STAGES = [
       { id: 'sota', x: 310, name: 'むしとりの ソウタ', look: 'mushitori', battle: { style: 'guard', team: [{ sp: 'kaerun', lv: 7 }, { sp: 'fukuron', lv: 8 }, { sp: 'tsumaguro', lv: 10, evo: 1 }], reward: 70 },
         lines: [['おっ その ぬいぐるみ つよそう！', 'ぼくの カエルンと しょうぶだ！']],
         after: [['まけたー！', 'もっと きたえて くるよ']] },
-      { id: 'reika', x: 520, name: 'おねえさん レイカ', look: 'oneesan',
-        lines: [['かった どうぐは {BAG}で', 'いつでも つかえるわ'], ['ひとの ぬいぐるみは', 'なかまに できないから きをつけてね']] },
+      { id: 'reika', x: 520, name: 'おねえさん レイカ', look: 'oneesan', battle: { style: 'guard', team: [{ sp: 'nyankon', lv: 9 }, { sp: 'pengiin', lv: 10 }, { sp: 'usagin', lv: 11, evo: 1 }], reward: 110 },
+        lines: [['かった どうぐは {BAG}で', 'いつでも つかえるわ'], ['ひとの ぬいぐるみは なかまに できないの', 'さあ おねえさんと しょうぶよ！']],
+        after: [['あら つよいのね', 'どうぐも じょうずに つかってね']] },
       { id: 'akane', x: 680, name: 'からてかの アカネ', look: 'karate', battle: { style: 'power', team: [{ sp: 'goririn', lv: 8 }, { sp: 'usagin', lv: 8 }, { sp: 'kangarun', lv: 11, evo: 1 }], reward: 100 },
         lines: [['おす！ しゅぎょう ちゅうだ！', 'うでだめし していけ！']],
         after: [['みごとだ…', 'また しゅぎょうして くる！']] },

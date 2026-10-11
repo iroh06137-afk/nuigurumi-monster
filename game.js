@@ -1284,12 +1284,18 @@
   }
   function startTrainer(a) {
     const d = a.def, bt = d.battle;
-    const team = (bt.team || [{ sp: bt.sp, lv: 1, mul: bt.mul }]).slice();
+    // after あかつち谷 (world 2 open) every town trainer comes back a bit stronger: +lv, and lv10+ members evolve
+    const boost = G.world === 0 && G.unl && G.unl[1] > 0 ? ((typeof TUNING !== 'undefined' && TUNING.townBoost) || 6) : 0;
+    const team = (bt.team || [{ sp: bt.sp, lv: 1, mul: bt.mul }]).map(t => {
+      if (!boost) return t;
+      const lv = Math.min((TUNING && TUNING.maxLv) || 30, (t.lv || 1) + boost);
+      return Object.assign({}, t, { lv, evo: t.evo || (lv >= 10 && EVOLVE[t.sp] ? 1 : 0) });
+    });
     const first = team.shift(), m = trainerMember(Object.assign({ style: bt.style }, first));
     const side = Math.sign(a.x - player.x) || 1;
     const w = Object.assign(newActor(a.x, -side, memberKey(m)), m, {
       alive: true, home: a.x, spawnX: a.x, cool: false, wt: 1, wdir: 0, toHome: false,
-      trainer: d.id, trainerName: d.name, style: bt.style, reward: bt.reward, team, teamTotal: team.length + 1,
+      trainer: d.id, trainerName: d.name, style: bt.style, reward: boost ? Math.round(bt.reward * 1.5) : bt.reward, team, teamTotal: team.length + 1,
     });
     burst(a.x, GROUND - 12, 'spark', 8, '#ffffff');
     startBattle(w);
