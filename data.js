@@ -27,6 +27,16 @@ const SPRITES = {
   pengiin: { src: 'assets/pengiin.png', native: 1 }, // penguin plush (after town). no walk sheet yet
   mokomon: { src: 'assets/mokomon.png', native: 1 }, // sheep (わたぐも高原) plush (after town). no walk sheet yet
   ressan: { src: 'assets/ressan.png', native: 1 }, // red panda (あかつち谷) plush (after town). no walk sheet yet
+  tenton: { src: 'assets/tenton.png', native: 1, walk: { src: 'assets/tenton_walk.png', frames: 4, ms: 150 } }, // w2 ladybug plush.
+  risurin: { src: 'assets/risurin.png', native: 1, walk: { src: 'assets/risurin_walk.png', frames: 4, ms: 150 } }, // w2 squirrel w/ acorn plush.
+  kinokon: { src: 'assets/kinokon.png', native: 1, walk: { src: 'assets/kinokon_walk.png', frames: 4, ms: 150 } }, // w2 mushroom plush.
+  shikanon: { src: 'assets/shikanon.png', native: 1, walk: { src: 'assets/shikanon_walk.png', frames: 4, ms: 150 } }, // w2 fawn plush.
+  haririn: { src: 'assets/haririn.png', native: 1, walk: { src: 'assets/haririn_walk.png', frames: 4, ms: 150 } }, // w2 hedgehog plush.
+  chouran: { src: 'assets/chouran.png', native: 1, walk: { src: 'assets/chouran_walk.png', frames: 4, ms: 150 } }, // w2 butterfly plush.
+  hakuchon: { src: 'assets/hakuchon.png', native: 1, walk: { src: 'assets/hakuchon_walk.png', frames: 4, ms: 150 } }, // w2 swan plush.
+  kujakun: { src: 'assets/kujakun.png', native: 1, walk: { src: 'assets/kujakun_walk.png', frames: 4, ms: 150 } }, // w2 peacock plush.
+  koumon: { src: 'assets/koumon.png', native: 1, walk: { src: 'assets/koumon_walk.png', frames: 4, ms: 150 } }, // w2 bat plush.
+  naiton: { src: 'assets/naiton.png', native: 1, walk: { src: 'assets/naiton_walk.png', frames: 4, ms: 150 } }, // w2 bear knight, しょうこの けらい (rare) plush.
   // evolved forms (EVOLVE below), all right-facing 32x32
   goririn_evo: { src: 'assets/evo/goririn.png', native: 1, attack: { src: 'assets/evo/goririn_attack.png', frames: 4 }, walk: { src: 'assets/evo/goririn_walk.png', frames: 4, ms: 150 } },
   kuuko_evo: { src: 'assets/evo/kuuko.png', native: 1, attack: { src: 'assets/evo/kuuko_attack.png', frames: 4 }, walk: { src: 'assets/evo/kuuko_walk.png', frames: 4, ms: 150 } },
@@ -167,7 +177,87 @@ const SPECIES = {
       attack: { name: 'しっぽビンタ',     power: 12, acc: 0.96 },
       strong: { name: 'あかつちキック',   power: 25, acc: 0.84 },
     },
+  },  tenton: {  // ★ provisional: まよいの森 (ladybug), hard wings, defensive
+    name: 'テントン', sprite: 'tenton',
+    hp: 44, atk: 9, def: 12, spd: 8, recruitBase: 0.16,
+    moves: {
+      attack: { name: 'かたばねガード', power: 10, acc: 0.97 },
+      strong: { name: 'てんとうタックル', power: 22, acc: 0.86 },
+    },
   },
+  risurin: {  // ★ provisional: まよいの森 (squirrel), very fast
+    name: 'リスリン', sprite: 'risurin',
+    hp: 38, atk: 10, def: 7, spd: 14, recruitBase: 0.16,
+    moves: {
+      attack: { name: 'どんぐりなげ', power: 11, acc: 0.97 },
+      strong: { name: 'くるくるしっぽアタック', power: 23, acc: 0.85 },
+    },
+  },
+  kinokon: {  // ★ provisional: まよいの森 (mushroom), sleepy spores
+    name: 'キノコン', sprite: 'kinokon',
+    hp: 46, atk: 10, def: 9, spd: 8, recruitBase: 0.16,
+    moves: {
+      attack: { name: 'ほうしパフ', power: 10, acc: 0.97 },
+      strong: { name: 'ねむねむほうし', power: 23, acc: 0.85 },
+    },
+  },
+  shikanon: {  // ★ provisional: まよいの森 (fawn), antler charge (power)
+    name: 'シカノン', sprite: 'shikanon',
+    hp: 42, atk: 12, def: 8, spd: 11, recruitBase: 0.13,
+    moves: {
+      attack: { name: 'ぴょこぴょこキック', power: 11, acc: 0.96 },
+      strong: { name: 'つのつのチャージ', power: 26, acc: 0.82 },
+    },
+  },
+  haririn: {  // ★ provisional: おしろの にわ (hedgehog), spiky defense
+    name: 'ハリリン', sprite: 'haririn',
+    hp: 44, atk: 10, def: 13, spd: 8, recruitBase: 0.14,
+    moves: {
+      attack: { name: 'ちくちくタッチ', power: 11, acc: 0.96 },
+      strong: { name: 'はりはりローリング', power: 24, acc: 0.84 },
+    },
+  },
+  chouran: {  // ★ provisional: おしろの にわ (butterfly), scale powder, fast
+    name: 'チョウラン', sprite: 'chouran',
+    hp: 38, atk: 11, def: 7, spd: 13, recruitBase: 0.14,
+    moves: {
+      attack: { name: 'ひらひらはたき', power: 11, acc: 0.97 },
+      strong: { name: 'きらきらりんぷん', power: 24, acc: 0.85 },
+    },
+  },
+  hakuchon: {  // ★ provisional: おしろの にわ (swan), elegant, fountain pond
+    name: 'ハクチョン', sprite: 'hakuchon',
+    hp: 46, atk: 11, def: 9, spd: 10, recruitBase: 0.13,
+    moves: {
+      attack: { name: 'つばさビンタ', power: 11, acc: 0.96 },
+      strong: { name: 'ふんすいスプラッシュ', power: 25, acc: 0.84 },
+    },
+  },
+  kujakun: {  // ★ provisional: おしろの にわ (peacock), eye feathers make foes flinch
+    name: 'クジャクン', sprite: 'kujakun',
+    hp: 44, atk: 12, def: 9, spd: 10, recruitBase: 0.12,
+    moves: {
+      attack: { name: 'はねつつき', power: 11, acc: 0.96 },
+      strong: { name: 'めだまの はねおうぎ', power: 26, acc: 0.83 },
+    },
+  },
+  koumon: {  // ★ provisional: もりの おしろ (bat), night flyer
+    name: 'コウモン', sprite: 'koumon',
+    hp: 40, atk: 12, def: 7, spd: 13, recruitBase: 0.13,
+    moves: {
+      attack: { name: 'かぷっとかみつき', power: 12, acc: 0.96 },
+      strong: { name: 'よるの ちょうおんぱ', power: 25, acc: 0.84 },
+    },
+  },
+  naiton: {  // ★ provisional: もりの おしろ (bear knight), しょうこの けらい, rare, strongest of w2
+    name: 'ナイトン', sprite: 'naiton',
+    hp: 54, atk: 14, def: 12, spd: 9, recruitBase: 0.06,
+    moves: {
+      attack: { name: 'くまのけん', power: 13, acc: 0.95 },
+      strong: { name: 'ナイトスラッシュ', power: 30, acc: 0.82 },
+    },
+  },
+
   kaido_boss: {  // ★ placeholder boss for ぬいぐるみ街道
     name: 'かいどうの ボス', sprite: 'kitsunen', boss: true,
     hp: 60, atk: 8, def: 6, spd: 8, recruitBase: 0,
@@ -384,7 +474,7 @@ const STAGES = [
   {
     id: 'mayoi', name: 'まよいの森', width: 1300, theme: 'forest', world: 1, highJump: true, bench: 640,
     layers: 'assets/w2/mayoi', tiles: 'assets/w2/mayoi',
-    spawns: [ { sp: 'kitsunen', x: 260, lv: 12 }, { sp: 'fukuron', x: 430, lv: 12 }, { sp: 'tanukin', x: 760, lv: 13 }, { sp: 'nyankon', x: 950, lv: 13 }, { sp: 'usagin', x: 1130, lv: 12 }, { sp: 'kitsunen', x: 552, lv: 15, plat: 2 }, { sp: 'fukuron', x: 1096, lv: 16, plat: 6 } ],
+    spawns: [ { sp: 'tenton', x: 260, lv: 14 }, { sp: 'kinokon', x: 430, lv: 14 }, { sp: 'shikanon', x: 760, lv: 15 }, { sp: 'tenton', x: 950, lv: 15 }, { sp: 'kinokon', x: 1130, lv: 15 }, { sp: 'risurin', x: 552, lv: 15, plat: 2 }, { sp: 'risurin', x: 1096, lv: 16, plat: 6 } ],
     plats: [ { x: 180, w: 48, h: 21 }, { x: 320, w: 32, h: 35 }, { x: 520, w: 64, h: 21 }, { x: 600, w: 32, h: 35 }, { x: 840, w: 48, h: 21 }, { x: 1020, w: 48, h: 21 }, { x: 1080, w: 32, h: 35 } ],
     pickups: [ { x: 336, h: 35, coins: 15 }, { x: 616, h: 35, coins: 15 }, { x: 1096, h: 35, coins: 20 } ],
     exit: ['このさき', 'おしろの にわ'],
@@ -392,7 +482,7 @@ const STAGES = [
   {
     id: 'niwa', name: 'おしろの にわ', width: 1300, theme: 'day', world: 1, highJump: true, bench: 660,
     layers: 'assets/w2/niwa', tiles: 'assets/w2/niwa',
-    spawns: [ { sp: 'pengiin', x: 260, lv: 14 }, { sp: 'mokomon', x: 450, lv: 14 }, { sp: 'wankon', x: 780, lv: 15 }, { sp: 'pandan', x: 960, lv: 15 }, { sp: 'ressan', x: 1150, lv: 14 }, { sp: 'usagin', x: 572, lv: 17, plat: 2 }, { sp: 'mokomon', x: 274, lv: 18, plat: 1 } ],
+    spawns: [ { sp: 'haririn', x: 260, lv: 16 }, { sp: 'hakuchon', x: 450, lv: 16 }, { sp: 'kujakun', x: 780, lv: 17 }, { sp: 'haririn', x: 960, lv: 17 }, { sp: 'hakuchon', x: 1150, lv: 17 }, { sp: 'chouran', x: 572, lv: 17, plat: 2 }, { sp: 'chouran', x: 274, lv: 18, plat: 1 } ],
     plats: [ { x: 200, w: 32, h: 21 }, { x: 250, w: 48, h: 35 }, { x: 540, w: 64, h: 21 }, { x: 700, w: 32, h: 21 }, { x: 740, w: 32, h: 35 }, { x: 1040, w: 64, h: 21 }, { x: 1110, w: 32, h: 35 } ],
     pickups: [ { x: 274, h: 35, coins: 20 }, { x: 756, h: 35, coins: 20 }, { x: 1126, h: 35, coins: 25 } ],
     exit: ['このさき', 'もりの おしろ'],
@@ -400,7 +490,7 @@ const STAGES = [
   {
     id: 'oshiro', name: 'もりの おしろ', width: 1200, theme: 'night', world: 1, highJump: true, bench: 560,
     layers: 'assets/w2/oshiro', tiles: 'assets/w2/oshiro',
-    spawns: [ { sp: 'kangarun', x: 260, lv: 16 }, { sp: 'tsumaguro', x: 430, lv: 16 }, { sp: 'nyankon', x: 720, lv: 16 }, { sp: 'pandan', x: 880, lv: 17 }, { sp: 'shouko', x: 1080, lv: 20, boss: 1 }, { sp: 'tanukin', x: 532, lv: 19, plat: 2 }, { sp: 'kitsunen', x: 804, lv: 19, plat: 4 } ],
+    spawns: [ { sp: 'koumon', x: 260, lv: 18 }, { sp: 'koumon', x: 430, lv: 18 }, { sp: 'naiton', x: 720, lv: 19 }, { sp: 'koumon', x: 880, lv: 19 }, { sp: 'shouko', x: 1080, lv: 20, boss: 1 }, { sp: 'koumon', x: 532, lv: 19, plat: 2 }, { sp: 'koumon', x: 804, lv: 20, plat: 4 } ],
     plats: [ { x: 170, w: 48, h: 21 }, { x: 330, w: 32, h: 35 }, { x: 500, w: 64, h: 21 }, { x: 580, w: 32, h: 35 }, { x: 780, w: 48, h: 21 } ],
     pickups: [ { x: 346, h: 35, coins: 25 }, { x: 596, h: 35, coins: 30 } ],
     exit: ['このさき', 'じゅんびちゅう'],
