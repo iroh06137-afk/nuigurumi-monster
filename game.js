@@ -424,7 +424,7 @@
       CLOUD.last = Date.now();
       const F = G.flags || {};
       const p = { id, name: G.pname || '', party: G.party.map(m => ({ sp: m.sp, name: m.name, lv: m.lv | 0, evo: m.evo ? 1 : 0 })),
-        cleared: (G.cleared || []).map(i => STAGES[i] ? STAGES[i].name : i), vs_win: F.vsW | 0, vs_lose: F.vsL | 0, coins: G.coins | 0, recruited: F.rec | 0 };
+        cleared: (G.cleared || []).map(i => STAGES[i] ? STAGES[i].name : i), vs_win: F.vsW | 0, vs_lose: F.vsL | 0, coins: G.coins | 0, recruited: F.rec != null ? F.rec | 0 : Math.max(0, G.party.length + (G.box || []).length - 1) };
       fetch(CLOUD.url + '/rest/v1/rpc/save_player', { method: 'POST', keepalive: true,
         headers: { apikey: CLOUD.key, 'Content-Type': 'application/json' }, body: JSON.stringify({ p }) }).catch(() => {});
     }, wait);
@@ -2309,7 +2309,7 @@
   }
   // a recruited wild joins at lv1 base stats, except evolved-only species (evoOnly): they keep their level and evolved form
   function recruitMember(e) {
-    G.flags = G.flags || {}; G.flags.rec = (G.flags.rec | 0) + 1;
+    G.flags = G.flags || {}; G.flags.rec = (G.flags.rec != null ? G.flags.rec | 0 : Math.max(0, G.party.length + (G.box || []).length - 1)) + 1;
     const eo = SPECIES[e.sp].evoOnly, hp = Math.max(1, Math.floor(e.hp));
     if (!eo) return newMember(e.sp, hp);
     const m = trainerMember({ sp: e.sp, lv: Math.max(e.lv || 1, eo), evo: true }); delete m.spUsed;
