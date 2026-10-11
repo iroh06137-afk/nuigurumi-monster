@@ -1119,7 +1119,7 @@
     if (t.startsWith('あいての ')) return t.slice(5);
     if (t.startsWith('あいては ')) return t.slice(5);
     if (t.startsWith('いけっ ')) return 'あいては ' + t.slice(4).replace(/！$/, '') + 'を くりだした！';
-    if (on && t.startsWith(on + 'の ')) return 'あいての ' + t;
+    if (on && (t.startsWith(on + 'の ') || t.startsWith(on + 'は '))) return 'あいての ' + t;
     return t;
   }
   function guestEv(ev) {
