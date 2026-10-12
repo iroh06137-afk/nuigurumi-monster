@@ -395,6 +395,7 @@
       cloudSave();
     } catch (e) { /* ignore quota / private mode */ }
   }
+  function curUnl() { const u = (G.unl || [1]).slice(); u[G.world | 0] = G.unlocked; while (u.length < MAP_WORLDS.length) u.push(0); return u; }
   function saveObj() {
     return {
         v: 3,
@@ -402,8 +403,8 @@
         box: (G.box || []).map(serMember),
         muted: !!G.muted,
         active: G.active,
-        unlocked: G.world ? G.unl[0] : G.unlocked,
-        unlocked2: G.world ? G.unlocked : (G.unl[1] | 0),
+        unlocks: curUnl(),
+        unlocked: curUnl()[0], unlocked2: curUnl()[1] | 0,   // old keys kept so older builds can still read the save
         cleared: G.cleared,
         stage: G.stage,
         px: Math.round(player.x),
@@ -894,7 +895,7 @@
   }
 
   function spawnWilds() {
-    G.wilds = STAGES[G.stage].spawns.map((s, i) => Object.assign(newActor(s.x, -1, SPECIES[s.sp].sprite), s.lv ? trainerMember({ sp: s.sp, lv: s.lv, evo: SPECIES[s.sp].evoOnly }) : newMember(s.sp), {
+    G.wilds = STAGES[G.stage].spawns.map((s, i) => Object.assign(newActor(s.x, -1, SPECIES[s.sp].sprite), s.lv ? trainerMember({ sp: s.sp, lv: s.lv, evo: SPECIES[s.sp].evoOnly || (s.evo ? 1 : 0) }) : newMember(s.sp), {
       home: s.x, spawnX: s.x, alive: !(SPECIES[s.sp].recruitAfter && G.flags && G.flags['joined_' + s.sp]), cool: false, wt: 1 + rand() * 2, wdir: 0, toHome: false, idx: i,
     }, platOf(s)));
   }
@@ -1087,7 +1088,12 @@
       G.cleared = Array.isArray(s.cleared) ? s.cleared.slice() : [];
       // v2 saves (town briefly sat at map index 2): drop that slot so the field stages line up again
       if ((s.v | 0) === 2 && G.unlocked >= 3) G.unlocked -= 1;
-      G.unl = [G.unlocked, s.unlocked2 | 0]; G.world = 0; MAP_NODES = MAP_WORLDS[0];
+      G.unl = [G.unlocked, s.unlocked2 | 0];
+      if (Array.isArray(s.unlocks)) { G.unl = s.unlocks.map(v => v | 0); G.unl[0] = Math.max(1, G.unl[0]); G.unlocked = G.unl[0]; }
+      while (G.unl.length < MAP_WORLDS.length) G.unl.push(0);
+      // saves from before world 3: already beat しょうこ -> open あくの しろ
+      { const oi = STAGES.findIndex(st => st.id === 'oshiro'); if (oi >= 0 && G.cleared.includes(oi) && !(G.unl[2] > 0)) G.unl[2] = 1; }
+      G.world = 0; MAP_NODES = MAP_WORLDS[0];
       G.coins = s.coins != null ? s.coins | 0 : 50;
       G.items = s.items && typeof s.items === 'object' ? Object.assign({}, s.items) : {};
       G.beaten = Array.isArray(s.beaten) ? s.beaten.slice() : [];
@@ -1498,7 +1504,8 @@
       const d = n.a.def;
       // town trainers: one battle per visit; leaving and re-entering the stage allows a rematch (half coins)
       // town mood: after しょうこ is beaten everyone fears あくの しろ (world 3); 'peace' lines are for after it is cleared
-      const oi = STAGES.findIndex(st => st.id === 'oshiro'), mood = oi >= 0 && G.cleared.includes(oi) ? 'fear' : null;   // 'peace' = after the evil castle (world 3, not built yet)
+      const cl = id => { const k = STAGES.findIndex(st => st.id === id); return k >= 0 && G.cleared.includes(k); };
+      const mood = cl('shironaka') ? 'peace' : cl('oshiro') ? 'fear' : null;
       const lines = (mood && d[mood]) || d.lines;
       if (d.battle && !G.fought.includes(d.id)) say(d.name, G.beaten.includes(d.id) ? [['また しょうぶだ！']].concat(lines.slice(-1)) : lines, () => startTrainer(n.a));
       else say(d.name, (d.battle && d.after) || lines);
@@ -1606,7 +1613,7 @@
         if (G.party.length < TUNING.partyMax) { G.party.push(m); banner(`${nm}が なかまに なった！`, 2.4); }
         else { (G.box = G.box || []).push(m); banner(`${nm}が なかまに なった！ ぬいハウスへ いったよ`, 2.6); }
         SFX.recruit(); persist();
-      } else banner(`${nm}「そう… また あいましょう」`, 2.0);
+      } else banner(`${nm}「${SPECIES[M.sp].declineLine || 'そう… また あいましょう'}」`, 2.0);
       closeMenu(); return;
     }
     const it = ITEMS[k];
@@ -1678,7 +1685,8 @@
   // two worlds share the map screen; G.unlocked is the shown world's count, G.unl keeps both
   function worldOf(stage) { return MAP_WORLDS.findIndex(w => w.some(n => n.stage === stage)); }
   function setWorld(w) {
-    if (!G.unl) G.unl = [G.unlocked, 0];
+    if (!G.unl) G.unl = [G.unlocked];
+    while (G.unl.length < MAP_WORLDS.length) G.unl.push(0);
     G.unl[G.world | 0] = G.unlocked;
     G.world = w; MAP_NODES = MAP_WORLDS[w]; G.unlocked = Math.max(w ? 0 : 1, G.unl[w] | 0);
   }
@@ -1689,10 +1697,11 @@
     const ni = MAP_NODES.findIndex(n => n.stage === i);
     G.unlocked = Math.max(G.unlocked, ni + 2);
     G.unl[G.world] = G.unlocked;
-    // end of world 1 opens もりの くに
-    if (G.world === 0 && ni === MAP_NODES.length - 1 && !(G.unl[1] > 0)) {
-      G.unl[1] = 1; persist(); setWorld(1); openMap(0);
-      banner('あたらしい ちほう「もりの くに」へ！', 3); return;
+    // the last stage of world k opens world k+1
+    const nw = G.world + 1;
+    if (ni === MAP_NODES.length - 1 && nw < MAP_WORLDS.length && !(G.unl[nw] > 0)) {
+      G.unl[nw] = 1; persist(); setWorld(nw); openMap(0);
+      banner(`あたらしい ちほう「${WORLD_NAMES[nw]}」へ！`, 3); return;
     }
     persist();
     openMap(Math.min(ni + 1, MAP_NODES.length - 1));
@@ -1707,12 +1716,14 @@
     const max = Math.min(G.unlocked, MAP_NODES.length) - 1;
     const left = code === 'ArrowLeft' || code === 'KeyA', right = code === 'ArrowRight' || code === 'KeyD';
     // walk off either end of a world onto the other one
-    if (right && G.world === 0 && G.mapSel === MAP_NODES.length - 1 && G.unl && G.unl[1] > 0) { setWorld(1); openMap(0); banner('もりの くに', 1.4); return; }
-    if (left && G.world === 1 && G.mapSel === 0) { setWorld(0); const L = MAP_NODES.length - 1; openMap(L); G.mapSel = L; G.mapPos = { x: MAP_NODES[L].x, y: MAP_NODES[L].y }; banner('ぬいぐるみの くに', 1.4); return; }
+    const w = G.world | 0;
+    if (right && canNext()) { setWorld(w + 1); openMap(0); banner(WORLD_NAMES[w + 1], 1.4); return; }
+    if (left && w > 0 && G.mapSel === 0) { setWorld(w - 1); const L = MAP_NODES.length - 1; openMap(L); G.mapSel = L; G.mapPos = { x: MAP_NODES[L].x, y: MAP_NODES[L].y }; banner(w - 1 ? WORLD_NAMES[w - 1] : 'ぬいぐるみの くに', 1.4); return; }
     if (left) G.mapSel = Math.max(0, G.mapSel - 1);
     if (right) G.mapSel = Math.min(max, G.mapSel + 1);
     if (['Enter', 'Space', 'NumpadEnter', 'ArrowUp', 'KeyW'].includes(code)) mapEnter();
   }
+  function canNext() { const w = G.world | 0; return w + 1 < MAP_WORLDS.length && G.mapSel === MAP_NODES.length - 1 && G.unl && G.unl[w + 1] > 0; }
   function mapTap(x, y) {
     const i = MAP_NODES.findIndex(n => Math.abs(n.x - x) < 9 && Math.abs(n.y - y) < 9);
     if (i >= 0 && i < G.unlocked) { if (i === G.mapSel) mapEnter(); else G.mapSel = i; }
@@ -2643,7 +2654,7 @@
     G.battle = null;
     if (joinAsk) {
       const sp = joinAsk.sp, nm = SPECIES[sp].name, lv = joinAsk.lv || 1;
-      say(nm, [['…まけたわ。', 'あなたたち つよいのね'], ['わたしも いっしょに', 'つれていって くれる？']], () => { G.menu = { kind: 'ask', sel: 0, sp, lv }; G.state = 'menu'; });
+      say(nm, SPECIES[sp].joinLines || [['…まけたわ。', 'あなたたち つよいのね'], ['わたしも いっしょに', 'つれていって くれる？']], () => { G.menu = { kind: 'ask', sel: 0, sp, lv }; G.state = 'menu'; });
     }
   }
   function whiteoutReset() {
@@ -2941,9 +2952,9 @@
   }
   // ---------- world map (placeholder art until the 160x90 map picture arrives) ----------
   function drawMap() {
-    const art = G.world ? PROPS.wmap2 : PROPS.wmap;
+    const W = G.world | 0, art = W ? PROPS['wmap' + (W + 1)] : PROPS.wmap;
     if (art) g.drawImage(art, 0, 0);
-    else { if (!MAPBG) MAPBG = buildMapBG(); g.drawImage(MAPBG, 0, 0);  }
+    else { if (!MAPBG) MAPBG = buildMapBG(); g.drawImage(MAPBG, 0, 0); if (WORLD_TINTS[W]) { g.fillStyle = WORLD_TINTS[W]; g.fillRect(0, 0, 160, 90); } }
     // drifting clouds over the sky strip
     if (!art) for (let i = 0; i < 3; i++) {
       const X = Math.round(((i * 61 + G.t * 2) % 200) - 20), Y = 1 + i * 2;
@@ -2953,7 +2964,7 @@
     for (let k = 0; k < MAP_NODES.length - 1; k++) {
       const a = MAP_NODES[k], b = MAP_NODES[k + 1], n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y));
       const open = k + 1 < G.unlocked;
-      if (art) { const sg = PROPS[(G.world ? 'w2seg' : 'wseg') + k]; if (open && sg) g.drawImage(sg, 0, 0); continue; }
+      if (art) { const sg = PROPS[(W ? 'w' + (W + 1) + 'seg' : 'wseg') + k]; if (open && sg) g.drawImage(sg, 0, 0); continue; }
       for (let j = 0; j <= n; j++) {
         const X = Math.round(a.x + (b.x - a.x) * j / n), Y = Math.round(a.y + (b.y - a.y) * j / n);
         if (open) { rect(X - 1, Y - 1, 3, 3, '#a0743c'); }
@@ -2989,14 +3000,14 @@
     rect(3, 72, 154, 17, '#5a3418'); rect(4, 73, 152, 15, '#f4e4b8');
     const n = MAP_NODES[G.mapSel], name = n.stage != null ? STAGES[n.stage].name : n.name;
     const clr = n.stage != null && G.cleared.includes(n.stage);
-    T(G.world ? 'もりの くに' : 'ぜんたいマップ', 80, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
+    T(WORLD_NAMES[W], 80, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'center' });
     T(name + (clr ? ' ★クリア' : ''), 7, 75);
     // world-to-world guidance at the ends of the map
     const blink = Math.floor(G.t * 3) % 2;
-    const toW2 = G.world === 0 && G.mapSel === MAP_NODES.length - 1 && G.unl && G.unl[1] > 0, toW1 = G.world === 1 && G.mapSel === 0;
-    if (toW2 && blink) T('もりの くに →', 157, 64, { size: 4, c: '#ffffff', ol: '#1a4a2a', al: 'right' });
-    if (toW1 && blink) T('← ぜんたいマップ', 3, 64, { size: 4, c: '#ffffff', ol: '#1a3a5a' });
-    T(n.stage == null ? 'まだ じゅんびちゅう' : (toW2 ? (TOUCH ? '▶で もりの くにへ ／ タップで はいる' : '→で もりの くにへ ／ Enterで はいる') : toW1 ? (TOUCH ? '◀で ぜんたいマップへ ／ タップで はいる' : '←で ぜんたいマップへ ／ Enterで はいる') : (TOUCH ? '◀▶で えらぶ ／ ここを タップで はいる' : '←→で えらぶ ／ Enterで はいる')), 7, 81, { c: '#7a5a30' });
+    const toW2 = canNext(), toW1 = W > 0 && G.mapSel === 0, nN = toW2 && WORLD_NAMES[W + 1], pN = toW1 && WORLD_NAMES[W - 1];
+    if (toW2 && blink) T(nN + ' →', 157, 64, { size: 4, c: '#ffffff', ol: '#1a4a2a', al: 'right' });
+    if (toW1 && blink) T('← ' + pN, 3, 64, { size: 4, c: '#ffffff', ol: '#1a3a5a' });
+    T(n.stage == null ? 'まだ じゅんびちゅう' : (toW2 ? (TOUCH ? `▶で ${nN}へ ／ タップで はいる` : `→で ${nN}へ ／ Enterで はいる`) : toW1 ? (TOUCH ? `◀で ${pN}へ ／ タップで はいる` : `←で ${pN}へ ／ Enterで はいる`) : (TOUCH ? '◀▶で えらぶ ／ ここを タップで はいる' : '←→で えらぶ ／ Enterで はいる')), 7, 81, { c: '#7a5a30' });
   }
   // world-map background, drawn once in code: each place gets its own patch of scenery (placeholder until map art for 8 places)
   let MAPBG = null;

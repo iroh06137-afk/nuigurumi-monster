@@ -274,6 +274,15 @@ const SPECIES = {
       strong: { name: 'くまくまプレス',   power: 27, acc: 0.86 },
     },
   },
+  oguriking: {  // ★ world-3 final boss (しろの なか); joins after you win (flag joined_oguriking). placeholder art = oguri_evo; real art later under sprite key 'oguriking'
+    name: 'オグリキング', sprite: 'oguri_evo', boss: true, recruitAfter: true, evoOnly: 25,  // always counts as evolved, joins at lv25+
+    joinLines: [['…みごとだ。', 'おまえたち つよいな'], ['おれも いっしょに', 'つれていって くれ！']], declineLine: 'そうか… また あおう',
+    hp: 200, atk: 21, def: 15, spd: 13, recruitBase: 0,
+    moves: {
+      attack: { name: 'キングキック',       power: 14, acc: 0.96 },
+      strong: { name: 'おうじゃの とっしん', power: 31, acc: 0.86 },
+    },
+  },
   mori_boss: {
     name: 'もりの ぬし', sprite: 'tanukin', boss: true,
     hp: 72, atk: 10, def: 8, spd: 7, recruitBase: 0,
@@ -344,6 +353,7 @@ for (const sp of ['goririn', 'kuuko', 'tsumaguro', 'oguri', 'kitsunen', 'usagin'
 // オグリ波 / くうこ弾 / 水ビーム / パンチングパンチ are provisional.
 for (const sp of ['tenton', 'risurin', 'kinokon', 'shikanon', 'haririn', 'chouran', 'hakuchon', 'kujakun', 'koumon', 'naiton']) EVOLVE[sp] = { lv: 10, sprite: sp, name: null, hp: 0, atk: 0, def: 0, spd: 0 };
 EVOLVE.shouko = { lv: 10, sprite: 'shouko', name: null, hp: 0, atk: 0, def: 0, spd: 0 };
+EVOLVE.oguriking = { lv: 25, sprite: 'oguri_evo', name: null, hp: 0, atk: 0, def: 0, spd: 0 };  // ★ placeholder: switch to 'oguriking' when the real art arrives
 const EVO_MOVES = {
   tenton: { special: { name: 'てんとうミサイル', fx: 'orb', col: '#e83a3a' } },
   risurin: { special: { name: 'どんぐりマシンガン', fx: 'multi', shape: 'orb', hits: 3, col: '#b07a3a' } },
@@ -355,6 +365,7 @@ const EVO_MOVES = {
   kujakun: { special: { name: 'めだまフラッシュ', fx: 'orb', col: '#40c0a0' } },
   koumon: { special: { name: 'ちょうおんぱカッター', fx: 'wave', col: '#a080ff' } },
   naiton: { special: { name: 'ナイトブレイド', fx: 'fire', col: '#ffd040' } },
+  oguriking: { special: { name: 'キングオグリ波', fx: 'beam', col: '#ffd23a' } },
   shouko:    { special: { name: 'バン', fx: 'orb', col: '#ffd070' } },  // ★ big-bang energy ball; dedicated fx art coming from ドット絵作成くん
   goririn:   { strong: { name: 'メガドラミング', power: 28 },     special: { name: 'メガパンチ',       fx: 'multi', shape: 'glove', hits: 1, col: '#ff7ab0' } },
   kuuko:     { strong: { name: 'ぎゅうぎゅうハグ', power: 27 },   special: { name: 'くうこ弾',         fx: 'orb',   col: '#7ad8ff' } },
@@ -522,6 +533,31 @@ const STAGES = [
     spawns: [ { sp: 'koumon', x: 260, lv: 18 }, { sp: 'koumon', x: 430, lv: 18 }, { sp: 'naiton', x: 720, lv: 19 }, { sp: 'koumon', x: 880, lv: 19 }, { sp: 'shouko', x: 1080, lv: 20, boss: 1 }, { sp: 'koumon', x: 532, lv: 19, plat: 2 }, { sp: 'koumon', x: 804, lv: 20, plat: 4 } ],
     plats: [ { x: 170, w: 48, h: 21 }, { x: 330, w: 32, h: 35 }, { x: 500, w: 64, h: 21 }, { x: 580, w: 32, h: 35 }, { x: 780, w: 48, h: 21 } ],
     pickups: [ { x: 346, h: 35, coins: 25 }, { x: 596, h: 35, coins: 30 } ],
+    exit: ['このさき', 'あくの しろ'],
+  },
+  // ===== world 3: あくの しろ (opens after もりの おしろ / しょうこ). layers / tiles: art by ドット絵作成くん (same sizes as world 2); theme = dark fallback =====
+  {
+    id: 'jouka', name: 'くらい じょうかまち', width: 1300, theme: 'night', world: 2, highJump: true, bench: 640,
+    layers: 'assets/w3/jouka', tiles: 'assets/w3/jouka',
+    spawns: [ { sp: 'koumon', x: 260, lv: 18, evo: 1 }, { sp: 'kinokon', x: 440, lv: 19, evo: 1 }, { sp: 'shikanon', x: 760, lv: 20, evo: 1 }, { sp: 'nyankon', x: 960, lv: 20, evo: 1 }, { sp: 'kujakun', x: 1150, lv: 21, evo: 1 }, { sp: 'risurin', x: 552, lv: 20, evo: 1, plat: 2 }, { sp: 'koumon', x: 1100, lv: 21, evo: 1, plat: 7 } ],
+    plats: [ { x: 180, w: 48, h: 21 }, { x: 300, w: 32, h: 35 }, { x: 520, w: 64, h: 21 }, { x: 610, w: 32, h: 35 }, { x: 830, w: 32, h: 21 }, { x: 880, w: 32, h: 35 }, { x: 1010, w: 48, h: 21 }, { x: 1080, w: 48, h: 35 } ],
+    pickups: [ { x: 316, h: 35, coins: 25 }, { x: 626, h: 35, coins: 25 }, { x: 896, h: 35, coins: 30 }, { x: 1104, h: 35, coins: 30 } ],
+    exit: ['このさき', 'じょうもん'],
+  },
+  {
+    id: 'joumon', name: 'じょうもん', width: 1300, theme: 'canyon', world: 2, highJump: true, bench: 660,
+    layers: 'assets/w3/joumon', tiles: 'assets/w3/joumon',
+    spawns: [ { sp: 'naiton', x: 260, lv: 21, evo: 1 }, { sp: 'ressan', x: 450, lv: 22, evo: 1 }, { sp: 'haririn', x: 780, lv: 22, evo: 1 }, { sp: 'naiton', x: 980, lv: 23, evo: 1 }, { sp: 'pandan', x: 1160, lv: 23, evo: 1 }, { sp: 'chouran', x: 286, lv: 22, evo: 1, plat: 1 }, { sp: 'koumon', x: 772, lv: 23, evo: 1, plat: 4 } ],
+    plats: [ { x: 200, w: 32, h: 21 }, { x: 262, w: 48, h: 35 }, { x: 520, w: 48, h: 21 }, { x: 590, w: 32, h: 35 }, { x: 748, w: 48, h: 35 }, { x: 700, w: 32, h: 21 }, { x: 1040, w: 64, h: 21 }, { x: 1120, w: 32, h: 35 } ],
+    pickups: [ { x: 286, h: 35, coins: 30 }, { x: 606, h: 35, coins: 30 }, { x: 772, h: 35, coins: 30 }, { x: 1136, h: 35, coins: 35 } ],
+    exit: ['このさき', 'しろの なか'],
+  },
+  {
+    id: 'shironaka', name: 'しろの なか', width: 1300, theme: 'night', world: 2, highJump: true, bench: 600,
+    layers: 'assets/w3/shironaka', tiles: 'assets/w3/shironaka',
+    spawns: [ { sp: 'naiton', x: 250, lv: 23, evo: 1 }, { sp: 'koumon', x: 420, lv: 24, evo: 1 }, { sp: 'kujakun', x: 700, lv: 24, evo: 1 }, { sp: 'naiton', x: 900, lv: 25, evo: 1 }, { sp: 'oguriking', x: 1180, lv: 30, boss: 1 }, { sp: 'hakuchon', x: 548, lv: 24, evo: 1, plat: 2 }, { sp: 'naiton', x: 826, lv: 26, evo: 1, plat: 5 } ],
+    plats: [ { x: 160, w: 48, h: 21 }, { x: 320, w: 32, h: 35 }, { x: 516, w: 64, h: 21 }, { x: 610, w: 32, h: 35 }, { x: 760, w: 32, h: 21 }, { x: 802, w: 48, h: 35 }, { x: 960, w: 48, h: 21 } ],
+    pickups: [ { x: 336, h: 35, coins: 35 }, { x: 626, h: 35, coins: 35 }, { x: 826, h: 35, coins: 40 } ],
     exit: ['このさき', 'じゅんびちゅう'],
   },
 ];
@@ -537,6 +573,7 @@ const PROP_IMGS = {
   town_road: 'assets/town/town_road.png', town_fence: 'assets/town/town_fence.png', town_flowerbed: 'assets/town/town_flowerbed.png', town_lamp: 'assets/town/town_lamp.png', town_tree: 'assets/town/town_tree.png',
   wmap: 'assets/worldmap/worldmap.png', wseg0: 'assets/worldmap/worldmap_path_seg0.png', wseg1: 'assets/worldmap/worldmap_path_seg1.png', wseg2: 'assets/worldmap/worldmap_path_seg2.png', wseg3: 'assets/worldmap/worldmap_path_seg3.png', wseg4: 'assets/worldmap/worldmap_path_seg4.png', wseg5: 'assets/worldmap/worldmap_path_seg5.png', wseg6: 'assets/worldmap/worldmap_path_seg6.png',
   wmap2: 'assets/worldmap/worldmap2.png', w2seg0: 'assets/worldmap/worldmap2_path_seg0.png', w2seg1: 'assets/worldmap/worldmap2_path_seg1.png',
+  // world 3 map art (not delivered yet: falls back to the tinted code map): wmap3: 'assets/worldmap/worldmap3.png', w3seg0/1: 'assets/worldmap/worldmap3_path_seg0/1.png'
   bld_shop: 'assets/town/shop.png', bld_clinic: 'assets/town/hospital.png', bld_house: 'assets/town/grandma_house.png', bld_nuihouse: 'assets/town/nui_house.png',
   tree: 'assets/props/street_tree.png', fence: 'assets/props/fence.png', signpost: 'assets/props/signpost.png',
   ui_frame: 'assets/ui/ui_frame_9slice.png', ui_rowbar: 'assets/ui/ui_row_highlight_9slice.png', ui_cursor: 'assets/ui/ui_cursor_anim.png',
@@ -560,7 +597,15 @@ const MAP_W2 = [
   { x: 80,  y: 46, stage: 9 },
   { x: 134, y: 32, stage: 10 },
 ];
-const MAP_WORLDS = [MAP_W1, MAP_W2];
+// world 3 (あくの しろ): opens after もりの おしろ (しょうこ)
+const MAP_W3 = [
+  { x: 26,  y: 58, stage: 11 },
+  { x: 80,  y: 40, stage: 12 },
+  { x: 134, y: 28, stage: 13 },
+];
+const MAP_WORLDS = [MAP_W1, MAP_W2, MAP_W3];
+const WORLD_NAMES = ['ぜんたいマップ', 'もりの くに', 'あくの しろ'];   // map title / banner per world
+const WORLD_TINTS = [null, null, 'rgba(36,0,64,0.55)'];              // overlay used when the world has no map art
 let MAP_NODES = MAP_W1;   // the world shown on the map (game.js switches it)
 
 let WORLD_W = STAGES[0].width;   // current stage width (set by enterStage)
