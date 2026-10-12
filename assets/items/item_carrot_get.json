@@ -1,0 +1,66 @@
+{
+  "image": "item_carrot_get.png",
+  "size": {
+    "w": 64,
+    "h": 16
+  },
+  "frameSize": {
+    "w": 16,
+    "h": 16
+  },
+  "note": "にんじん pickup sparkle. Play once where the carrot was taken (then show +1 レベル). Anchor = frame centre (8,8) on the carrot centre. No black.",
+  "frames": [
+    {
+      "index": 0,
+      "name": "f_0",
+      "desc": "white-yellow flash disc",
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "duration": 90
+    },
+    {
+      "index": 1,
+      "name": "f_1",
+      "desc": "8 sparkles burst out (r~3) around a white core",
+      "x": 16,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "duration": 90
+    },
+    {
+      "index": 2,
+      "name": "f_2",
+      "desc": "sparkles further out (r~5) with a small cross",
+      "x": 32,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "duration": 90
+    },
+    {
+      "index": 3,
+      "name": "f_3",
+      "desc": "last orange/green/yellow specks at r~7",
+      "x": 48,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "duration": 90
+    }
+  ],
+  "frameDurationMs": 90,
+  "loop": false,
+  "order": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "anchor": {
+    "x": 8,
+    "y": 8
+  }
+}

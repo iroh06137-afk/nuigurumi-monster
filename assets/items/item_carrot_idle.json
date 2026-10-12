@@ -1,0 +1,66 @@
+{
+  "image": "item_carrot_idle.png",
+  "size": {
+    "w": 64,
+    "h": 16
+  },
+  "frameSize": {
+    "w": 16,
+    "h": 16
+  },
+  "note": "にんじん pickup (evil-castle stages): gives オグリキャップ or ウサギン +1 level, one-time (persist like coin pickups via G.got). Idle bob + sparkle, loop. Anchor = bottom-centre (8,15) on the pickup spot (e.g. GROUND - h). Sparkle pixels are un-outlined highlights.",
+  "frames": [
+    {
+      "index": 0,
+      "name": "f_0",
+      "desc": "rest: carrot on its base line (lowest outline row 15)",
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "duration": 150
+    },
+    {
+      "index": 1,
+      "name": "f_1",
+      "desc": "bob up 1px, big 4-point sparkle top-right",
+      "x": 16,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "duration": 150
+    },
+    {
+      "index": 2,
+      "name": "f_2",
+      "desc": "bob up 1px, small sparkle left",
+      "x": 32,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "duration": 150
+    },
+    {
+      "index": 3,
+      "name": "f_3",
+      "desc": "settle back down, small sparkle bottom-right",
+      "x": 48,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "duration": 150
+    }
+  ],
+  "frameDurationMs": 150,
+  "loop": true,
+  "order": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "anchor": {
+    "x": 8,
+    "y": 15
+  }
+}

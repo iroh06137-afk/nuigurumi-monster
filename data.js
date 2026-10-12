@@ -63,6 +63,9 @@ const SPRITES = {
   wanigard: { src: 'assets/wanigard.png', native: 1, walk: { src: 'assets/wanigard_walk.png', frames: 4, ms: 150 } }, // w3 crocodile, moat keeper, def+bite plush
   toragar: { src: 'assets/toragar.png', native: 1, walk: { src: 'assets/toragar_walk.png', frames: 4, ms: 150 } }, // w3 tiger, dark warrior, atk+spd plush
   goremun: { src: 'assets/goremun.png', native: 1, walk: { src: 'assets/goremun_walk.png', frames: 4, ms: 150 } }, // w3 stone golem, very hard, rare plush
+  // crowned オグリキャップ (さいごの はしり clear): memberKey picks <key>_crown when the member has crown:1
+  oguri_crown: { src: 'assets/oguri_crown.png', native: -1, walk: { src: 'assets/oguri_crown_walk.png', frames: 4, ms: 150 } }, // faces left like oguri
+  oguri_evo_crown: { src: 'assets/evo/oguri_crown.png', native: 1, attack: { src: 'assets/evo/oguri_crown_attack.png', frames: 4 }, walk: { src: 'assets/evo/oguri_crown_walk.png', frames: 4, ms: 150 } },
   oguri:   { src: 'assets/oguri-cap.png', native: -1, walk: { src: 'assets/oguri_walk.png', frames: 4, ms: 150 } }, // faces left; flipped for right
 };
 
@@ -636,7 +639,7 @@ const STAGES = [
     layers: 'assets/w3/jouka', tiles: 'assets/w3/jouka',
     spawns: [ { sp: 'wolfun', x: 260, lv: 18 }, { sp: 'lioneru', x: 440, lv: 19 }, { sp: 'shikanon', x: 760, lv: 20, evo: 1 }, { sp: 'eaglan', x: 960, lv: 20 }, { sp: 'kujakun', x: 1150, lv: 21, evo: 1 }, { sp: 'eaglan', x: 552, lv: 20, plat: 2 }, { sp: 'koumon', x: 1100, lv: 21, evo: 1, plat: 7 } ],
     plats: [ { x: 180, w: 48, h: 21 }, { x: 300, w: 32, h: 35 }, { x: 520, w: 64, h: 21 }, { x: 610, w: 32, h: 35 }, { x: 830, w: 32, h: 21 }, { x: 880, w: 32, h: 35 }, { x: 1010, w: 48, h: 21 }, { x: 1080, w: 48, h: 35 } ],
-    pickups: [ { x: 316, h: 35, coins: 25 }, { x: 626, h: 35, coins: 25 }, { x: 896, h: 35, coins: 30 }, { x: 1104, h: 35, coins: 30 } ],
+    pickups: [ { x: 316, h: 35, coins: 25 }, { x: 626, h: 35, coins: 25 }, { x: 896, h: 35, coins: 30 }, { x: 1104, h: 35, coins: 30 }, { x: 700, h: 0, item: 'carrot', id: 'carrot1' }, { x: 1034, h: 21, item: 'carrot', id: 'carrot2' } ],
     exit: ['このさき', 'じょうもん'],
   },
   {
@@ -644,7 +647,7 @@ const STAGES = [
     layers: 'assets/w3/joumon', tiles: 'assets/w3/joumon',
     spawns: [ { sp: 'saiguard', x: 260, lv: 21 }, { sp: 'wanigard', x: 450, lv: 22 }, { sp: 'haririn', x: 780, lv: 22, evo: 1 }, { sp: 'toragar', x: 980, lv: 23 }, { sp: 'lioneru', x: 1160, lv: 23 }, { sp: 'chouran', x: 286, lv: 22, evo: 1, plat: 1 }, { sp: 'koumon', x: 772, lv: 23, evo: 1, plat: 4 } ],
     plats: [ { x: 200, w: 32, h: 21 }, { x: 262, w: 48, h: 35 }, { x: 520, w: 48, h: 21 }, { x: 590, w: 32, h: 35 }, { x: 748, w: 48, h: 35 }, { x: 700, w: 32, h: 21 }, { x: 1040, w: 64, h: 21 }, { x: 1120, w: 32, h: 35 } ],
-    pickups: [ { x: 286, h: 35, coins: 30 }, { x: 606, h: 35, coins: 30 }, { x: 772, h: 35, coins: 30 }, { x: 1136, h: 35, coins: 35 } ],
+    pickups: [ { x: 286, h: 35, coins: 30 }, { x: 606, h: 35, coins: 30 }, { x: 772, h: 35, coins: 30 }, { x: 1136, h: 35, coins: 35 }, { x: 1072, h: 21, item: 'carrot', id: 'carrot1' } ],
     exit: ['このさき', 'しろの なか'],
   },
   {
@@ -652,15 +655,36 @@ const STAGES = [
     layers: 'assets/w3/shironaka', tiles: 'assets/w3/shironaka',
     spawns: [ { sp: 'toragar', x: 250, lv: 23 }, { sp: 'wolfun', x: 420, lv: 24 }, { sp: 'saiguard', x: 700, lv: 24 }, { sp: 'goremun', x: 900, lv: 25 }, { sp: 'oguriking', x: 1180, lv: 30, boss: 1 }, { sp: 'hakuchon', x: 548, lv: 24, evo: 1, plat: 2 }, { sp: 'wanigard', x: 826, lv: 26, plat: 5 } ],
     plats: [ { x: 160, w: 48, h: 21 }, { x: 320, w: 32, h: 35 }, { x: 516, w: 64, h: 21 }, { x: 610, w: 32, h: 35 }, { x: 760, w: 32, h: 21 }, { x: 802, w: 48, h: 35 }, { x: 960, w: 48, h: 21 } ],
-    pickups: [ { x: 336, h: 35, coins: 35 }, { x: 626, h: 35, coins: 35 }, { x: 826, h: 35, coins: 40 } ],
-    exit: ['このさき', 'じゅんびちゅう'],
+    pickups: [ { x: 336, h: 35, coins: 35 }, { x: 626, h: 35, coins: 35 }, { x: 826, h: 35, coins: 40 }, { x: 984, h: 21, item: 'carrot', id: 'carrot1' } ],
+    exit: ['このさき', 'さいごの はしり'],
+  },
+  // オグリキャップ solo run (opens after しろの なか). only オグリキャップ comes along; clear = オグリキャップ gets the crown (CROWN below)
+  {
+    id: 'saigo', name: 'さいごの はしり', width: 1300, theme: 'night', world: 2, highJump: true, soloOguri: true,
+    layers: 'assets/w3/shironaka', tiles: 'assets/w3/shironaka',
+    spawns: [ { sp: 'toragar', x: 640, lv: 26 }, { sp: 'goremun', x: 1080, lv: 27 } ],
+    plats: [ { x: 140, w: 32, h: 21 }, { x: 196, w: 32, h: 35 }, { x: 260, w: 48, h: 21 }, { x: 340, w: 32, h: 35 }, { x: 400, w: 48, h: 21 }, { x: 470, w: 32, h: 35 },
+             { x: 760, w: 32, h: 21 }, { x: 816, w: 32, h: 35 }, { x: 880, w: 48, h: 21 }, { x: 950, w: 32, h: 35 }, { x: 1180, w: 48, h: 21 } ],
+    pickups: [ { x: 212, h: 35, coins: 40 }, { x: 356, h: 35, coins: 40 }, { x: 486, h: 35, coins: 40 }, { x: 832, h: 35, coins: 50 }, { x: 966, h: 35, coins: 50 }, { x: 560, h: 0, item: 'carrot', id: 'carrot1' }, { x: 904, h: 21, item: 'carrot', id: 'carrot2' } ],
+    exit: ['おうの みち', 'ゴール'],
   },
 ];
+// オグリキャップ crown event. sprite: <key>_crown (oguri_crown / oguri_evo_crown). Add SPRITES entries with those keys when the real art
+// arrives (done: oguri_crown / oguri_evo_crown); game.js only draws a placeholder crown if an entry is missing.
+const CROWN = {
+  sp: 'oguri', stage: 'saigo', mult: 1.15, stMult: 1.3,
+  special: { name: 'おうじゃの おぐり波', mult: 1.3, fx: 'fire', col: '#ffd23a', fxSp: 'oguri' },
+  talk: [['オグリキング「…オグリキャップよ', 'おおきく なったな」'], ['オグリキング「おうの みちを はしりぬけたら', 'この かんむりを ゆずろう」'],
+         ['オグリキング「しろの おく「さいごの はしり」で', 'まっているぞ」']],
+  oyako: { name: 'おやこ おぐり波', partner: 'oguriking', mult: 1.6, artScale: 1.4, fx: 'fire', col: '#ff9aff', fxSp: 'oguriking' },
+};
 // shop items (price in coins). use: heal = HP of the walking companion, healAll = everyone full, recruit = next なかまにする +
 const ITEMS = {
   kizu:   { name: 'きずぐすり',       price: 20, desc: 'つれている こ の HPを 25 かいふく', use: 'heal', amt: 25 },
   genki:  { name: 'げんきドリンク',   price: 60, desc: 'なかま みんなの HPを ぜんぶ かいふく', use: 'healAll' },
   cookie: { name: 'なかよしクッキー', price: 40, desc: 'つぎの なかまにする が +20%', use: 'recruit', amt: 0.2 },
+  // world-3 pickups only (not sold). field bag only; +1 Lv for the walking companion if it is one of sps
+  carrot: { name: 'にんじん', price: 0, desc: 'オグリキャップ か ウサギンの Lvが 1 あがる', use: 'lvup', sps: ['oguri', 'usagin'] },
 };
 const SHOP_LIST = ['kizu', 'genki', 'cookie'];
 // road props by ドット絵作成くん (32x32, bottom outline on row 30; road = 32x8 tile for screen rows 64..71)
@@ -697,6 +721,7 @@ const MAP_W3 = [
   { x: 26,  y: 58, stage: 11 },
   { x: 80,  y: 40, stage: 12 },
   { x: 134, y: 28, stage: 13 },
+  { x: 150, y: 12, stage: 14 },   // さいごの はしり (オグリキャップ solo run)
 ];
 const MAP_WORLDS = [MAP_W1, MAP_W2, MAP_W3];
 const WORLD_NAMES = ['ぜんたいマップ', 'もりの くに', 'あくの しろ'];   // map title / banner per world

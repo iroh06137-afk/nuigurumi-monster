@@ -281,6 +281,29 @@
     }
     return frames;
   }
+  // placeholder crown: a small gold crown drawn on top of the head (frame by frame) for <key>_crown when no real art is registered
+  const CROWN_PX = ['.#.#.#.', '.#####.', '#y#y#y#', '#######'];
+  function crownFrame(src) {
+    const [n, nx] = mk(32, 32); nx.drawImage(src, 0, 0);
+    const d = nx.getImageData(0, 0, 32, 32).data; let top = -1, sx = 0, c = 0;
+    for (let y = 0; y < 32 && top < 0; y++) for (let x = 0; x < 32; x++) if (d[(y * 32 + x) * 4 + 3] > 0) top = y;
+    if (top < 0) top = 8;
+    for (let y = top; y < top + 3; y++) for (let x = 0; x < 32; x++) if (d[(y * 32 + x) * 4 + 3] > 0) { sx += x; c++; }
+    const cx = Math.round(c ? sx / c : 16) - 3, cy = Math.max(0, top - 3);
+    CROWN_PX.forEach((row, j) => [...row].forEach((ch, i) => { if (ch === '.') return; nx.fillStyle = ch === 'y' ? '#e8402a' : (j === 0 ? '#fff28a' : '#ffc820'); nx.fillRect(cx + i, cy + j, 1, 1); }));
+    nx.fillStyle = '#7a5200'; nx.fillRect(cx, cy + 4, 7, 1);
+    const [f, fx] = mk(32, 32); fx.translate(32, 0); fx.scale(-1, 1); fx.drawImage(n, 0, 0);
+    return { n, f, wn: silhouette(n), wf: silhouette(f) };
+  }
+  function makeCrownSprites() {
+    for (const k of ['oguri', 'oguri_evo']) {
+      if (!SPR[k] || SPR[k + '_crown'] || (typeof SPRITES !== 'undefined' && SPRITES[k + '_crown'])) continue;
+      const S = SPR[k], fr = crownFrame(S.n);
+      SPR[k + '_crown'] = Object.assign({}, S, fr, { top: Math.max(0, (S.top | 0) - 3) });
+      if (S.walk) SPR[k + '_crown'].walk = { ms: S.walk.ms, frames: S.walk.frames.map(w => crownFrame(w.n)) };
+      if (S.attack) SPR[k + '_crown'].attack = S.attack.map(w => crownFrame(w.n));
+    }
+  }
   const FXIMG = {};   // sp -> { shot: frames, hit: frames } (pixel-art special fx)
 
   // ---------- game state ----------
@@ -386,7 +409,7 @@
     try { saveHero(); } catch (e) {}
     SFX.blip();
   }
-  const serMember = m => ({ sp: m.sp, hp: Math.round(m.hp), maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.name });
+  const serMember = m => Object.assign({ sp: m.sp, hp: Math.round(m.hp), maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.name }, m.crown ? { crown: 1 } : {});
   function persist() {
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(saveObj()));
@@ -399,10 +422,10 @@
   function saveObj() {
     return {
         v: 3,
-        party: G.party.map(serMember),
+        party: (G.solo ? G.solo.party : G.party).map(serMember),
         box: (G.box || []).map(serMember),
         muted: !!G.muted,
-        active: G.active,
+        active: G.solo ? G.solo.active : G.active,
         unlocks: curUnl(),
         unlocked: curUnl()[0], unlocked2: curUnl()[1] | 0,   // old keys kept so older builds can still read the save
         cleared: G.cleared,
@@ -874,8 +897,8 @@
   const EVOTEST = /[?&]evotest/.test(location.search);
   function memberKey(m) {
     const ev = m && m.evo && typeof EVOLVE !== 'undefined' && EVOLVE[m.sp];
-    if (ev && SPR[ev.sprite]) return ev.sprite;
-    return SPECIES[m.sp].sprite;
+    const k = ev && SPR[ev.sprite] ? ev.sprite : SPECIES[m.sp].sprite;
+    return m && m.crown && SPR[k + '_crown'] ? k + '_crown' : k;   // crowned オグリキャップ
   }
   const compKey = () => memberKey(ally());
   function* tryEvolve() {
@@ -929,8 +952,22 @@
     const base = SPECIES[m.sp].moves, ev = m.evo && typeof EVO_MOVES !== 'undefined' && EVO_MOVES[m.sp];
     return ev ? { attack: base.attack, strong: Object.assign({}, base.strong, ev.strong) } : base;
   }
-  const canSp = m => !!(m && (m.evo || (SPECIES[m.sp] && SPECIES[m.sp].noEvo)));   // evolved, or a never-evolving species (own special at base form)
+  const canSp = m => !!(m && (m.evo || m.crown || (SPECIES[m.sp] && SPECIES[m.sp].noEvo)));
+  // おやこ おぐり波: crowned オグリキャップ + オグリキング both in your party (the one fighting + the other still standing)
+  function oyakoPartner(m) {
+    if (typeof CROWN === 'undefined' || !G.battle || m !== ally() || G.friend && G.battle.who === 'opp') return null;
+    const want = m.sp === CROWN.sp && m.crown ? (o => o.sp === CROWN.oyako.partner) : m.sp === CROWN.oyako.partner ? (o => o.sp === CROWN.sp && o.crown) : null;
+    return want ? G.party.find(o => o !== m && o.hp >= 1 && want(o)) || null : null;
+  }
   function specialOf(m) {
+    const sp0 = specialBase(m);
+    if (typeof CROWN === 'undefined' || !m) return sp0;
+    const P = oyakoPartner(m);
+    if (P) { const O = CROWN.oyako; return Object.assign({ acc: 1 }, O, { power: Math.round(Math.max(sp0.power, specialBase(P).power) * O.mult), super: true, oyako: P.name }); }
+    if (m.crown && m.sp === CROWN.sp) { const C = CROWN.special; return Object.assign({ acc: 1 }, C, { power: Math.round(sp0.power * C.mult) }); }
+    return sp0;
+  }   // evolved, or a never-evolving species (own special at base form)
+  function specialBase(m) {
     const st = movesOf(m).strong, ev = canSp(m) && typeof EVO_MOVES !== 'undefined' && EVO_MOVES[m.sp];
     if (ev && ev.special) {
       const sp = Object.assign({ power: Math.round(st.power * 2), acc: 1 }, ev.special);
@@ -939,7 +976,7 @@
     }
     return { name: 'きずなの ' + st.name, power: Math.round(st.power * 1.9), acc: 1 };
   }
-  const stRate = u => TUNING.stBase + u.spd * TUNING.stPerSpd;
+  const stRate = u => (TUNING.stBase + u.spd * TUNING.stPerSpd) * (u.crown && typeof CROWN !== 'undefined' ? CROWN.stMult : 1);   // crown perk: faster stamina
   function calcDmg(a, d, mv) { return Math.max(1, Math.round(mv.power * a.atk / (a.atk + d.def) * (0.85 + rand() * 0.3))); }
   function recruitChance(e) {
     const base = SPECIES[e.sp].recruitBase + (G.cookie ? ITEMS.cookie.amt : 0);
@@ -1083,11 +1120,11 @@
     G.box = [];
     if (s && Array.isArray(s.party) && s.party.length) {
       G.party = s.party.filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.hp, {
-        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, evo: m.evo && !SPECIES[m.sp].noEvo ? 1 : 0, name: m.evo && m.name && !SPECIES[m.sp].noEvo ? m.name : SPECIES[m.sp].name,
+        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, crown: m.crown && m.sp === 'oguri' ? 1 : 0, evo: m.evo && !SPECIES[m.sp].noEvo ? 1 : 0, name: m.evo && m.name && !SPECIES[m.sp].noEvo ? m.name : SPECIES[m.sp].name,
       }));
       if (!G.party.length) G.party = [newMember('goririn')];
       G.box = (Array.isArray(s.box) ? s.box : []).filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.hp, {
-        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, evo: m.evo && !SPECIES[m.sp].noEvo ? 1 : 0, name: m.evo && m.name && !SPECIES[m.sp].noEvo ? m.name : SPECIES[m.sp].name,
+        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, crown: m.crown && m.sp === 'oguri' ? 1 : 0, evo: m.evo && !SPECIES[m.sp].noEvo ? 1 : 0, name: m.evo && m.name && !SPECIES[m.sp].noEvo ? m.name : SPECIES[m.sp].name,
       }));
       G.active = Math.max(0, Math.min(s.active | 0, G.party.length - 1));
       G.unlocked = Math.max(1, s.unlocked | 0);
@@ -1099,6 +1136,8 @@
       while (G.unl.length < MAP_WORLDS.length) G.unl.push(0);
       // saves from before world 3: already beat しょうこ -> open あくの しろ
       { const oi = STAGES.findIndex(st => st.id === 'oshiro'); if (oi >= 0 && G.cleared.includes(oi) && !(G.unl[2] > 0)) G.unl[2] = 1; }
+      { const si = STAGES.findIndex(st => st.id === 'shironaka'), n3 = MAP_W3.findIndex(n => n.stage === si); if (si >= 0 && G.cleared.includes(si) && (G.unl[2] | 0) < n3 + 2) G.unl[2] = n3 + 2; }
+      G.solo = null;
       G.world = 0; MAP_NODES = MAP_WORLDS[0];
       G.coins = s.coins != null ? s.coins | 0 : 50;
       G.items = s.items && typeof s.items === 'object' ? Object.assign({}, s.items) : {};
@@ -1119,8 +1158,22 @@
     persist();
   }
   // ---------- stages / world map ----------
+  // さいごの はしり: only オグリキャップ comes along (party stashed in G.solo; saves always write the stashed party)
+  const ownedOguri = () => G.party.find(m => m.sp === 'oguri') || (G.box || []).find(m => m.sp === 'oguri') || null;
+  function startSolo() {
+    if (G.solo) return true;
+    const o = ownedOguri(); if (!o) return false;
+    G.solo = { party: G.party, active: G.active }; G.party = [o]; G.active = 0;
+    return true;
+  }
+  function endSolo() {
+    if (!G.solo) return;
+    G.party = G.solo.party; G.active = Math.min(G.solo.active, G.party.length - 1); G.solo = null;
+    comp.key = compKey();
+  }
   function enterStage(i, opts) {
     const st = STAGES[i];
+    if (st.soloOguri) startSolo(); else endSolo();
     const heal = !opts || opts.heal !== false;
     G.stage = i; WORLD_W = st.width; G.fought = [];
     { const wi = worldOf(i); if (wi >= 0 && wi !== (G.world | 0)) setWorld(wi); }
@@ -1143,7 +1196,7 @@
     Object.assign(comp, { x: sx - 22, face: 1, ox: 0, y: 0, vy: 0, alpha: 1, moving: false });
     G.cam = G.camT = clamp(sx - 70, 0, Math.max(0, WORLD_W - W)); G.benchUsed = false; G.battle = null;
     G.state = 'field'; G.fade = 1; G.fadeSpeed = -2;
-    banner(st.name + '  セーブした', 1.6);
+    banner(st.soloOguri && G.solo ? st.name + '  オグリキャップだけで はしりぬけろ！' : st.name + '  セーブした', 1.8);
     persist();
   }
   const VS_LIST = Object.keys(SPECIES).filter(k => !SPECIES[k].boss);
@@ -1152,7 +1205,7 @@
     const s = readSave();
     if (s && Array.isArray(s.party) && s.party.length) {
       G.party = s.party.filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.hp != null ? m.hp : m.maxHp, {
-        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, evo: m.evo && !SPECIES[m.sp].noEvo ? 1 : 0, name: m.evo && m.name && !SPECIES[m.sp].noEvo ? m.name : SPECIES[m.sp].name,
+        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, crown: m.crown && m.sp === 'oguri' ? 1 : 0, evo: m.evo && !SPECIES[m.sp].noEvo ? 1 : 0, name: m.evo && m.name && !SPECIES[m.sp].noEvo ? m.name : SPECIES[m.sp].name,
       }));
     }
     if (!G.party.length) G.party = [newMember('goririn')];
@@ -1219,11 +1272,11 @@
   function vsPrep() { G.vsHp = G.party.map(m => m.hp); for (const m of G.party) { m.hp = m.maxHp; m.st = 0; m.guard = false; } }
   function vsRestore() { if (!G.vsHp) return; G.party.forEach((m, i) => { if (G.vsHp[i] != null) m.hp = Math.min(m.maxHp, G.vsHp[i]); }); G.vsHp = null; }
   // net payload: the whole party in party order (+ lead index), so swap / next indexes match on both peers
-  function vsTeamMsg() { return G.party.slice(0, TUNING.partyMax).map(m => ({ sp: m.sp, name: m.name, lv: m.lv || 1, evo: m.evo ? 1 : 0, maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd })); }
+  function vsTeamMsg() { return G.party.slice(0, TUNING.partyMax).map(m => ({ sp: m.sp, name: m.name, lv: m.lv || 1, evo: m.evo ? 1 : 0, crown: m.crown ? 1 : 0, maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd })); }
   function vsMember(t) {
     t = t || {}; const sp = SPECIES[t.sp] && !SPECIES[t.sp].boss ? t.sp : 'goririn', d = SPECIES[sp], n = (v, f) => Math.max(1, Math.min(9999, Math.round(+v) || f));
     const hp = n(t.maxHp, d.hp);
-    return { sp, name: String(t.name || d.name).slice(0, 12), lv: capLv(n(t.lv, 1)), evo: t.evo && !SPECIES[sp].noEvo ? 1 : 0, maxHp: hp, hp, atk: n(t.atk, d.atk), def: n(t.def, d.def), spd: n(t.spd, d.spd), st: 0 };
+    return { sp, name: String(t.name || d.name).slice(0, 12), lv: capLv(n(t.lv, 1)), evo: t.evo && !SPECIES[sp].noEvo ? 1 : 0, crown: t.crown && sp === 'oguri' ? 1 : 0, maxHp: hp, hp, atk: n(t.atk, d.atk), def: n(t.def, d.def), spd: n(t.spd, d.spd), st: 0 };
   }
   // vs CPU: the picked species leads, the rest are random; same size and levels as your party
   function cpuTeam(first) {
@@ -1244,7 +1297,7 @@
     const B = G.battle, e = B.w, T = B.oppTeam;
     if (T[B.oppIdx]) T[B.oppIdx].hp = Math.max(0, e.hp);
     B.oppIdx = i; const m = T[i];
-    Object.assign(e, { sp: m.sp, name: m.name, lv: m.lv, evo: m.evo ? 1 : 0, maxHp: m.maxHp, hp: m.hp, atk: m.atk, def: m.def, spd: m.spd, guard: false, spUsed: false, spSuper: false });
+    Object.assign(e, { sp: m.sp, name: m.name, lv: m.lv, evo: m.evo ? 1 : 0, crown: m.crown ? 1 : 0, maxHp: m.maxHp, hp: m.hp, atk: m.atk, def: m.def, spd: m.spd, guard: false, spUsed: false, spSuper: false });
     e.key = memberKey(m);
   }
   function* oppSwapAction(i) {
@@ -1573,6 +1626,7 @@
     B.trainerActor = a;
   }
   function openShop() { G.menu = { kind: 'shop', sel: 0 }; G.state = 'menu'; }
+  const pickKey = (st, pk, i) => st.id + ':' + (pk.id || i);   // G.got key (saved; cloud / ひきつぎ use the same save)
   function bagList() { return Object.keys(ITEMS).filter(k => (G.items[k] | 0) > 0); }
   function openBag() {
     if (G.state !== 'field') return;
@@ -1643,6 +1697,15 @@
     } else if (it.use === 'recruit') {
       if (G.cookie) { banner('もう たべさせてある', 1.2); return; }
       G.cookie = true; banner('つぎの なかまにする が せいこう しやすい！', 1.8);
+    } else if (it.use === 'lvup') {
+      if (!it.sps.includes(a.sp)) { SFX.miss(); banner(`${a.name}は たべられない… (${it.sps.map(s => SPECIES[s].name).join(' か ')} だけ)`, 2.0); return; }
+      if ((a.lv || 1) >= MAX_LV) { banner(`${a.name}は もう これいじょう Lvが あがらない`, 1.6); return; }
+      a.lv = (a.lv || 1) + 1; a.xp = 0; a.maxHp += 4; a.hp = Math.min(a.maxHp, a.hp + 4); a.atk += 1; a.def += 1; if (a.lv % 2 === 0) a.spd += 1;
+      burst(comp.x, GROUND - 14, 'spark', 12, '#ff9a2a'); banner(`${a.name}は にんじんを たべた！ レベル ${a.lv} に あがった！`, 2.0);
+      G.items[k]--; if (G.items[k] <= 0) delete G.items[k];
+      persist(); closeMenu(); SFX.level();
+      G.fieldCo = (function* () { yield* wait(1.4); yield* tryEvolve(); persist(); })();   // normal Lv10 evolution
+      return;
     }
     SFX.level();
     G.items[k]--; if (G.items[k] <= 0) delete G.items[k];
@@ -1698,6 +1761,15 @@
   }
   function clearStage() {
     const i = G.stage;
+    let crownMsg = null;
+    if (STAGES[i].soloOguri && G.solo && typeof CROWN !== 'undefined') {
+      const o = G.party[0];
+      if (o && o.sp === CROWN.sp && !o.crown) {
+        o.crown = 1; for (const k of ['maxHp', 'atk', 'def', 'spd']) o[k] = Math.round(o[k] * CROWN.mult); o.hp = o.maxHp;
+        crownMsg = `${o.name}は おうの かんむりを てにいれた！ つよさ アップ！ スタミナの たまりが はやく なった！`;
+      }
+      endSolo();
+    }
     if (!G.cleared.includes(i)) G.cleared.push(i);
     const wi = Math.max(0, worldOf(i)); if (wi !== (G.world | 0)) setWorld(wi);
     const ni = MAP_NODES.findIndex(n => n.stage === i);
@@ -1711,8 +1783,10 @@
     }
     persist();
     openMap(Math.min(ni + 1, MAP_NODES.length - 1));
+    if (crownMsg) { banner(crownMsg, 4); SFX.recruit(); }
   }
   function openMap(sel) {
+    endSolo();
     G.state = 'map'; G.mapSel = sel; G.battle = null;
     const n = MAP_NODES[Math.max(0, sel - 1)];
     G.mapPos = { x: n.x, y: n.y }; G.fade = 1; G.fadeSpeed = -2;
@@ -1739,6 +1813,7 @@
     const n = MAP_NODES[G.mapSel];
     if (!n || G.mapSel >= G.unlocked) return;
     if (n.stage == null) { banner(`${n.name}は まだ じゅんびちゅう`, 1.6); return; }
+    if (STAGES[n.stage].soloOguri && !ownedOguri()) { SFX.miss(); banner('オグリキャップが いないと この みちは はしれない…', 2.2); return; }
     enterStage(n.stage);
   }
   let mapPadT = 0;
@@ -1840,11 +1915,15 @@
     }
     updateNear();
     for (const [i, pk] of (STAGES[G.stage].pickups || []).entries()) {
-      const key = STAGES[G.stage].id + ':' + i;
+      const key = pickKey(STAGES[G.stage], pk, i);
       if ((G.got = G.got || {})[key]) continue;
       if (Math.abs(player.x - pk.x) < 8 && Math.abs(player.y + pk.h) < 10) {
-        G.got[key] = 1; G.coins += pk.coins; SFX.buy(); burst(pk.x, GROUND - pk.h - 10, 'spark', 8, '#ffe24a');
-        pop(pk.x, GROUND - pk.h - 18, '+' + pk.coins, '#ffe24a'); persist();
+        G.got[key] = 1;
+        if (pk.item && ITEMS[pk.item]) {   // one-time item (にんじん): saved in G.got by its id, goes to the bag
+          G.items[pk.item] = (G.items[pk.item] | 0) + 1; SFX.recruit(); burst(pk.x, GROUND - pk.h - 8, 'spark', 12, '#ff9a2a');
+          banner(`${ITEMS[pk.item].name}を ひろった！ どうぐに いれた`, 1.8);
+        } else { G.coins += pk.coins; SFX.buy(); burst(pk.x, GROUND - pk.h - 10, 'spark', 8, '#ffe24a'); pop(pk.x, GROUND - pk.h - 18, '+' + pk.coins, '#ffe24a'); }
+        persist();
       }
     }
     G.signNear = Math.abs(player.x - (WORLD_W - 36)) < 22;
@@ -2045,6 +2124,7 @@
     }
     const kind = COMMANDS[i].kind;
     B.sel = i;
+    if (G.solo && kind === 'recruit') { banner('いまは なかまに できない！', 1.4); return; }
     if (SPECIES[B.w.sp].boss && (kind === 'recruit' || kind === 'run')) {
       banner(kind === 'recruit' ? 'ボスは なかまに できない！' : 'ボスからは にげられない！', 1.4);
       return;
@@ -2090,6 +2170,7 @@
       a.guard = false; B.phase = 'run'; B.q.push(swapAction(i)); return;
     }
     const it = ITEMS[k];
+    if (it.use === 'lvup') { banner('たたかいの あとで つかおう', 1.2); return; }
     if (it.use === 'heal' && a.hp >= a.maxHp) { banner(`${a.name}は げんき いっぱい`, 1.2); return; }
     if (it.use === 'healAll' && G.party.every(m => m.hp >= m.maxHp)) { banner('みんな げんき いっぱい', 1.2); return; }
     if (it.use === 'recruit') {
@@ -2157,9 +2238,10 @@
     SFX.battleStart();
     while (G.cutin && G.cutin.t < G.cutin.dur) yield;
     G.cutin = null;
-    banner(`${a.name}の ${mv.name}！`, 1.3);
-    const art = mv.fx && canSp(a) && typeof FX_ART !== 'undefined' && FX_ART[a.sp] && FXIMG[a.sp] && SPR[comp.key] && (SPR[comp.key].attack || SPECIES[a.sp].noEvo);
-    if (art) yield* artStrike(comp, a, e, e, mv, FX_ART[a.sp]); else if (mv.fx) yield* fxStrike(comp, a, e, e, mv); else yield* strike(comp, a, e, e, mv, 'special');
+    banner(mv.oyako ? `${a.name}と ${mv.oyako}の ${mv.name}！` : `${a.name}の ${mv.name}！`, 1.3);
+    const fs = mv.fxSp || a.sp;
+    const art = mv.fx && canSp(a) && typeof FX_ART !== 'undefined' && FX_ART[fs] && FXIMG[fs] && SPR[comp.key] && (SPR[comp.key].attack || SPECIES[a.sp].noEvo || mv.fxSp);
+    if (art) yield* artStrike(comp, a, e, e, mv, FX_ART[fs], fs); else if (mv.fx) yield* fxStrike(comp, a, e, e, mv); else yield* strike(comp, a, e, e, mv, 'special');
     if (e.hp <= 0) yield* enemyFaint();
   }
   function aiChoose(e, a) {
@@ -2240,7 +2322,7 @@
   function* artStrike(attA, att, defA, def, mv, A, fxSp) {
     const dir = Math.sign(defA.x - attA.x) || 1, C = A.cast, frames = SPR[attA.key].attack, img0 = FXIMG[fxSp || att.sp];
     const sup = !!mv.super, img = { shot: (sup && img0.shotS) || img0.shot, hit: (sup && img0.hitS) || img0.hit };
-    const scS = sup && !img0.shotS ? mv.scale || 1.75 : 1, scH = sup && !img0.hitS ? mv.scale || 1.75 : 1;
+    const scS = sup && !img0.shotS ? mv.scale || 1.75 : mv.artScale || 1, scH = sup && !img0.hitS ? mv.scale || 1.75 : mv.artScale || 1;
     const hits = C.fire.length, total = Math.max(8, calcDmg(att, def, mv));
     const local = (fi) => { const p = C.spawn[fi]; return { x: attA.x + attA.ox - 16 + (dir > 0 ? p[0] : 31 - p[0]), y: GROUND - 30 + p[1] }; };
     const shots = []; let landed = 0;
@@ -2405,8 +2487,9 @@
     while (G.cutin && G.cutin.t < G.cutin.dur) yield;
     G.cutin = null;
     B.msg = `${e.name}の ${mv.name}！`; banner('あいての ' + B.msg, 1.3);
-    const art = mv.fx && canSp(e) && typeof FX_ART !== 'undefined' && FX_ART[e.sp] && FXIMG[e.sp] && SPR[e.key] && (SPR[e.key].attack || SPECIES[e.sp].noEvo);
-    if (art) yield* artStrike(e, e, comp, a, mv, FX_ART[e.sp]); else if (mv.fx) yield* fxStrike(e, e, comp, a, mv); else yield* strike(e, e, comp, a, mv, 'special');
+    const fs = mv.fxSp || e.sp;
+    const art = mv.fx && canSp(e) && typeof FX_ART !== 'undefined' && FX_ART[fs] && FXIMG[fs] && SPR[e.key] && (SPR[e.key].attack || SPECIES[e.sp].noEvo || mv.fxSp);
+    if (art) yield* artStrike(e, e, comp, a, mv, FX_ART[fs], fs); else if (mv.fx) yield* fxStrike(e, e, comp, a, mv); else yield* strike(e, e, comp, a, mv, 'special');
     if (a.hp <= 0) yield* allyFaint();
   }
   // evolved trainer plush: one projectile special per member
@@ -2416,8 +2499,9 @@
     B.msg = `${e.name}の ${mv.name}！`;
     banner('あいての ' + B.msg, 1.4);
     SFX.battleStart(); yield* wait(0.5);
-    const art = mv.fx && typeof FX_ART !== 'undefined' && FX_ART[e.sp] && FXIMG[e.sp] && SPR[e.key] && (SPR[e.key].attack || SPECIES[e.sp].noEvo);
-    if (art) yield* artStrike(e, e, comp, a, mv, FX_ART[e.sp]); else if (mv.fx) yield* fxStrike(e, e, comp, a, mv); else yield* strike(e, e, comp, a, mv, 'special');
+    const fs = mv.fxSp || e.sp;
+    const art = mv.fx && typeof FX_ART !== 'undefined' && FX_ART[fs] && FXIMG[fs] && SPR[e.key] && (SPR[e.key].attack || SPECIES[e.sp].noEvo || mv.fxSp);
+    if (art) yield* artStrike(e, e, comp, a, mv, FX_ART[fs], fs); else if (mv.fx) yield* fxStrike(e, e, comp, a, mv); else yield* strike(e, e, comp, a, mv, 'special');
     if (a.hp <= 0) yield* allyFaint();
   }
   function* enemyFaint() {
@@ -2640,6 +2724,7 @@
     const B = G.battle;
     if (G.mind) { const M = G.mind; restoreMind(); Object.assign(B.w, M.boss, { mind: false }); B.w.key = SPECIES[M.boss.sp].sprite; }
     const joinAsk = B.result === 'win' && !G.friend && SPECIES[B.w.sp] && SPECIES[B.w.sp].recruitAfter && !(G.flags['joined_' + B.w.sp]) ? B.w : null;
+    const crownTalk = B.result === 'win' && !G.friend && !G.versus && typeof CROWN !== 'undefined' && B.w.sp === CROWN.oyako.partner && !G.flags.crownTalk && ownedOguri();
     G.oppHero = null; G.arena = null;
     if (B.trainerActor) { const t = B.trainerActor; t.tx = t.homeX; t.tface = -1; }
     if (B.w.alive) { B.w.home = B.w.x; B.w.alpha = 1; B.w.moving = false; putOnPlat(B.w); }
@@ -2666,10 +2751,13 @@
     }
     G.state = 'field';
     G.battle = null;
-    if (joinAsk) {
+    const join = () => {
+      if (!joinAsk) return;
       const sp = joinAsk.sp, nm = SPECIES[sp].name, lv = joinAsk.lv || 1;
       say(nm, SPECIES[sp].joinLines || [['…まけたわ。', 'あなたたち つよいのね'], ['わたしも いっしょに', 'つれていって くれる？']], () => { G.menu = { kind: 'ask', sel: 0, sp, lv }; G.state = 'menu'; });
-    }
+    };
+    if (crownTalk) { G.flags.crownTalk = 1; persist(); say('', CROWN.talk, join); }
+    else join();
   }
   function whiteoutReset() {
     G.battle = null; G.state = 'field';
@@ -2721,6 +2809,7 @@
     SFX.sync();
     if (G.state === 'field' && G.tutWait > 0 && !G.talk) { G.tutWait -= dt; if (G.tutWait <= 0) startTutorial(); }
     if (G.state === 'field') updateField(dt);
+    if (G.fieldCo && G.state === 'field' && G.fieldCo.next().done) G.fieldCo = null;
     else if (G.state === 'battle') { physics(player, dt); physics(comp, dt); updateBattle(dt); }
     else if (G.state === 'title') { for (const w of G.wilds) w.face = -1; }
     else if (G.state === 'map') updateMap(dt);
@@ -2808,9 +2897,16 @@
     }
     // coin pickups waiting on the platforms
     (st.pickups || []).forEach((pk, i) => {
-      if (G.got && G.got[st.id + ':' + i]) return;
+      if (G.got && G.got[pickKey(st, pk, i)]) return;
       const x = Math.round(pk.x - cam), y = GROUND - pk.h - 12 + (Math.floor(G.t * 3) % 2);
-      if (x < -6 || x > W + 6) return;
+      if (x < -8 || x > W + 8) return;
+      if (pk.item) {   // art: PROP_IMGS['item_' + item] (e.g. item_carrot) when drawn; placeholder pixels until then
+        const im = PROPS['item_' + pk.item];
+        if (im) g.drawImage(im, x - (im.width >> 1), GROUND - pk.h - im.height - 1 + (Math.floor(G.t * 3) % 2));
+        else drawPattern(['..g.g', '...g.', '..oo.', '.ooo.', '.oo..', 'oo...', 'o....'], x - 2, y - 2, { g: '#4ac040', o: '#ff8a1a' });
+        if (Math.floor(G.t * 2 + i) % 3 === 0) rect(x + 3, y - 3, 1, 1, '#ffffff');
+        return;
+      }
       drawPattern(['.###.', '#yyy#', '#ywy#', '#yyy#', '.###.'], x - 2, y, { '#': '#8a5a10', y: '#ffd23a', w: '#fff6b0' });
     });
   }
@@ -2978,7 +3074,7 @@
     for (let k = 0; k < MAP_NODES.length - 1; k++) {
       const a = MAP_NODES[k], b = MAP_NODES[k + 1], n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y));
       const open = k + 1 < G.unlocked;
-      if (art) { const sg = PROPS[(W ? 'w' + (W + 1) + 'seg' : 'wseg') + k]; if (open && sg) g.drawImage(sg, 0, 0); continue; }
+      if (art) { const sg = PROPS[(W ? 'w' + (W + 1) + 'seg' : 'wseg') + k]; if (sg) { if (open) g.drawImage(sg, 0, 0); continue; } }
       for (let j = 0; j <= n; j++) {
         const X = Math.round(a.x + (b.x - a.x) * j / n), Y = Math.round(a.y + (b.y - a.y) * j / n);
         if (open) { rect(X - 1, Y - 1, 3, 3, '#a0743c'); }
@@ -3476,6 +3572,7 @@
     await Promise.all(Object.entries(SPRITES).map(([k, s]) => loadImg(s.src).then(img => prepSprite(k, img))));
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.walk).map(([k, s]) => loadImg(s.walk.src).then(img => prepWalk(k, img, s.walk)).catch(() => {})));
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.attack).map(([k, s]) => loadImg(s.attack.src).then(img => { SPR[k].attack = sheetFrames(img, s.attack.frames); }).catch(() => {})));
+    makeCrownSprites();
     if (typeof FX_ART !== 'undefined') await Promise.all(Object.keys(FX_ART).map(sp => Promise.all([loadImg('assets/fx/' + sp + '_shot.png'), loadImg('assets/fx/' + sp + '_hit.png')])
       .then(([a, b]) => { FXIMG[sp] = { shot: sheetFrames(a, 4), hit: sheetFrames(b, FX_ART[sp].hit.n || 4, FX_ART[sp].hit.size || 32) }; }).catch(() => {})));
     // optional 'super' fx art (e.g. 超はかいおぐり波): only when embedded in ASSET_DATA, so no 404s; else the normal fx is drawn scaled up
