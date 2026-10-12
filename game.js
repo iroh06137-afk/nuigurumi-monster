@@ -1918,14 +1918,15 @@
   function startBattle(w) {
     // しょうこ: if くうこ is with us, she calls her little sister over first (くうこ fights on her side until beaten)
     G.mind = null;
-    if (SPECIES[w.sp].mindKuuko && !G.friend && !G.versus) {
-      const ki = G.party.findIndex(m => m.sp === 'kuuko');
+    const msp = SPECIES[w.sp].mindSp || (SPECIES[w.sp].mindKuuko && 'kuuko');
+    if (msp && !G.friend && !G.versus) {
+      const ki = G.party.findIndex(m => m.sp === msp);
       if (ki >= 0 && G.party.some((m, i) => i !== ki && m.hp >= 1)) {
         const k = G.party[ki], cur = G.party[G.active];
         G.party.splice(ki, 1);
         G.active = Math.max(0, G.party.indexOf(cur)); if (G.party[G.active] !== cur) G.active = 0;
         G.mind = { m: k, idx: ki, boss: { sp: w.sp, name: w.name, maxHp: w.maxHp, hp: w.hp, atk: w.atk, def: w.def, spd: w.spd, lv: w.lv, evo: w.evo ? 1 : 0, key: w.key } };
-        Object.assign(w, { sp: 'kuuko', name: k.name, maxHp: k.maxHp, hp: k.maxHp, atk: k.atk, def: k.def, spd: k.spd, lv: k.lv || 1, evo: k.evo ? 1 : 0, mind: true, spUsed: false, spSuper: false });
+        Object.assign(w, { sp: msp, name: k.name, maxHp: k.maxHp, hp: k.maxHp, atk: k.atk, def: k.def, spd: k.spd, lv: k.lv || 1, evo: k.evo ? 1 : 0, mind: true, spUsed: false, spSuper: false });
         w.key = memberKey(k);
       }
     }
@@ -1980,26 +1981,20 @@
   }
   // しょうこ meets くうこ: a short talk on the field before the battle (and the mind control) starts
   function mindTalk(w) {
-    const sp = SPECIES[w.sp], k = sp.mindKuuko && G.party.find(m => m.sp === 'kuuko');
-    if (!k) return false;
+    const sp = SPECIES[w.sp], msp = sp.mindSp || (sp.mindKuuko && 'kuuko'), k = msp && G.party.find(m => m.sp === msp), T = MIND[w.sp];
+    if (!k || !T || G.friend || G.versus || !G.party.some(m => m !== k && m.hp >= 1)) return false;
     w.cool = true; w.toHome = false;
     const K = k.name;
-    say('', [
-      ['しょうこ「……' + K + '？', 'やっと みつけたわ」'],
-      [K + '「おねえちゃん！？', 'どうして ここに…」'],
-      ['しょうこ「いつまで にんげんと', 'あそんでいるの？ かえるわよ」'],
-      [K + '「いやだ！ わたしは', 'みんなと いっしょに いたいの！」'],
-      ['しょうこ「わがままね…', 'それなら ちからずくよ」'],
-    ], () => { w.cool = false; startBattle(w); });
+    say('', T.talk.map(l => l.map(x => x.replace(/@/g, K))), () => { w.cool = false; startBattle(w); });
     return true;
   }
   function* mindIntro() {
-    const B = G.battle, e = B.w;
-    B.msg = 'しょうこの こえ…';
-    banner('しょうこ「くうこ、おねえちゃんの もとへ きなさい」', 2.2); yield* wait(2.0);
+    const B = G.battle, e = B.w, T = MIND[G.mind.boss.sp] || MIND.shouko;
+    B.msg = T.voice;
+    banner(T.call.replace(/@/g, e.name), 2.2); yield* wait(2.0);
     for (let i = 0; i < 10; i++) { burst(e.x, GROUND - 16, 'spark', 3, '#b060ff'); e.flash = 0.15; yield* wait(0.12); }
     B.msg = `${e.name}は あやつられている！`;
-    banner(`${e.name}は しょうこの いいなりに なってしまった！`, 2.2); yield* wait(2.0);
+    banner(`${e.name}は ${T.obey}`, 2.2); yield* wait(2.0);
     B.msg = '';
   }
   // くうこ beaten: she wakes up, comes home, and しょうこ steps in
@@ -2013,7 +2008,7 @@
     G.oppHero = null;
     Object.assign(e, M.boss, { mind: false, guard: false, st: 5 + rand() * 25, oy: 0, spUsed: false, spSuper: false });
     e.key = SPECIES[M.boss.sp].sprite;
-    banner(`${M.m.name}は なかまの ところへ もどった！ しょうこが でてきた！`, 2.4);
+    banner(`${M.m.name}は なかまの ところへ もどった！ ${M.boss.name}が でてきた！`, 2.4);
     burst(e.x, GROUND - 12, 'spark', 10, '#ffffff');
     yield* tween(v => { e.alpha = v; }, 0, 1, 0.4);
     yield* wait(0.6);

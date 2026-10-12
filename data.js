@@ -269,7 +269,7 @@ const SPECIES = {
     },
   },
   shouko: {  // ★ くうこの姉 (beige teddy). world-2 final boss; can join after you win. art by the user (placeholder: kuuko)
-    name: 'しょうこ', sprite: 'shouko', boss: true, recruitAfter: true, mindKuuko: true, evoOnly: 10,  // always counts as an evolved form, joins at lv10+
+    name: 'しょうこ', sprite: 'shouko', boss: true, recruitAfter: true, mindKuuko: true, mindSp: 'kuuko', evoOnly: 10,  // always counts as an evolved form, joins at lv10+
     hp: 150, atk: 17, def: 13, spd: 11, recruitBase: 0,
     moves: {
       attack: { name: 'おねえさんパンチ', power: 12, acc: 0.96 },
@@ -277,7 +277,7 @@ const SPECIES = {
     },
   },
   oguriking: {  // ★ world-3 final boss (しろの なか); joins after you win (flag joined_oguriking). art under sprite key 'oguriking'
-    name: 'オグリキング', sprite: 'oguriking', boss: true, recruitAfter: true, evoOnly: 25,  // always counts as evolved, joins at lv25+
+    name: 'オグリキング', sprite: 'oguriking', boss: true, mindSp: 'oguri', recruitAfter: true, evoOnly: 25,  // always counts as evolved, joins at lv25+
     joinLines: [['…みごとだ。', 'おまえたち つよいな'], ['おれも いっしょに', 'つれていって くれ！']], declineLine: 'そうか… また あおう',
     hp: 200, atk: 21, def: 15, spd: 13, recruitBase: 0,
     moves: {
@@ -391,6 +391,19 @@ const EVO_MOVES = {
 
 // pixel-art special fx by ドット絵作成くん (cast = attacker 4 frames; shot/hit = 128x32 sheets in assets/fx/<sp>_shot|hit.png).
 // cast.spawn = fx anchor inside each 32x32 cast frame (right-facing); fire = order steps that launch a shot; hold = step held until shots land.
+// mind control (boss calls a party plush to its side; beat it to wake it up). @ = the plush's name
+const MIND = {
+  shouko: {
+    talk: [['しょうこ「……@？', 'やっと みつけたわ」'], ['@「おねえちゃん！？', 'どうして ここに…」'], ['しょうこ「いつまで にんげんと', 'あそんでいるの？ かえるわよ」'],
+           ['@「いやだ！ わたしは', 'みんなと いっしょに いたいの！」'], ['しょうこ「わがままね…', 'それなら ちからずくよ」']],
+    voice: 'しょうこの こえ…', call: 'しょうこ「くうこ、おねえちゃんの もとへ きなさい」', obey: 'しょうこの いいなりに なってしまった！',
+  },
+  oguriking: {
+    talk: [['オグリキング「ほう… @か。', 'ひさしぶりだな」'], ['@「おうさま！？', 'なんで こんな ところに…」'], ['オグリキング「おまえは もともと', 'わが しろの けらいだ」'],
+           ['@「ちがう！ ぼくは', 'みんなと はしるんだ！」'], ['オグリキング「ならば', 'おうの ちからで したがえる！」']],
+    voice: 'オグリキングの こえ…', call: 'オグリキング「@よ、おうの もとへ もどれ」', obey: 'オグリキングの いいなりに なってしまった！',
+  },
+};
 const FX_ART = {
   oguriking: {"cast": {"order": [0, 1, 2, 3], "dur": [270, 90, 360, 180], "spawn": [[29, 11], [30, 15], [31, 15], [30, 15]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   tenton: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[20, 20], [29, 21], [30, 21], [22, 20]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 19, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
