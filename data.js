@@ -55,6 +55,7 @@ const SPRITES = {
   pengiin_evo: { src: 'assets/evo/pengiin.png', native: 1, attack: { src: 'assets/evo/pengiin_attack.png', frames: 4 }, walk: { src: 'assets/evo/pengiin_walk.png', frames: 4, ms: 150 } },
   mokomon_evo: { src: 'assets/evo/mokomon.png', native: 1, attack: { src: 'assets/evo/mokomon_attack.png', frames: 4 }, walk: { src: 'assets/evo/mokomon_walk.png', frames: 4, ms: 150 } },
   ressan_evo: { src: 'assets/evo/ressan.png', native: 1, attack: { src: 'assets/evo/ressan_attack.png', frames: 4 }, walk: { src: 'assets/evo/ressan_walk.png', frames: 4, ms: 150 } },
+  oguriking: { src: 'assets/oguriking.png', native: 1, walk: { src: 'assets/oguriking_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/evo/oguriking_attack.png', frames: 4 } }, // w3 boss オグリキング (right-facing 32x32; oguriking_left.png kept in assets for reference)
   oguri:   { src: 'assets/oguri-cap.png', native: -1, walk: { src: 'assets/oguri_walk.png', frames: 4, ms: 150 } }, // faces left; flipped for right
 };
 
@@ -275,13 +276,13 @@ const SPECIES = {
       strong: { name: 'くまくまプレス',   power: 27, acc: 0.86 },
     },
   },
-  oguriking: {  // ★ world-3 final boss (しろの なか); joins after you win (flag joined_oguriking). placeholder art = oguri_evo; real art later under sprite key 'oguriking'
-    name: 'オグリキング', sprite: 'oguri_evo', boss: true, recruitAfter: true, evoOnly: 25,  // always counts as evolved, joins at lv25+
+  oguriking: {  // ★ world-3 final boss (しろの なか); joins after you win (flag joined_oguriking). art under sprite key 'oguriking'
+    name: 'オグリキング', sprite: 'oguriking', boss: true, recruitAfter: true, evoOnly: 25,  // always counts as evolved, joins at lv25+
     joinLines: [['…みごとだ。', 'おまえたち つよいな'], ['おれも いっしょに', 'つれていって くれ！']], declineLine: 'そうか… また あおう',
     hp: 200, atk: 21, def: 15, spd: 13, recruitBase: 0,
     moves: {
       attack: { name: 'キングキック',       power: 14, acc: 0.96 },
-      strong: { name: 'おうじゃの とっしん', power: 31, acc: 0.86 },
+      strong: { name: 'パンチングパンチ', power: 31, acc: 0.86 },
     },
   },
   mori_boss: {
@@ -354,7 +355,7 @@ for (const sp of ['goririn', 'kuuko', 'tsumaguro', 'oguri', 'kitsunen', 'usagin'
 // オグリ波 / くうこ弾 / 水ビーム / パンチングパンチ are provisional.
 for (const sp of ['tenton', 'risurin', 'kinokon', 'shikanon', 'haririn', 'chouran', 'hakuchon', 'kujakun', 'koumon', 'naiton']) EVOLVE[sp] = { lv: 10, sprite: sp, name: null, hp: 0, atk: 0, def: 0, spd: 0 };
 EVOLVE.shouko = { lv: 10, sprite: 'shouko', name: null, hp: 0, atk: 0, def: 0, spd: 0 };
-EVOLVE.oguriking = { lv: 25, sprite: 'oguri_evo', name: null, hp: 0, atk: 0, def: 0, spd: 0 };  // ★ placeholder: switch to 'oguriking' when the real art arrives
+EVOLVE.oguriking = { lv: 25, sprite: 'oguriking', name: null, hp: 0, atk: 0, def: 0, spd: 0 };
 const EVO_MOVES = {
   tenton: { special: { name: 'てんとうミサイル', fx: 'orb', col: '#e83a3a' } },
   risurin: { special: { name: 'どんぐりマシンガン', fx: 'multi', shape: 'orb', hits: 3, col: '#b07a3a' } },
@@ -366,7 +367,9 @@ const EVO_MOVES = {
   kujakun: { special: { name: 'めだまフラッシュ', fx: 'orb', col: '#40c0a0' } },
   koumon: { special: { name: 'ちょうおんぱカッター', fx: 'wave', col: '#a080ff' } },
   naiton: { special: { name: 'ナイトブレイド', fx: 'fire', col: '#ffd040' } },
-  oguriking: { special: { name: 'はかいおぐり波', fx: 'beam', col: '#ffd23a' } },
+  oguriking: { strong: { name: 'パンチングパンチ' }, special: { name: 'はかいおぐり波', fx: 'beam', col: '#ffd23a' },
+    // at hp <= half: 超はかいおぐり波 (power x mult). fx art: assets/fx/oguriking_shot_super.png / _hit_super.png if present in ASSET_DATA, else the normal fx drawn x scale
+    super: { name: '超はかいおぐり波', mult: 1.5, scale: 1.75, col: '#ff7aff' } },
   shouko:    { special: { name: 'バン', fx: 'orb', col: '#ffd070' } },  // ★ big-bang energy ball; dedicated fx art coming from ドット絵作成くん
   goririn:   { strong: { name: 'メガドラミング', power: 28 },     special: { name: 'メガパンチ',       fx: 'multi', shape: 'glove', hits: 1, col: '#ff7ab0' } },
   kuuko:     { strong: { name: 'ぎゅうぎゅうハグ', power: 27 },   special: { name: 'くうこ弾',         fx: 'orb',   col: '#7ad8ff' } },
@@ -389,6 +392,7 @@ const EVO_MOVES = {
 // pixel-art special fx by ドット絵作成くん (cast = attacker 4 frames; shot/hit = 128x32 sheets in assets/fx/<sp>_shot|hit.png).
 // cast.spawn = fx anchor inside each 32x32 cast frame (right-facing); fire = order steps that launch a shot; hold = step held until shots land.
 const FX_ART = {
+  oguriking: {"cast": {"order": [0, 1, 2, 3], "dur": [270, 90, 360, 180], "spawn": [[29, 11], [30, 15], [31, 15], [30, 15]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   tenton: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[20, 20], [29, 21], [30, 21], [22, 20]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 19, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   risurin: {"cast": {"order": [0, 1, 1, 1, 2, 3], "dur": [180, 120, 360, 180], "spawn": [[26, 20], [30, 20], [30, 20], [26, 20]], "fire": [1, 2, 3], "hold": 4}, "shot": {"mode": "fly", "ms": 80, "ax": 16, "ay": 19, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   kinokon: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[20, 14], [28, 15], [28, 15], [20, 14]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 90, "ax": 19, "ay": 17, "spd": 170}, "hit": {"ms": 100, "n": 4, "size": 32}},

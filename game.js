@@ -930,7 +930,11 @@
   }
   function specialOf(m) {
     const st = movesOf(m).strong, ev = m.evo && typeof EVO_MOVES !== 'undefined' && EVO_MOVES[m.sp];
-    if (ev && ev.special) return Object.assign({ power: Math.round(st.power * 2), acc: 1 }, ev.special);
+    if (ev && ev.special) {
+      const sp = Object.assign({ power: Math.round(st.power * 2), acc: 1 }, ev.special);
+      if (ev.super && m.hp > 0 && m.hp <= m.maxHp / 2) return Object.assign(sp, { name: ev.super.name, power: Math.round(sp.power * (ev.super.mult || 1.5)), col: ev.super.col || sp.col, super: true, scale: ev.super.scale || 1.75 });
+      return sp;
+    }
     return { name: 'きずなの ' + st.name, power: Math.round(st.power * 1.9), acc: 1 };
   }
   const stRate = u => TUNING.stBase + u.spd * TUNING.stPerSpd;
@@ -1238,7 +1242,7 @@
     const B = G.battle, e = B.w, T = B.oppTeam;
     if (T[B.oppIdx]) T[B.oppIdx].hp = Math.max(0, e.hp);
     B.oppIdx = i; const m = T[i];
-    Object.assign(e, { sp: m.sp, name: m.name, lv: m.lv, evo: m.evo ? 1 : 0, maxHp: m.maxHp, hp: m.hp, atk: m.atk, def: m.def, spd: m.spd, guard: false, spUsed: false });
+    Object.assign(e, { sp: m.sp, name: m.name, lv: m.lv, evo: m.evo ? 1 : 0, maxHp: m.maxHp, hp: m.hp, atk: m.atk, def: m.def, spd: m.spd, guard: false, spUsed: false, spSuper: false });
     e.key = memberKey(m);
   }
   function* oppSwapAction(i) {
@@ -1536,7 +1540,7 @@
     if (ev) { m.evo = 1; if (ev.name) m.name = ev.name; m.maxHp += ev.hp || 0; m.atk += ev.atk || 0; m.def += ev.def || 0; m.spd += ev.spd || 0; }
     if (style === 'fast') m.spd += 2;
     if (style === 'guard') m.def += 2;
-    m.hp = m.maxHp; m.lv = lv; m.spUsed = false;
+    m.hp = m.maxHp; m.lv = lv; m.spUsed = false; m.spSuper = false;
     return m;
   }
   function startTrainer(a) {
@@ -1921,7 +1925,7 @@
         G.party.splice(ki, 1);
         G.active = Math.max(0, G.party.indexOf(cur)); if (G.party[G.active] !== cur) G.active = 0;
         G.mind = { m: k, idx: ki, boss: { sp: w.sp, name: w.name, maxHp: w.maxHp, hp: w.hp, atk: w.atk, def: w.def, spd: w.spd, lv: w.lv, evo: w.evo ? 1 : 0, key: w.key } };
-        Object.assign(w, { sp: 'kuuko', name: k.name, maxHp: k.maxHp, hp: k.maxHp, atk: k.atk, def: k.def, spd: k.spd, lv: k.lv || 1, evo: k.evo ? 1 : 0, mind: true, spUsed: false });
+        Object.assign(w, { sp: 'kuuko', name: k.name, maxHp: k.maxHp, hp: k.maxHp, atk: k.atk, def: k.def, spd: k.spd, lv: k.lv || 1, evo: k.evo ? 1 : 0, mind: true, spUsed: false, spSuper: false });
         w.key = memberKey(k);
       }
     }
@@ -2007,7 +2011,7 @@
     restoreMind();
     yield* tween(v => { e.alpha = v; if (G.oppHero) G.oppHero.alpha = v; }, 1, 0, 0.35);
     G.oppHero = null;
-    Object.assign(e, M.boss, { mind: false, guard: false, st: 5 + rand() * 25, oy: 0, spUsed: false });
+    Object.assign(e, M.boss, { mind: false, guard: false, st: 5 + rand() * 25, oy: 0, spUsed: false, spSuper: false });
     e.key = SPECIES[M.boss.sp].sprite;
     banner(`${M.m.name}は なかまの ところへ もどった！ しょうこが でてきた！`, 2.4);
     burst(e.x, GROUND - 12, 'spark', 10, '#ffffff');
@@ -2231,7 +2235,9 @@
   }
   // pixel-art special: plays the attacker's cast frames, launches shots on fire steps, holds until they land
   function* artStrike(attA, att, defA, def, mv, A) {
-    const dir = Math.sign(defA.x - attA.x) || 1, C = A.cast, frames = SPR[attA.key].attack, img = FXIMG[att.sp];
+    const dir = Math.sign(defA.x - attA.x) || 1, C = A.cast, frames = SPR[attA.key].attack, img0 = FXIMG[att.sp];
+    const sup = !!mv.super, img = { shot: (sup && img0.shotS) || img0.shot, hit: (sup && img0.hitS) || img0.hit };
+    const scS = sup && !img0.shotS ? mv.scale || 1.75 : 1, scH = sup && !img0.hitS ? mv.scale || 1.75 : 1;
     const hits = C.fire.length, total = Math.max(8, calcDmg(att, def, mv));
     const local = (fi) => { const p = C.spawn[fi]; return { x: attA.x + attA.ox - 16 + (dir > 0 ? p[0] : 31 - p[0]), y: GROUND - 30 + p[1] }; };
     const shots = []; let landed = 0;
@@ -2246,15 +2252,16 @@
       if (guarded && landed === 1) pop(defA.x, GROUND - 46, 'GUARD', '#a8d8ff');
       const hx = f.mode === 'glove' ? f.x1 + dir * 9 : f.mode === 'beam' ? defA.x - dir * 4 : defA.x - dir * 2;
       const hy = f.mode === 'glove' ? f.y1 : GROUND - 14;
-      G.fx.push({ type: 'ahit', img: img.hit, ms: A.hit.ms, x: hx, y: hy, t: 0, dur: img.hit.length * A.hit.ms / 1000, hold: 0, loopHit: f.mode === 'beam' ? f : null });
-      G.hitStop = landed === hits ? 0.16 : 0.05; G.flashT = 0.08; G.shakeT = 0.35;
+      if (sup) { G.flashT = 0.2; burst(defA.x, GROUND - 16, 'spark', 24, mv.col || '#ff7aff'); }
+      G.fx.push({ type: 'ahit', img: img.hit, sc: scH, ms: A.hit.ms, x: hx, y: hy, t: 0, dur: img.hit.length * A.hit.ms / 1000, hold: 0, loopHit: f.mode === 'beam' ? f : null });
+      G.hitStop = landed === hits ? (sup ? 0.26 : 0.16) : 0.05; G.flashT = Math.max(G.flashT, 0.08); G.shakeT = sup ? 0.6 : 0.35;
       SFX.hit('strong');
       if (G.battle && def === ally()) addBond(dmg / def.maxHp * 110);
       if (G.battle && G.friend && def === G.battle.w) addBond(dmg / def.maxHp * 110, true);
     };
     const launch = (fi, k) => {
       const p = local(fi), m = A.shot.mode;
-      const f = { type: 'ashot', mode: m, img: img.shot, ms: A.shot.ms, ax: A.shot.ax, ay: A.shot.ay, dir, t: 0, hold: 0,
+      const f = { type: 'ashot', mode: m, img: img.shot, sc: scS, ms: A.shot.ms, ax: A.shot.ax, ay: A.shot.ay, dir, t: 0, hold: 0,
         x0: p.x, y0: p.y, x1: defA.x - dir * 6, y1: p.y };
       if (m === 'fly') { f.y1 = GROUND - 15; f.dur = Math.max(0.15, Math.abs(f.x1 - f.x0) / (A.shot.spd || 170)); }
       else if (m === 'beam') { f.x1 = defA.x - dir * 2; f.dur = 0.14; f.hold = 99; }
@@ -2285,7 +2292,8 @@
         let fi = Math.floor(f.t * 1000 / f.ms);
         if (f.loopHit && G.fx.includes(f.loopHit)) fi %= 2;
         else if (fi >= f.img.length) { G.fx.splice(i, 1); continue; }
-        const hw = f.img[fi].n.width >> 1; g.drawImage(f.img[fi].n, Math.round(f.x - cam) - hw, Math.round(f.y) - hw);
+        const sc = f.sc || 1, iw = f.img[fi].n.width, hw = Math.round(iw * sc / 2);
+        g.drawImage(f.img[fi].n, Math.round(f.x - cam) - hw, Math.round(f.y) - hw, Math.round(iw * sc), Math.round(iw * sc));
         continue;
       }
       if (f.type !== 'ashot' || layer !== 'under') continue;
@@ -2301,7 +2309,8 @@
           const dx = f.dir > 0 ? Math.round(a - cam) + o : Math.round(a - cam) + len - o - w;
           g.drawImage(im, sx, 0, w, 32, dx, y, w, 32);
         }
-      } else g.drawImage(im, Math.round(hx - cam) - ax, Math.round(hy) - f.ay);
+      } else if (f.sc && f.sc !== 1) { const S = im.width, sc = f.sc; g.drawImage(im, Math.round(hx - cam - ax * sc), Math.round(hy - f.ay * sc), Math.round(S * sc), Math.round(S * sc)); }
+      else g.drawImage(im, Math.round(hx - cam) - ax, Math.round(hy) - f.ay);
     }
   }
   function drawFxShots(cam) {
@@ -2365,6 +2374,8 @@
   function* enemyTurn() {
     const B = G.battle, e = B.w, a = ally();
     const early = e.style === 'trick';
+    const ev2 = typeof EVO_MOVES !== 'undefined' && EVO_MOVES[e.sp];
+    if (e.evo && ev2 && ev2.super && e.spUsed && !e.spSuper && e.hp > 0 && e.hp <= e.maxHp / 2 && rand() < 0.6) { e.spSuper = true; yield* enemySpecial(); return; }
     if (e.evo && !e.spUsed && e.hp < e.maxHp * (early ? 1.01 : 0.75) && rand() < (early ? 0.6 : 0.5)) { yield* enemySpecial(); return; }
     const kind = aiChoose(e, a);
     if (kind === 'guard') { e.st -= COST.guard; e.guard = true; B.msg = `${e.name}は みを まもっている！`; banner(B.msg, 1.2); burst(e.x, GROUND - 16, 'spark', 6, '#a8d8ff'); yield* wait(0.6); return; }
@@ -3464,6 +3475,12 @@
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.attack).map(([k, s]) => loadImg(s.attack.src).then(img => { SPR[k].attack = sheetFrames(img, s.attack.frames); }).catch(() => {})));
     if (typeof FX_ART !== 'undefined') await Promise.all(Object.keys(FX_ART).map(sp => Promise.all([loadImg('assets/fx/' + sp + '_shot.png'), loadImg('assets/fx/' + sp + '_hit.png')])
       .then(([a, b]) => { FXIMG[sp] = { shot: sheetFrames(a, 4), hit: sheetFrames(b, FX_ART[sp].hit.n || 4, FX_ART[sp].hit.size || 32) }; }).catch(() => {})));
+    // optional 'super' fx art (e.g. 超はかいおぐり波): only when embedded in ASSET_DATA, so no 404s; else the normal fx is drawn scaled up
+    if (typeof FX_ART !== 'undefined' && typeof ASSET_DATA !== 'undefined') await Promise.all(Object.keys(FX_ART).filter(sp => FXIMG[sp]).map(sp => {
+      const ks = 'assets/fx/' + sp + '_shot_super.png', kh = 'assets/fx/' + sp + '_hit_super.png', H = FX_ART[sp].hitSuper || FX_ART[sp].hit;
+      return Promise.all([ASSET_DATA[ks] ? loadImg(ks).then(i => { FXIMG[sp].shotS = sheetFrames(i, 4, Math.round(i.height)); }) : 0,
+                          ASSET_DATA[kh] ? loadImg(kh).then(i => { FXIMG[sp].hitS = sheetFrames(i, H.n || 4, Math.round(i.height)); }) : 0]).catch(() => {});
+    }));
     await Promise.all(Object.entries(PROP_IMGS).map(([k, src]) => loadImg(src).then(img => { PROPS[k] = img; }).catch(e => console.warn(e))));
     makeNpcSprites();
     try { await document.fonts.load('8px Misaki'); await document.fonts.load("8px 'DotGothic16'"); } catch (e) { console.warn('font load failed', e); }
