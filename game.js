@@ -895,9 +895,10 @@
   }
 
   function spawnWilds() {
-    G.wilds = STAGES[G.stage].spawns.map((s, i) => Object.assign(newActor(s.x, -1, SPECIES[s.sp].sprite), s.lv ? trainerMember({ sp: s.sp, lv: s.lv, evo: SPECIES[s.sp].evoOnly || (s.evo ? 1 : 0) }) : newMember(s.sp), {
+    G.wilds = STAGES[G.stage].spawns.map((s, i) => (Object.assign(newActor(s.x, -1, SPECIES[s.sp].sprite), s.lv ? trainerMember({ sp: s.sp, lv: s.lv, evo: SPECIES[s.sp].evoOnly || (s.evo ? 1 : 0) }) : newMember(s.sp), {
       home: s.x, spawnX: s.x, alive: !(SPECIES[s.sp].recruitAfter && G.flags && G.flags['joined_' + s.sp]), cool: false, wt: 1 + rand() * 2, wdir: 0, toHome: false, idx: i,
-    }, platOf(s)));
+    }, platOf(s))));
+    for (const w of G.wilds) w.key = memberKey(w);   // evolved wilds (evo: 1) show their evolved art when it exists
   }
   // spawn entry with plat: <index> stands / patrols on that platform (only reachable by jumping)
   function platOf(s) {

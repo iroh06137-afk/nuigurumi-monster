@@ -56,6 +56,20 @@ const SPRITES = {
   mokomon_evo: { src: 'assets/evo/mokomon.png', native: 1, attack: { src: 'assets/evo/mokomon_attack.png', frames: 4 }, walk: { src: 'assets/evo/mokomon_walk.png', frames: 4, ms: 150 } },
   ressan_evo: { src: 'assets/evo/ressan.png', native: 1, attack: { src: 'assets/evo/ressan_attack.png', frames: 4 }, walk: { src: 'assets/evo/ressan_walk.png', frames: 4, ms: 150 } },
   oguriking: { src: 'assets/oguriking.png', native: 1, walk: { src: 'assets/oguriking_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/evo/oguriking_attack.png', frames: 4 } }, // w3 boss オグリキング (right-facing 32x32; oguriking_left.png kept in assets for reference)
+  lioneru: { src: 'assets/lioneru.png', native: 1, walk: { src: 'assets/lioneru_walk.png', frames: 4, ms: 150 } }, // w3 lion, castle gatekeeper, high atk plush
+  lioneru_evo: { src: 'assets/evo/lioneru.png', native: 1, attack: { src: 'assets/evo/lioneru_attack.png', frames: 4 }, walk: { src: 'assets/evo/lioneru_walk.png', frames: 4, ms: 150 } },
+  wolfun: { src: 'assets/wolfun.png', native: 1, walk: { src: 'assets/wolfun_walk.png', frames: 4, ms: 150 } }, // w3 wolf, dark knight, fast plush
+  wolfun_evo: { src: 'assets/evo/wolfun.png', native: 1, attack: { src: 'assets/evo/wolfun_attack.png', frames: 4 }, walk: { src: 'assets/evo/wolfun_walk.png', frames: 4, ms: 150 } },
+  saiguard: { src: 'assets/saiguard.png', native: 1, walk: { src: 'assets/saiguard_walk.png', frames: 4, ms: 150 } }, // w3 rhino, armored soldier, high def plush
+  saiguard_evo: { src: 'assets/evo/saiguard.png', native: 1, attack: { src: 'assets/evo/saiguard_attack.png', frames: 4 }, walk: { src: 'assets/evo/saiguard_walk.png', frames: 4, ms: 150 } },
+  eaglan: { src: 'assets/eaglan.png', native: 1, walk: { src: 'assets/eaglan_walk.png', frames: 4, ms: 150 } }, // w3 eagle, sky soldier, fast plush
+  eaglan_evo: { src: 'assets/evo/eaglan.png', native: 1, attack: { src: 'assets/evo/eaglan_attack.png', frames: 4 }, walk: { src: 'assets/evo/eaglan_walk.png', frames: 4, ms: 150 } },
+  wanigard: { src: 'assets/wanigard.png', native: 1, walk: { src: 'assets/wanigard_walk.png', frames: 4, ms: 150 } }, // w3 crocodile, moat keeper, def+bite plush
+  wanigard_evo: { src: 'assets/evo/wanigard.png', native: 1, attack: { src: 'assets/evo/wanigard_attack.png', frames: 4 }, walk: { src: 'assets/evo/wanigard_walk.png', frames: 4, ms: 150 } },
+  toragar: { src: 'assets/toragar.png', native: 1, walk: { src: 'assets/toragar_walk.png', frames: 4, ms: 150 } }, // w3 tiger, dark warrior, atk+spd plush
+  toragar_evo: { src: 'assets/evo/toragar.png', native: 1, attack: { src: 'assets/evo/toragar_attack.png', frames: 4 }, walk: { src: 'assets/evo/toragar_walk.png', frames: 4, ms: 150 } },
+  goremun: { src: 'assets/goremun.png', native: 1, walk: { src: 'assets/goremun_walk.png', frames: 4, ms: 150 } }, // w3 stone golem, very hard, rare plush
+  goremun_evo: { src: 'assets/evo/goremun.png', native: 1, attack: { src: 'assets/evo/goremun_attack.png', frames: 4 }, walk: { src: 'assets/evo/goremun_walk.png', frames: 4, ms: 150 } },
   oguri:   { src: 'assets/oguri-cap.png', native: -1, walk: { src: 'assets/oguri_walk.png', frames: 4, ms: 150 } }, // faces left; flipped for right
 };
 
@@ -285,6 +299,62 @@ const SPECIES = {
       strong: { name: 'パンチングパンチ', power: 31, acc: 0.86 },
     },
   },
+  lioneru: {  // w3 (あくの しろ): lion, castle gatekeeper, high atk
+    name: 'ライオネル', sprite: 'lioneru',
+    hp: 58, atk: 17, def: 12, spd: 10, recruitBase: 0.06,
+    moves: {
+      attack: { name: 'がおーパンチ', power: 14, acc: 0.95 },
+      strong: { name: 'ししのたてがみアタック', power: 32, acc: 0.83 },
+    },
+  },
+  wolfun: {  // w3 (あくの しろ): wolf, dark knight, fast
+    name: 'ウルフン', sprite: 'wolfun',
+    hp: 50, atk: 15, def: 10, spd: 15, recruitBase: 0.06,
+    moves: {
+      attack: { name: 'かげのかみつき', power: 13, acc: 0.95 },
+      strong: { name: 'やみのひっかき', power: 29, acc: 0.83 },
+    },
+  },
+  saiguard: {  // w3 (あくの しろ): rhino, armored soldier, high def
+    name: 'サイガード', sprite: 'saiguard',
+    hp: 64, atk: 14, def: 17, spd: 7, recruitBase: 0.06,
+    moves: {
+      attack: { name: 'つのつつき', power: 13, acc: 0.95 },
+      strong: { name: 'よろいタックル', power: 30, acc: 0.83 },
+    },
+  },
+  eaglan: {  // w3 (あくの しろ): eagle, sky soldier, fast
+    name: 'イーグラン', sprite: 'eaglan',
+    hp: 48, atk: 15, def: 10, spd: 16, recruitBase: 0.06,
+    moves: {
+      attack: { name: 'つばさうち', power: 13, acc: 0.95 },
+      strong: { name: 'かぜきりダイブ', power: 29, acc: 0.83 },
+    },
+  },
+  wanigard: {  // w3 (あくの しろ): crocodile, moat keeper, def+bite
+    name: 'ワニガード', sprite: 'wanigard',
+    hp: 60, atk: 15, def: 15, spd: 8, recruitBase: 0.06,
+    moves: {
+      attack: { name: 'しっぽうち', power: 13, acc: 0.95 },
+      strong: { name: 'おほりの まきこみ', power: 31, acc: 0.83 },
+    },
+  },
+  toragar: {  // w3 (あくの しろ): tiger, dark warrior, atk+spd
+    name: 'トラガー', sprite: 'toragar',
+    hp: 54, atk: 17, def: 11, spd: 13, recruitBase: 0.06,
+    moves: {
+      attack: { name: 'とらパンチ', power: 14, acc: 0.95 },
+      strong: { name: 'しましまスラッシュ', power: 31, acc: 0.83 },
+    },
+  },
+  goremun: {  // w3 (あくの しろ): stone golem, very hard, rare
+    name: 'ゴレムン', sprite: 'goremun',
+    hp: 72, atk: 16, def: 21, spd: 5, recruitBase: 0.03,
+    moves: {
+      attack: { name: 'いしころパンチ', power: 13, acc: 0.95 },
+      strong: { name: 'いわの ボディプレス', power: 32, acc: 0.83 },
+    },
+  },
   mori_boss: {
     name: 'もりの ぬし', sprite: 'tanukin', boss: true,
     hp: 72, atk: 10, def: 8, spd: 7, recruitBase: 0,
@@ -346,7 +416,8 @@ const TUNING = {
 // an entry does nothing until SPRITES[sprite] exists, so art can be dropped in one plush at a time. ★ names / numbers provisional
 const EVOLVE = {};
 for (const sp of ['goririn', 'kuuko', 'tsumaguro', 'oguri', 'kitsunen', 'usagin', 'kangarun', 'kaerun',
-                  'fukuron', 'tanukin', 'nyankon', 'wankon', 'pandan', 'pengiin', 'mokomon', 'ressan']) {
+                  'fukuron', 'tanukin', 'nyankon', 'wankon', 'pandan', 'pengiin', 'mokomon', 'ressan',
+                  'lioneru', 'wolfun', 'saiguard', 'eaglan', 'wanigard', 'toragar', 'goremun']) {
   EVOLVE[sp] = { lv: 10, sprite: sp + '_evo', name: null, hp: 10, atk: 3, def: 3, spd: 1 };
 }
 
@@ -367,6 +438,13 @@ const EVO_MOVES = {
   kujakun: { special: { name: 'めだまフラッシュ', fx: 'orb', col: '#40c0a0' } },
   koumon: { special: { name: 'ちょうおんぱカッター', fx: 'wave', col: '#a080ff' } },
   naiton: { special: { name: 'ナイトブレイド', fx: 'fire', col: '#ffd040' } },
+  lioneru: { strong: { name: 'キングクロー', power: 36 }, special: { name: 'がおーほうこう', fx: 'wave', col: '#ffd04a' } },
+  wolfun: { strong: { name: 'ナイトファング', power: 33 }, special: { name: 'やみのきば', fx: 'orb', col: '#8a5cff' } },
+  saiguard: { strong: { name: 'アーマーホーン', power: 34 }, special: { name: 'どすこいとっしん', fx: 'orb', col: '#c0a080' } },
+  eaglan: { strong: { name: 'スカイストライク', power: 33 }, special: { name: 'きゅうこうかばくだん', fx: 'orb', col: '#ffe0a0' } },
+  wanigard: { strong: { name: 'デスロール', power: 35 }, special: { name: 'がぶりかみつき', fx: 'orb', col: '#5ac05a' } },
+  toragar: { strong: { name: 'ダークタイガー', power: 35 }, special: { name: 'やみのつめ', fx: 'fire', col: '#ff8a2a' } },
+  goremun: { strong: { name: 'メガトンプレス', power: 37 }, special: { name: 'ごろごろいわおとし', fx: 'orb', col: '#a09080' } },
   oguriking: { strong: { name: 'パンチングパンチ', fxFrom: 'kangarun' }, special: { name: 'はかいおぐり波', fx: 'beam', col: '#ffd23a' },
     // at hp <= half: 超はかいおぐり波 (power x mult). fx art: assets/fx/oguriking_shot_super.png / _hit_super.png if present in ASSET_DATA, else the normal fx drawn x scale
     super: { name: '超はかいおぐり波', mult: 1.5, scale: 1.75, col: '#ff7aff' } },
@@ -405,6 +483,13 @@ const MIND = {
   },
 };
 const FX_ART = {
+  lioneru: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[29, 14], [31, 15], [31, 15], [30, 15]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  wolfun: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[29, 15], [31, 16], [31, 16], [30, 16]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  saiguard: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[28, 16], [30, 17], [30, 17], [29, 17]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  eaglan: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[26, 10], [28, 10], [28, 10], [27, 10]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  wanigard: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[30, 20], [31, 21], [31, 21], [31, 21]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  toragar: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[29, 15], [31, 16], [31, 16], [30, 16]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  goremun: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[22, 10], [24, 12], [24, 12], [24, 12]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   oguriking: {"cast": {"order": [0, 1, 2, 3], "dur": [270, 90, 360, 180], "spawn": [[29, 11], [30, 15], [31, 15], [30, 15]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   tenton: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[20, 20], [29, 21], [30, 21], [22, 20]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 19, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   risurin: {"cast": {"order": [0, 1, 1, 1, 2, 3], "dur": [180, 120, 360, 180], "spawn": [[26, 20], [30, 20], [30, 20], [26, 20]], "fire": [1, 2, 3], "hold": 4}, "shot": {"mode": "fly", "ms": 80, "ax": 16, "ay": 19, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
@@ -557,7 +642,7 @@ const STAGES = [
   {
     id: 'jouka', name: 'くらい じょうかまち', width: 1300, theme: 'night', world: 2, highJump: true, bench: 640,
     layers: 'assets/w3/jouka', tiles: 'assets/w3/jouka',
-    spawns: [ { sp: 'koumon', x: 260, lv: 18, evo: 1 }, { sp: 'kinokon', x: 440, lv: 19, evo: 1 }, { sp: 'shikanon', x: 760, lv: 20, evo: 1 }, { sp: 'nyankon', x: 960, lv: 20, evo: 1 }, { sp: 'kujakun', x: 1150, lv: 21, evo: 1 }, { sp: 'risurin', x: 552, lv: 20, evo: 1, plat: 2 }, { sp: 'koumon', x: 1100, lv: 21, evo: 1, plat: 7 } ],
+    spawns: [ { sp: 'wolfun', x: 260, lv: 18, evo: 1 }, { sp: 'lioneru', x: 440, lv: 19 }, { sp: 'shikanon', x: 760, lv: 20, evo: 1 }, { sp: 'eaglan', x: 960, lv: 20 }, { sp: 'kujakun', x: 1150, lv: 21, evo: 1 }, { sp: 'eaglan', x: 552, lv: 20, plat: 2 }, { sp: 'koumon', x: 1100, lv: 21, evo: 1, plat: 7 } ],
     plats: [ { x: 180, w: 48, h: 21 }, { x: 300, w: 32, h: 35 }, { x: 520, w: 64, h: 21 }, { x: 610, w: 32, h: 35 }, { x: 830, w: 32, h: 21 }, { x: 880, w: 32, h: 35 }, { x: 1010, w: 48, h: 21 }, { x: 1080, w: 48, h: 35 } ],
     pickups: [ { x: 316, h: 35, coins: 25 }, { x: 626, h: 35, coins: 25 }, { x: 896, h: 35, coins: 30 }, { x: 1104, h: 35, coins: 30 } ],
     exit: ['このさき', 'じょうもん'],
@@ -565,7 +650,7 @@ const STAGES = [
   {
     id: 'joumon', name: 'じょうもん', width: 1300, theme: 'canyon', world: 2, highJump: true, bench: 660,
     layers: 'assets/w3/joumon', tiles: 'assets/w3/joumon',
-    spawns: [ { sp: 'naiton', x: 260, lv: 21, evo: 1 }, { sp: 'ressan', x: 450, lv: 22, evo: 1 }, { sp: 'haririn', x: 780, lv: 22, evo: 1 }, { sp: 'naiton', x: 980, lv: 23, evo: 1 }, { sp: 'pandan', x: 1160, lv: 23, evo: 1 }, { sp: 'chouran', x: 286, lv: 22, evo: 1, plat: 1 }, { sp: 'koumon', x: 772, lv: 23, evo: 1, plat: 4 } ],
+    spawns: [ { sp: 'saiguard', x: 260, lv: 21 }, { sp: 'wanigard', x: 450, lv: 22, evo: 1 }, { sp: 'haririn', x: 780, lv: 22, evo: 1 }, { sp: 'toragar', x: 980, lv: 23 }, { sp: 'lioneru', x: 1160, lv: 23, evo: 1 }, { sp: 'chouran', x: 286, lv: 22, evo: 1, plat: 1 }, { sp: 'koumon', x: 772, lv: 23, evo: 1, plat: 4 } ],
     plats: [ { x: 200, w: 32, h: 21 }, { x: 262, w: 48, h: 35 }, { x: 520, w: 48, h: 21 }, { x: 590, w: 32, h: 35 }, { x: 748, w: 48, h: 35 }, { x: 700, w: 32, h: 21 }, { x: 1040, w: 64, h: 21 }, { x: 1120, w: 32, h: 35 } ],
     pickups: [ { x: 286, h: 35, coins: 30 }, { x: 606, h: 35, coins: 30 }, { x: 772, h: 35, coins: 30 }, { x: 1136, h: 35, coins: 35 } ],
     exit: ['このさき', 'しろの なか'],
@@ -573,7 +658,7 @@ const STAGES = [
   {
     id: 'shironaka', name: 'しろの なか', width: 1300, theme: 'night', world: 2, highJump: true, bench: 600,
     layers: 'assets/w3/shironaka', tiles: 'assets/w3/shironaka',
-    spawns: [ { sp: 'naiton', x: 250, lv: 23, evo: 1 }, { sp: 'koumon', x: 420, lv: 24, evo: 1 }, { sp: 'kujakun', x: 700, lv: 24, evo: 1 }, { sp: 'naiton', x: 900, lv: 25, evo: 1 }, { sp: 'oguriking', x: 1180, lv: 30, boss: 1 }, { sp: 'hakuchon', x: 548, lv: 24, evo: 1, plat: 2 }, { sp: 'naiton', x: 826, lv: 26, evo: 1, plat: 5 } ],
+    spawns: [ { sp: 'toragar', x: 250, lv: 23, evo: 1 }, { sp: 'wolfun', x: 420, lv: 24, evo: 1 }, { sp: 'saiguard', x: 700, lv: 24, evo: 1 }, { sp: 'goremun', x: 900, lv: 25 }, { sp: 'oguriking', x: 1180, lv: 30, boss: 1 }, { sp: 'hakuchon', x: 548, lv: 24, evo: 1, plat: 2 }, { sp: 'wanigard', x: 826, lv: 26, evo: 1, plat: 5 } ],
     plats: [ { x: 160, w: 48, h: 21 }, { x: 320, w: 32, h: 35 }, { x: 516, w: 64, h: 21 }, { x: 610, w: 32, h: 35 }, { x: 760, w: 32, h: 21 }, { x: 802, w: 48, h: 35 }, { x: 960, w: 48, h: 21 } ],
     pickups: [ { x: 336, h: 35, coins: 35 }, { x: 626, h: 35, coins: 35 }, { x: 826, h: 35, coins: 40 } ],
     exit: ['このさき', 'じゅんびちゅう'],
