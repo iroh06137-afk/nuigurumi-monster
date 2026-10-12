@@ -2173,6 +2173,12 @@
     const p = e.style === 'fast' ? 0.12 : e.style === 'power' ? 0.6 : 0.3;
     return rand() < p ? 'strong' : 'attack';
   }
+  // a move with fxFrom: '<sp>' plays that species' pixel-art special fx (e.g. オグリキング's strong パンチングパンチ = kangarun's)
+  function* strikeOrArt(attA, att, defA, def, mv, kind) {
+    const src = mv.fxFrom;
+    if (src && typeof FX_ART !== 'undefined' && FX_ART[src] && FXIMG[src] && SPR[attA.key] && SPR[attA.key].attack) yield* artStrike(attA, att, defA, def, mv, FX_ART[src], src);
+    else yield* strike(attA, att, defA, def, mv, kind);
+  }
   function* strike(attA, att, defA, def, mv, kind) {
     const dir = Math.sign(defA.x - attA.x) || 1;
     const big = kind === 'strong' || kind === 'special';
@@ -2234,8 +2240,8 @@
     yield* wait(0.35);
   }
   // pixel-art special: plays the attacker's cast frames, launches shots on fire steps, holds until they land
-  function* artStrike(attA, att, defA, def, mv, A) {
-    const dir = Math.sign(defA.x - attA.x) || 1, C = A.cast, frames = SPR[attA.key].attack, img0 = FXIMG[att.sp];
+  function* artStrike(attA, att, defA, def, mv, A, fxSp) {
+    const dir = Math.sign(defA.x - attA.x) || 1, C = A.cast, frames = SPR[attA.key].attack, img0 = FXIMG[fxSp || att.sp];
     const sup = !!mv.super, img = { shot: (sup && img0.shotS) || img0.shot, hit: (sup && img0.hitS) || img0.hit };
     const scS = sup && !img0.shotS ? mv.scale || 1.75 : 1, scH = sup && !img0.hitS ? mv.scale || 1.75 : 1;
     const hits = C.fire.length, total = Math.max(8, calcDmg(att, def, mv));
@@ -2358,7 +2364,7 @@
     a.st -= COST[kind];
     B.msg = `${a.name}の ${mv.name}！`;
     banner(B.msg, 1.3);
-    yield* strike(comp, a, e, e, mv, kind);
+    yield* strikeOrArt(comp, a, e, e, mv, kind);
     if (e.hp <= 0) yield* enemyFaint();
   }
   function* enemyAttack(kind) {
@@ -2368,7 +2374,7 @@
     e.st -= COST[kind];
     B.msg = `${e.name}の ${mv.name}！`;
     banner('あいての ' + B.msg, 1.3);
-    yield* strike(e, e, comp, a, mv, kind);
+    yield* strikeOrArt(e, e, comp, a, mv, kind);
     if (a.hp <= 0) yield* allyFaint();
   }
   function* enemyTurn() {
@@ -2383,7 +2389,7 @@
     e.st -= COST[kind];
     B.msg = `${e.name}の ${mv.name}！`;
     banner(B.msg, 1.3);
-    yield* strike(e, e, comp, a, mv, kind);
+    yield* strikeOrArt(e, e, comp, a, mv, kind);
     if (a.hp <= 0) yield* allyFaint();
   }
   // versus: the other side's ガード / ひっさつ

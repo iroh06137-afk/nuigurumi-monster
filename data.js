@@ -367,7 +367,7 @@ const EVO_MOVES = {
   kujakun: { special: { name: 'めだまフラッシュ', fx: 'orb', col: '#40c0a0' } },
   koumon: { special: { name: 'ちょうおんぱカッター', fx: 'wave', col: '#a080ff' } },
   naiton: { special: { name: 'ナイトブレイド', fx: 'fire', col: '#ffd040' } },
-  oguriking: { strong: { name: 'パンチングパンチ' }, special: { name: 'はかいおぐり波', fx: 'beam', col: '#ffd23a' },
+  oguriking: { strong: { name: 'パンチングパンチ', fxFrom: 'kangarun' }, special: { name: 'はかいおぐり波', fx: 'beam', col: '#ffd23a' },
     // at hp <= half: 超はかいおぐり波 (power x mult). fx art: assets/fx/oguriking_shot_super.png / _hit_super.png if present in ASSET_DATA, else the normal fx drawn x scale
     super: { name: '超はかいおぐり波', mult: 1.5, scale: 1.75, col: '#ff7aff' } },
   shouko:    { special: { name: 'バン', fx: 'orb', col: '#ffd070' } },  // ★ big-bang energy ball; dedicated fx art coming from ドット絵作成くん
