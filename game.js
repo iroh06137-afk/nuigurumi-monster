@@ -455,6 +455,55 @@
     }, wait);
   }
 
+  // ---- Google アカウント連携 (supabase-js; optional: game runs without it) ----
+  const AUTH = { sb: null, user: null, done: null };
+  try {
+    if (window.supabase && window.supabase.createClient)
+      AUTH.sb = window.supabase.createClient(CLOUD.url, CLOUD.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' } });
+  } catch (e) { AUTH.sb = null; }
+  function acctCheck(user) {
+    if (!AUTH.sb || !user || AUTH.done === user.id) return;
+    AUTH.done = user.id; AUTH.user = user;
+    AUTH.sb.rpc('account_get').then(({ data: r, error }) => {
+      if (error) throw error;
+      if (!r || !r.id) {
+        return AUTH.sb.rpc('account_link', { p_id: cloudId(), p_secret: cloudSecret() }).then(({ data: ok, error: e2 }) => {
+          if (e2) throw e2;
+          banner(ok ? 'アカウントと れんけい した！' : 'れんけい できなかった', 2.2);
+        });
+      }
+      if (r.id === cloudId()) { banner('ログイン した', 1.6); return; }
+      if (!r.secret || !r.data) { banner('ログイン した', 1.6); return; }
+      if (!G.hk) openHk();
+      G.hk = Object.assign(G.hk, { mode: 'acct', sel: 1, got: r });
+    }).catch(() => banner('アカウントの つうしんに しっぱい', 2.2));
+  }
+  if (AUTH.sb) {
+    try {
+      AUTH.sb.auth.onAuthStateChange((ev, ses) => {
+        const u = ses && ses.user;
+        if (ev === 'SIGNED_OUT' || !u) { AUTH.user = null; AUTH.done = null; return; }
+        AUTH.user = u;
+        if (ev === 'SIGNED_IN' || ev === 'INITIAL_SESSION') setTimeout(() => acctCheck(u), 0);
+      });
+      AUTH.sb.auth.getSession().then(({ data }) => { const u = data && data.session && data.session.user; if (u) acctCheck(u); }).catch(() => {});
+    } catch (e) {}
+  }
+  function hkLogin() {
+    if (!AUTH.sb) { hkMsg(['ログインの よみこみに', 'しっぱい したよ']); return; }
+    const h = G.hk; h.mode = 'busy'; h.lines = ['じゅんびちゅう…'];
+    if (!readSave()) persist();
+    clearTimeout(CLOUD.t); CLOUD.last = Date.now();
+    const go = () => AUTH.sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } })
+      .then(({ error }) => { if (error) throw error; }).catch(() => { if (G.hk) hkMsg(['ログイン できなかった']); });
+    cloudPut().then(ok => { if (!ok) throw new Error('put'); return go(); })
+      .catch(e => { if (G.hk) hkMsg(e && e.message === 'put' ? ['クラウドに おけなかった', 'もういちど ためしてね'] : [hkErr(e)]); });
+  }
+  function hkLogout() {
+    const h = G.hk; h.mode = 'busy'; h.lines = ['ログアウトちゅう…'];
+    AUTH.sb.auth.signOut().catch(() => {}).then(() => { AUTH.user = null; AUTH.done = null; if (G.hk) hkMsg(['ログアウト したよ', 'データは この きかいに', 'のこってるよ']); });
+  }
+
   // ---- ひきつぎ (transfer code): overlay usable from the title setup and the field bag ----
   const HK = { x: 18, y: 8, w: 124, h: 70, row0: 53, rh: 8 };
   function openHk() {
@@ -469,12 +518,14 @@
   }
   function hkRows() {
     const h = G.hk;
-    if (h.mode === 'menu') return ['issue', 'enter', 'close'];
+    if (h.mode === 'menu') return ['issue', 'enter', AUTH.user ? 'logout' : 'login', 'close'];
+    if (h.mode === 'acct') return ['ause', 'akeep'];
     if (h.mode === 'ask') return ['yes', 'no'];
     if (h.mode === 'busy') return [];
     return ['close'];
   }
-  const HK_LAB = { issue: 'コードを はっこう', enter: 'コードを いれる', close: 'とじる', yes: 'はい うわがき する', no: 'やめる' };
+  const HK_LAB = { issue: 'コードを はっこう', enter: 'コードを いれる', close: 'とじる', yes: 'はい うわがき する', no: 'やめる',
+    login: 'Googleで ログイン', logout: 'ログアウト', ause: 'アカウントの データで あそぶ', akeep: 'いまの データを つかう' };
   const hkErr = e => (e && /http/.test(e.message || '')) ? 'サーバーで エラーが でた' : 'つうしん できない…';
   function hkMsg(lines) { G.hk = Object.assign(G.hk || {}, { mode: 'msg', sel: 0, lines }); }
   function hkIssue() {
@@ -504,7 +555,7 @@
       G.hk = Object.assign(G.hk, { mode: 'ask', sel: 1, got: r });
     }).catch(e => { if (G.hk) hkMsg([hkErr(e)]); });
   }
-  function hkApply() {
+  function hkApply(msg) {
     const r = G.hk.got;
     try {
       localStorage.setItem('nm_pid', r.id); localStorage.setItem('nm_sec', r.secret);
@@ -512,7 +563,7 @@
       const hr = r.data.hero; if (hr) localStorage.setItem(HERO_KEY, JSON.stringify(hr));
     } catch (e) { hkMsg(['ほぞん できなかった']); return; }
     clearTimeout(CLOUD.t);
-    G.hk = { mode: 'busy', sel: 0, lines: ['ひきつぎ できた！'] };
+    G.hk = { mode: 'busy', sel: 0, lines: [msg || 'ひきつぎ できた！'] };
     SFX.level();
     setTimeout(() => location.reload(), 900);
   }
@@ -523,6 +574,10 @@
     if (k === 'issue') { SFX.blip(); hkIssue(); return; }
     if (k === 'enter') { SFX.blip(); hkEnter(); return; }
     if (k === 'yes') { hkApply(); return; }
+    if (k === 'login') { SFX.blip(); hkLogin(); return; }
+    if (k === 'logout') { SFX.blip(); hkLogout(); return; }
+    if (k === 'ause') { hkApply('よみこみちゅう…'); return; }
+    if (k === 'akeep') { SFX.blip(); hkMsg(['いまの データで あそぶよ', 'アカウントの データは', 'そのまま のこるよ']); return; }
     if (k === 'no') { h.mode = 'menu'; h.sel = 1; h.got = null; SFX.blip(); }
   }
   function hkKey(code) {
@@ -530,11 +585,12 @@
     if (h.mode === 'busy') return;
     if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA'].includes(code) && rows.length) { h.sel = (h.sel + rows.length - 1) % rows.length; SFX.blip(); }
     else if (['ArrowDown', 'KeyS', 'Tab', 'ArrowRight', 'KeyD', 'KeyC'].includes(code) && rows.length) { h.sel = (h.sel + 1) % rows.length; SFX.blip(); }
-    else if (['Escape', 'KeyX', 'Backspace'].includes(code)) { if (h.mode === 'ask') { h.mode = 'menu'; h.sel = 1; } else if (h.mode === 'menu') closeHk(); else { h.mode = 'menu'; h.sel = 0; } }
+    else if (['Escape', 'KeyX', 'Backspace'].includes(code)) { if (h.mode === 'ask') { h.mode = 'menu'; h.sel = 1; } else if (h.mode === 'acct') { h.sel = 1; hkPick(); } else if (h.mode === 'menu') closeHk(); else { h.mode = 'menu'; h.sel = 0; } }
     else if (['Enter', 'NumpadEnter', 'Space', 'KeyE', 'Digit1'].includes(code)) hkPick();
   }
+  const hkRow0 = () => Math.min(HK.row0, HK.y + HK.h - 1 - hkRows().length * HK.rh);
   function hkRowAt(x, y) {
-    const rows = hkRows(), i = Math.floor((y - HK.row0 + 1) / HK.rh);
+    const rows = hkRows(), i = Math.floor((y - hkRow0() + 1) / HK.rh);
     return x >= HK.x && x < HK.x + HK.w && i >= 0 && i < rows.length ? i : -1;
   }
   const hkTarget = e => G.hk && !(e.target.closest && (e.target.closest('.ctl') || e.target.closest('#nameBox')));
@@ -544,14 +600,14 @@
     e.stopImmediatePropagation();
     const h = G.hk; if (h.mode === 'busy') return;
     const [x, y] = logicalPos(e);
-    if (!inRect(x, y, HK)) { if (h.mode !== 'ask') closeHk(); return; }
+    if (!inRect(x, y, HK)) { if (h.mode !== 'ask' && h.mode !== 'acct') closeHk(); return; }
     const i = hkRowAt(x, y); if (i < 0) return;
     h.sel = i; hkPick();
   }, true);
   function drawHk() {
     const h = G.hk; if (!h) return;
     textOps.length = 0;   // hi-res text is flushed last: drop what sits under the overlay
-    const { x, y, w, h: hh, row0, rh } = HK;
+    const { x, y, w, h: hh, rh } = HK, row0 = hkRow0();
     g.globalAlpha = 0.5; rect(0, 0, W, H, '#14182a'); g.globalAlpha = 1;
     rect(x + 1, y, w - 2, hh, '#5a3418'); rect(x, y + 1, w, hh - 2, '#5a3418');
     rect(x + 1, y + 1, w - 2, hh - 2, '#fff8e0');
@@ -562,6 +618,7 @@
       T('ほかの きかいで つづきが できる', cx, y + 15, { al: 'center' });
       T('コードで クラウドに セーブした', cx, y + 22, { al: 'center', c: '#7a5a30' });
       T('データを はこぶよ', cx, y + 29, { al: 'center', c: '#7a5a30' });
+      if (AUTH.user) T('Googleで ログインちゅう', cx, y + 36, { al: 'center', c: '#2a8a3a' });
     } else if (h.mode === 'code') {
       T(h.code, cx, y + 14, { size: 8, c: '#3c6ad8', al: 'center' });
       T('7にち いない・1かいだけ つかえる', cx, y + 28, { al: 'center' });
@@ -571,6 +628,11 @@
       T(`${(d.hero && d.hero.n) || ''} ${st ? st.name : ''} Lv${lv}`, cx, y + 14, { al: 'center', c: '#3c6ad8' });
       T('いまの データは うわがき', cx, y + 22, { al: 'center', c: '#d0302a' });
       T('されるよ いい？', cx, y + 29, { al: 'center', c: '#d0302a' });
+    } else if (h.mode === 'acct') {
+      const d = h.got.data || {}, st = STAGES[d.stage | 0], lv = (d.party && d.party[0] && d.party[0].lv) || 1;
+      T('アカウントの データが あるよ', cx, y + 14, { al: 'center' });
+      T(`${(d.hero && d.hero.n) || ''} ${st ? st.name : ''} Lv${lv}`, cx, y + 22, { al: 'center', c: '#3c6ad8' });
+      T('どっちで あそぶ？', cx, y + 30, { al: 'center', c: '#7a5a30' });
     } else {
       (h.lines || []).forEach((l, i) => T(l, cx, y + 17 + i * 7, { al: 'center', c: h.mode === 'msg' ? '#d0302a' : '#4a2c12' }));
     }
@@ -578,7 +640,7 @@
       const yy = row0 + i * rh, sel = i === h.sel;
       if (sel) rect(x + 3, yy - 1, w - 6, rh - 1, '#ffe98a');
       if (sel && Math.floor(G.t * 4) % 2) drawPattern(['#..', '##.', '###', '##.', '#..'], x + 5, yy, { '#': '#c0502a' });
-      T(HK_LAB[k], x + 10, yy, { c: k === 'yes' ? '#d0302a' : k === 'issue' || k === 'enter' ? '#3c6ad8' : '#4a2c12' });
+      T(HK_LAB[k], x + 10, yy, { c: k === 'yes' ? '#d0302a' : k === 'login' || k === 'ause' ? '#2a8a3a' : k === 'issue' || k === 'enter' ? '#3c6ad8' : '#4a2c12' });
     });
   }
   function readSave() {
@@ -3399,6 +3461,6 @@
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, cloudPut, saveObj, get hk() { return G.hk; } };
+  window.NM = { G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();
