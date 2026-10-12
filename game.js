@@ -1115,7 +1115,8 @@
     if (st.layers) loadLayers(st);
     G.bg = G.bgCache[st.id] || (G.bgCache[st.id] = BG.build(st.width, st.theme, st.theme === 'town' && PROPS.town_road ? Object.assign({}, PROPS, { road: PROPS.town_road }) : PROPS));
     spawnWilds();
-    G.npcs = (st.npcs || []).map(n => {
+    const oiN = STAGES.findIndex(x => x.id === 'oshiro'), peaceN = oiN >= 0 && G.cleared.includes(oiN);
+    G.npcs = (st.npcs || []).filter(n => n.req !== 'peace' || peaceN).map(n => {
       const d = n.rival ? Object.assign({}, n, n.rival[(G.gender | 0) === 1 ? 'boy' : 'girl'], { name: 'ライバルの ' + rName() }) : n;
       return Object.assign(newActor(n.x, -1, d.look === 'player' ? 'player' : 'npc_' + d.look), { def: d });
     });
@@ -1536,7 +1537,7 @@
     // after あかつち谷 (world 2 open) every town trainer comes back a bit stronger: +lv, and lv10+ members evolve
     // after もりの おしろ: +townBoost2 lv and each trainer brings their extra plush too
     const oi = STAGES.findIndex(st => st.id === 'oshiro'), late = oi >= 0 && G.cleared.includes(oi);
-    const boost = G.world === 0 && G.unl && G.unl[1] > 0 ? (late ? (TUNING.townBoost2 || 12) : (TUNING.townBoost || 6)) : 0;
+    const boost = !bt.noBoost && G.world === 0 && G.unl && G.unl[1] > 0 ? (late ? (TUNING.townBoost2 || 12) : (TUNING.townBoost || 6)) : 0;
     const base = (bt.team || [{ sp: bt.sp, lv: 1, mul: bt.mul }]);
     const team = (late && bt.extra ? base.slice(0, -1).concat(bt.extra, base.slice(-1)) : base).slice(0, TUNING.partyMax || 4).map(t => {
       if (!boost) return t;
@@ -3421,7 +3422,7 @@
 
 
   // placeholder town people: the boy with his blue clothes recolored (replaced once the human sprites are approved)
-  const NPC_LOOKS = { girl: [255, 111, 168], mushitori: [86, 180, 70], oneesan: [160, 96, 214], karate: [236, 236, 228], gaki: [236, 140, 40] };
+  const NPC_LOOKS = { girl: [255, 111, 168], mushitori: [86, 180, 70], oneesan: [160, 96, 214], karate: [236, 236, 228], gaki: [236, 140, 40], akira: [70, 70, 110] };
   function makeNpcSprites() {
     const src = SPR.player; if (!src) return;
     for (const [look, col] of Object.entries(NPC_LOOKS)) {

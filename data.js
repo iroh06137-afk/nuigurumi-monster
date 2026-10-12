@@ -476,6 +476,10 @@ const STAGES = [
       { id: 'daichi', x: 980, name: 'ガキだいしょう ダイチ', look: 'gaki', fear: [['お おれは こわくなんか ないぞ！', 'もりの おしろなんて…'], ['…でも ちかよるのは', 'やめとけ ほんとに'], ['こわくない ところ みせてやる！', 'しょうぶ しろ！']], peace: [['おまえ あの おしろに', 'ほんとに いったのか…！'], ['ちぇっ かっこいいじゃねえか', 'おれさまとも しょうぶしろ！']],  battle: { style: 'trick', extra: [{ sp: 'naiton', lv: 13 }], team: [{ sp: 'kitsunen', lv: 9 }, { sp: 'fukuron', lv: 10 }, { sp: 'tanukin', lv: 12, evo: 1 }], reward: 160 },
         lines: [['この まちで いちばん つよいのは', 'おれさまの タヌキンだ！'], ['まちを でる まえに', 'おれと しょうぶ しろ！']],
         after: [['ちぇっ… おまえ つよいな', 'さきへ いっていいぞ']] },
+      // town boss: shows up only after しょうこ is beaten (req: 'peace'). ★ team/lines provisional; sprite by ドット絵作成くん (placeholder look)
+      { id: 'akira', x: 1100, req: 'peace', name: 'まちの ボス アキラ', look: 'akira', battle: { style: 'trick', team: [{ sp: 'kujakun', lv: 27, evo: 1 }, { sp: 'ressan', lv: 27, evo: 1 }, { sp: 'tsumaguro', lv: 28, evo: 1 }, { sp: 'naiton', lv: 30, evo: 1 }], reward: 600, noBoost: true },
+        lines: [['きみが しょうこを たおした', 'うわさの トレーナーか'], ['おしろが しずかに なって', 'ようやく ほんきが だせる'], ['この まちの ボスは おれだ', 'しょうぶ してもらうぞ！']],
+        after: [['…みとめるよ', 'きみが いちばん つよい'], ['また いつでも こい', 'つぎは まけない']] },
     ],
     decor: [ { k: 'lamp', x: 60 }, { k: 'tree', x: 160 }, { k: 'lamp', x: 270 }, { k: 'bush', x: 360 }, { k: 'tree', x: 475 }, { k: 'lamp', x: 580 },
              { k: 'bush', x: 740 }, { k: 'lamp', x: 900 }, { k: 'tree', x: 1060 }, { k: 'lamp', x: 1120 } ],
