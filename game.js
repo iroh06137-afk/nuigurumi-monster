@@ -461,6 +461,8 @@
     if (window.supabase && window.supabase.createClient)
       AUTH.sb = window.supabase.createClient(CLOUD.url, CLOUD.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' } });
   } catch (e) { AUTH.sb = null; }
+  // account messages often arrive on the title screen (no banner there): hold them until the field / map shows
+  function abanner(t, d) { if (G.state === 'field' || G.state === 'map') banner(t, d); else G.pendBan = [t, d]; }
   function acctCheck(user) {
     if (!AUTH.sb || !user || AUTH.done === user.id) return;
     AUTH.done = user.id; AUTH.user = user;
@@ -469,14 +471,14 @@
       if (!r || !r.id) {
         return AUTH.sb.rpc('account_link', { p_id: cloudId(), p_secret: cloudSecret() }).then(({ data: ok, error: e2 }) => {
           if (e2) throw e2;
-          banner(ok ? 'アカウントと れんけい した！' : 'れんけい できなかった', 2.2);
+          abanner(ok ? 'アカウントと れんけい した！' : 'れんけい できなかった', 2.2);
         });
       }
-      if (r.id === cloudId()) { banner('ログイン した', 1.6); return; }
-      if (!r.secret || !r.data) { banner('ログイン した', 1.6); return; }
+      if (r.id === cloudId()) { abanner('ログイン した', 1.6); return; }
+      if (!r.secret || !r.data) { abanner('ログイン した', 1.6); return; }
       if (!G.hk) openHk();
       G.hk = Object.assign(G.hk, { mode: 'acct', sel: 1, got: r });
-    }).catch(() => banner('アカウントの つうしんに しっぱい', 2.2));
+    }).catch(() => abanner('アカウントの つうしんに しっぱい', 2.2));
   }
   if (AUTH.sb) {
     try {
@@ -2712,6 +2714,7 @@
     if (G.flashT > 0) G.flashT -= dt;
     if (G.vs) { G.vs.t += dt; if (G.vs.t > 1.1) G.vs = null; }
     if (G.banner) { G.banner.t -= dt; if (G.banner.t <= 0) G.banner = null; }
+    if (G.pendBan && (G.state === 'field' || G.state === 'map')) { banner(G.pendBan[0], G.pendBan[1] + 1); G.pendBan = null; }
     G.fade = clamp(G.fade + G.fadeSpeed * dt, 0, 1);
     for (const p of G.particles) {
       if (p.type === 'heartTo') {
