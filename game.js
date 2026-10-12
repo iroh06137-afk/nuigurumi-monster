@@ -929,8 +929,9 @@
     const base = SPECIES[m.sp].moves, ev = m.evo && typeof EVO_MOVES !== 'undefined' && EVO_MOVES[m.sp];
     return ev ? { attack: base.attack, strong: Object.assign({}, base.strong, ev.strong) } : base;
   }
+  const canSp = m => !!(m && (m.evo || (SPECIES[m.sp] && SPECIES[m.sp].noEvo)));   // evolved, or a never-evolving species (own special at base form)
   function specialOf(m) {
-    const st = movesOf(m).strong, ev = m.evo && typeof EVO_MOVES !== 'undefined' && EVO_MOVES[m.sp];
+    const st = movesOf(m).strong, ev = canSp(m) && typeof EVO_MOVES !== 'undefined' && EVO_MOVES[m.sp];
     if (ev && ev.special) {
       const sp = Object.assign({ power: Math.round(st.power * 2), acc: 1 }, ev.special);
       if (ev.super && m.hp > 0 && m.hp <= m.maxHp / 2) return Object.assign(sp, { name: ev.super.name, power: Math.round(sp.power * (ev.super.mult || 1.5)), col: ev.super.col || sp.col, super: true, scale: ev.super.scale || 1.75 });
@@ -1082,11 +1083,11 @@
     G.box = [];
     if (s && Array.isArray(s.party) && s.party.length) {
       G.party = s.party.filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.hp, {
-        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.evo && m.name ? m.name : SPECIES[m.sp].name,
+        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, evo: m.evo && !SPECIES[m.sp].noEvo ? 1 : 0, name: m.evo && m.name && !SPECIES[m.sp].noEvo ? m.name : SPECIES[m.sp].name,
       }));
       if (!G.party.length) G.party = [newMember('goririn')];
       G.box = (Array.isArray(s.box) ? s.box : []).filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.hp, {
-        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.evo && m.name ? m.name : SPECIES[m.sp].name,
+        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, evo: m.evo && !SPECIES[m.sp].noEvo ? 1 : 0, name: m.evo && m.name && !SPECIES[m.sp].noEvo ? m.name : SPECIES[m.sp].name,
       }));
       G.active = Math.max(0, Math.min(s.active | 0, G.party.length - 1));
       G.unlocked = Math.max(1, s.unlocked | 0);
@@ -1151,7 +1152,7 @@
     const s = readSave();
     if (s && Array.isArray(s.party) && s.party.length) {
       G.party = s.party.filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.hp != null ? m.hp : m.maxHp, {
-        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, evo: m.evo ? 1 : 0, name: m.evo && m.name ? m.name : SPECIES[m.sp].name,
+        maxHp: m.maxHp, atk: m.atk, def: m.def, spd: m.spd, lv: capLv(m.lv), xp: m.xp || 0, evo: m.evo && !SPECIES[m.sp].noEvo ? 1 : 0, name: m.evo && m.name && !SPECIES[m.sp].noEvo ? m.name : SPECIES[m.sp].name,
       }));
     }
     if (!G.party.length) G.party = [newMember('goririn')];
@@ -1222,7 +1223,7 @@
   function vsMember(t) {
     t = t || {}; const sp = SPECIES[t.sp] && !SPECIES[t.sp].boss ? t.sp : 'goririn', d = SPECIES[sp], n = (v, f) => Math.max(1, Math.min(9999, Math.round(+v) || f));
     const hp = n(t.maxHp, d.hp);
-    return { sp, name: String(t.name || d.name).slice(0, 12), lv: capLv(n(t.lv, 1)), evo: t.evo ? 1 : 0, maxHp: hp, hp, atk: n(t.atk, d.atk), def: n(t.def, d.def), spd: n(t.spd, d.spd), st: 0 };
+    return { sp, name: String(t.name || d.name).slice(0, 12), lv: capLv(n(t.lv, 1)), evo: t.evo && !SPECIES[sp].noEvo ? 1 : 0, maxHp: hp, hp, atk: n(t.atk, d.atk), def: n(t.def, d.def), spd: n(t.spd, d.spd), st: 0 };
   }
   // vs CPU: the picked species leads, the rest are random; same size and levels as your party
   function cpuTeam(first) {
@@ -1537,7 +1538,7 @@
     const m = newMember(t.sp), lv = capLv(t.lv), mul = t.mul || 1, style = t.style;
     for (let l = 2; l <= lv; l++) { m.maxHp += 4; m.atk += 1; m.def += 1; if (l % 2 === 0) m.spd += 1; }
     m.maxHp = Math.round(m.maxHp * mul); m.atk = Math.round(m.atk * mul); m.def = Math.round(m.def * mul);
-    const ev = t.evo && typeof EVOLVE !== 'undefined' && EVOLVE[t.sp];
+    const ev = t.evo && !SPECIES[t.sp].noEvo && typeof EVOLVE !== 'undefined' && EVOLVE[t.sp];
     if (ev) { m.evo = 1; if (ev.name) m.name = ev.name; m.maxHp += ev.hp || 0; m.atk += ev.atk || 0; m.def += ev.def || 0; m.spd += ev.spd || 0; }
     if (style === 'fast') m.spd += 2;
     if (style === 'guard') m.def += 2;
@@ -2157,7 +2158,7 @@
     while (G.cutin && G.cutin.t < G.cutin.dur) yield;
     G.cutin = null;
     banner(`${a.name}の ${mv.name}！`, 1.3);
-    const art = mv.fx && a.evo && typeof FX_ART !== 'undefined' && FX_ART[a.sp] && FXIMG[a.sp] && SPR[comp.key] && SPR[comp.key].attack;
+    const art = mv.fx && canSp(a) && typeof FX_ART !== 'undefined' && FX_ART[a.sp] && FXIMG[a.sp] && SPR[comp.key] && (SPR[comp.key].attack || SPECIES[a.sp].noEvo);
     if (art) yield* artStrike(comp, a, e, e, mv, FX_ART[a.sp]); else if (mv.fx) yield* fxStrike(comp, a, e, e, mv); else yield* strike(comp, a, e, e, mv, 'special');
     if (e.hp <= 0) yield* enemyFaint();
   }
@@ -2274,7 +2275,7 @@
     const hold = function* (sec) { let t = 0; while (t < sec) { tick(); yield; t += DT; } };
     for (let k = 0; k < C.order.length; k++) {
       const fi = C.order[k];
-      attA.pose = frames[fi];
+      attA.pose = frames ? frames[fi] : null;   // no cast art (base-form noEvo plush): fire from the standing sprite
       if (C.fire.includes(k)) launch(fi, C.fire.indexOf(k));
       yield* hold(C.dur[fi] / 1000);
       if (k === C.hold) while (shots.some(f => !f.landed) && def.hp > 0) { tick(); yield; }
@@ -2378,7 +2379,7 @@
     const early = e.style === 'trick';
     const ev2 = typeof EVO_MOVES !== 'undefined' && EVO_MOVES[e.sp];
     if (e.evo && ev2 && ev2.super && e.spUsed && !e.spSuper && e.hp > 0 && e.hp <= e.maxHp / 2 && rand() < 0.6) { e.spSuper = true; yield* enemySpecial(); return; }
-    if (e.evo && !e.spUsed && e.hp < e.maxHp * (early ? 1.01 : 0.75) && rand() < (early ? 0.6 : 0.5)) { yield* enemySpecial(); return; }
+    if (canSp(e) && !e.spUsed && e.hp < e.maxHp * (early ? 1.01 : 0.75) && rand() < (early ? 0.6 : 0.5)) { yield* enemySpecial(); return; }
     const kind = aiChoose(e, a);
     if (kind === 'guard') { e.st -= COST.guard; e.guard = true; B.msg = `${e.name}は みを まもっている！`; banner(B.msg, 1.2); burst(e.x, GROUND - 16, 'spark', 6, '#a8d8ff'); yield* wait(0.6); return; }
     const mv = movesOf(e)[kind];
@@ -2404,7 +2405,7 @@
     while (G.cutin && G.cutin.t < G.cutin.dur) yield;
     G.cutin = null;
     B.msg = `${e.name}の ${mv.name}！`; banner('あいての ' + B.msg, 1.3);
-    const art = mv.fx && e.evo && typeof FX_ART !== 'undefined' && FX_ART[e.sp] && FXIMG[e.sp] && SPR[e.key] && SPR[e.key].attack;
+    const art = mv.fx && canSp(e) && typeof FX_ART !== 'undefined' && FX_ART[e.sp] && FXIMG[e.sp] && SPR[e.key] && (SPR[e.key].attack || SPECIES[e.sp].noEvo);
     if (art) yield* artStrike(e, e, comp, a, mv, FX_ART[e.sp]); else if (mv.fx) yield* fxStrike(e, e, comp, a, mv); else yield* strike(e, e, comp, a, mv, 'special');
     if (a.hp <= 0) yield* allyFaint();
   }
@@ -2415,7 +2416,7 @@
     B.msg = `${e.name}の ${mv.name}！`;
     banner('あいての ' + B.msg, 1.4);
     SFX.battleStart(); yield* wait(0.5);
-    const art = mv.fx && typeof FX_ART !== 'undefined' && FX_ART[e.sp] && FXIMG[e.sp] && SPR[e.key] && SPR[e.key].attack;
+    const art = mv.fx && typeof FX_ART !== 'undefined' && FX_ART[e.sp] && FXIMG[e.sp] && SPR[e.key] && (SPR[e.key].attack || SPECIES[e.sp].noEvo);
     if (art) yield* artStrike(e, e, comp, a, mv, FX_ART[e.sp]); else if (mv.fx) yield* fxStrike(e, e, comp, a, mv); else yield* strike(e, e, comp, a, mv, 'special');
     if (a.hp <= 0) yield* allyFaint();
   }
