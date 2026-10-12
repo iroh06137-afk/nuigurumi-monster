@@ -1496,8 +1496,11 @@
     if (n.type === 'npc') {
       const d = n.a.def;
       // town trainers: one battle per visit; leaving and re-entering the stage allows a rematch (half coins)
-      if (d.battle && !G.fought.includes(d.id)) say(d.name, G.beaten.includes(d.id) ? [['また しょうぶだ！']].concat(d.lines.slice(-1)) : d.lines, () => startTrainer(n.a));
-      else say(d.name, (d.battle && d.after) || d.lines);
+      // town mood: after あかつち谷 everyone fears the forest castle; after しょうこ is beaten they are relieved
+      const oi = STAGES.findIndex(st => st.id === 'oshiro'), mood = oi >= 0 && G.cleared.includes(oi) ? 'peace' : (G.unl && G.unl[1] > 0 ? 'fear' : null);
+      const lines = (mood && d[mood]) || d.lines;
+      if (d.battle && !G.fought.includes(d.id)) say(d.name, G.beaten.includes(d.id) ? [['また しょうぶだ！']].concat(lines.slice(-1)) : lines, () => startTrainer(n.a));
+      else say(d.name, (d.battle && d.after) || lines);
       return;
     }
     const b = n.b;
