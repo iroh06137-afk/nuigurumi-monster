@@ -616,9 +616,13 @@
     const cx = x + w / 2;
     if (h.mode === 'menu') {
       T('ほかの きかいで つづきが できる', cx, y + 15, { al: 'center' });
-      T('コードで クラウドに セーブした', cx, y + 22, { al: 'center', c: '#7a5a30' });
-      T('データを はこぶよ', cx, y + 29, { al: 'center', c: '#7a5a30' });
-      if (AUTH.user) T('Googleで ログインちゅう', cx, y + 36, { al: 'center', c: '#2a8a3a' });
+      if (AUTH.user) {
+        T('Googleで ログインちゅう', cx, y + 22, { al: 'center', c: '#2a8a3a' });
+        T('データは アカウントに のこるよ', cx, y + 29, { al: 'center', c: '#7a5a30' });
+      } else {
+        T('コードで クラウドに セーブした', cx, y + 22, { al: 'center', c: '#7a5a30' });
+        T('データを はこぶよ', cx, y + 29, { al: 'center', c: '#7a5a30' });
+      }
     } else if (h.mode === 'code') {
       T(h.code, cx, y + 14, { size: 8, c: '#3c6ad8', al: 'center' });
       T('7にち いない・1かいだけ つかえる', cx, y + 28, { al: 'center' });
