@@ -661,7 +661,7 @@ const STAGES = [
   // オグリキャップ solo run (opens after しろの なか). only オグリキャップ comes along; clear = オグリキャップ gets the crown (CROWN below)
   {
     id: 'saigo', name: 'さいごの はしり', width: 1300, theme: 'night', world: 2, highJump: true, soloOguri: true,
-    layers: 'assets/w3/shironaka', tiles: 'assets/w3/shironaka',
+    layers: 'assets/w3/saigo', tiles: 'assets/w3/saigo',
     spawns: [ { sp: 'toragar', x: 640, lv: 26 }, { sp: 'goremun', x: 1080, lv: 27 } ],
     plats: [ { x: 140, w: 32, h: 21 }, { x: 196, w: 32, h: 35 }, { x: 260, w: 48, h: 21 }, { x: 340, w: 32, h: 35 }, { x: 400, w: 48, h: 21 }, { x: 470, w: 32, h: 35 },
              { x: 760, w: 32, h: 21 }, { x: 816, w: 32, h: 35 }, { x: 880, w: 48, h: 21 }, { x: 950, w: 32, h: 35 }, { x: 1180, w: 48, h: 21 } ],
@@ -692,7 +692,8 @@ const PROP_IMGS = {
   town_road: 'assets/town/town_road.png', town_fence: 'assets/town/town_fence.png', town_flowerbed: 'assets/town/town_flowerbed.png', town_lamp: 'assets/town/town_lamp.png', town_tree: 'assets/town/town_tree.png',
   wmap: 'assets/worldmap/worldmap.png', wseg0: 'assets/worldmap/worldmap_path_seg0.png', wseg1: 'assets/worldmap/worldmap_path_seg1.png', wseg2: 'assets/worldmap/worldmap_path_seg2.png', wseg3: 'assets/worldmap/worldmap_path_seg3.png', wseg4: 'assets/worldmap/worldmap_path_seg4.png', wseg5: 'assets/worldmap/worldmap_path_seg5.png', wseg6: 'assets/worldmap/worldmap_path_seg6.png',
   wmap2: 'assets/worldmap/worldmap2.png', w2seg0: 'assets/worldmap/worldmap2_path_seg0.png', w2seg1: 'assets/worldmap/worldmap2_path_seg1.png',
-  wmap3: 'assets/worldmap/worldmap3.png', w3seg0: 'assets/worldmap/worldmap3_path_seg0.png', w3seg1: 'assets/worldmap/worldmap3_path_seg1.png',
+  wmap3: 'assets/worldmap/worldmap3.png', w3seg0: 'assets/worldmap/worldmap3_path_seg0.png', w3seg1: 'assets/worldmap/worldmap3_path_seg1.png', w3seg2: 'assets/worldmap/worldmap3_path_seg2.png',
+  item_carrot: 'assets/items/carrot.png', item_carrot_idle: 'assets/items/item_carrot_idle.png', item_carrot_get: 'assets/items/carrot_get.png',   // にんじん: 16x16 / idle 4f 150ms (anchor 8,15) / pickup sparkle 4f 90ms (anchor 8,8)
   bld_shop: 'assets/town/shop.png', bld_clinic: 'assets/town/hospital.png', bld_house: 'assets/town/grandma_house.png', bld_nuihouse: 'assets/town/nui_house.png',
   tree: 'assets/props/street_tree.png', fence: 'assets/props/fence.png', signpost: 'assets/props/signpost.png',
   ui_frame: 'assets/ui/ui_frame_9slice.png', ui_rowbar: 'assets/ui/ui_row_highlight_9slice.png', ui_cursor: 'assets/ui/ui_cursor_anim.png',

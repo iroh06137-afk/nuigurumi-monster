@@ -1920,7 +1920,9 @@
       if (Math.abs(player.x - pk.x) < 8 && Math.abs(player.y + pk.h) < 10) {
         G.got[key] = 1;
         if (pk.item && ITEMS[pk.item]) {   // one-time item (にんじん): saved in G.got by its id, goes to the bag
-          G.items[pk.item] = (G.items[pk.item] | 0) + 1; SFX.recruit(); burst(pk.x, GROUND - pk.h - 8, 'spark', 12, '#ff9a2a');
+          G.items[pk.item] = (G.items[pk.item] | 0) + 1; SFX.recruit();
+          if (PROPS['item_' + pk.item + '_get']) (G.pickFx = G.pickFx || []).push({ img: PROPS['item_' + pk.item + '_get'], x: pk.x, y: GROUND - pk.h - 1 - 7, t0: G.t });   // sparkle anchor = centre (8,8) on the carrot centre
+          else burst(pk.x, GROUND - pk.h - 8, 'spark', 12, '#ff9a2a');
           banner(`${ITEMS[pk.item].name}を ひろった！ どうぐに いれた`, 1.8);
         } else { G.coins += pk.coins; SFX.buy(); burst(pk.x, GROUND - pk.h - 10, 'spark', 8, '#ffe24a'); pop(pk.x, GROUND - pk.h - 18, '+' + pk.coins, '#ffe24a'); }
         persist();
@@ -2883,6 +2885,13 @@
     tileRow(gr, cam, 1, 63);
     return true;
   }
+  // item pickup sparkle (4 frames x 90ms, once), drawn over the actors
+  function drawPickFx(cam) {
+    if (G.pickFx) G.pickFx = G.pickFx.filter(f => {
+      const fi = Math.floor((G.t - f.t0) * 1000 / 90); if (fi >= 4) return false;
+      g.drawImage(f.img, fi * 16, 0, 16, 16, Math.round(f.x - cam) - 8, Math.round(f.y) - 8, 16, 16); return true;
+    });
+  }
   function drawPlats(cam) {
     const st = STAGES[G.stage]; if (!st.plats) return;
     const tl = LAYER[st.id + '_tile_l'], tm = LAYER[st.id + '_tile_m'], tr = LAYER[st.id + '_tile_r'];
@@ -2901,7 +2910,8 @@
       const x = Math.round(pk.x - cam), y = GROUND - pk.h - 12 + (Math.floor(G.t * 3) % 2);
       if (x < -8 || x > W + 8) return;
       if (pk.item) {   // art: PROP_IMGS['item_' + item] (e.g. item_carrot) when drawn; placeholder pixels until then
-        const im = PROPS['item_' + pk.item];
+        const idle = PROPS['item_' + pk.item + '_idle'], im = PROPS['item_' + pk.item];
+        if (idle) { const fi = Math.floor(G.t * 1000 / 150) % 4; g.drawImage(idle, fi * 16, 0, 16, 16, x - 8, GROUND - pk.h - 1 - 15, 16, 16); return; }   // anchor bottom-centre (8,15)
         if (im) g.drawImage(im, x - (im.width >> 1), GROUND - pk.h - im.height - 1 + (Math.floor(G.t * 3) % 2));
         else drawPattern(['..g.g', '...g.', '..oo.', '.ooo.', '.oo..', 'oo...', 'o....'], x - 2, y - 2, { g: '#4ac040', o: '#ff8a1a' });
         if (Math.floor(G.t * 2 + i) % 3 === 0) rect(x + 3, y - 3, 1, 1, '#ffffff');
@@ -3509,6 +3519,7 @@
     drawFxShots(cam);
     drawArtFx(cam, 'top');
     drawParticles(cam);
+    if (!G.battle) drawPickFx(cam);
     drawNearMark(cam);
     drawBattleFx();
     if (G.state !== 'title') {
