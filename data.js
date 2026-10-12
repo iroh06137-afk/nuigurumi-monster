@@ -9,6 +9,7 @@ const SPRITES = {
   npc_gaki: { src: 'assets/npc/gaki.png', native: 1 },
   npc_oneesan: { src: 'assets/npc/oneesan.png', native: 1 },
   npc_karate: { src: 'assets/npc/karate.png', native: 1 },
+  npc_akira: { src: 'assets/npc/akira.png', native: 1, walk: { src: 'assets/npc/akira_walk.png', frames: 4, ms: 150 } }, // town boss (front-facing walk, baseline row 30)
   hero_girl: { src: 'assets/npc/girl.png', native: 1, walk: { src: 'assets/hero/girl_walk.png', frames: 4, ms: 150 } },
   player:  { src: 'assets/player.png',    native: 1, walk: { src: 'assets/player_walk.png', frames: 4, ms: 150 } },
   goririn: { src: 'assets/goririn.png',   native: 1, walk: { src: 'assets/goririn_walk.png', frames: 4, ms: 150 } },  // near-frontal, symmetric
@@ -365,7 +366,7 @@ const EVO_MOVES = {
   kujakun: { special: { name: 'めだまフラッシュ', fx: 'orb', col: '#40c0a0' } },
   koumon: { special: { name: 'ちょうおんぱカッター', fx: 'wave', col: '#a080ff' } },
   naiton: { special: { name: 'ナイトブレイド', fx: 'fire', col: '#ffd040' } },
-  oguriking: { special: { name: 'キングオグリ波', fx: 'beam', col: '#ffd23a' } },
+  oguriking: { special: { name: 'はかいおぐり波', fx: 'beam', col: '#ffd23a' } },
   shouko:    { special: { name: 'バン', fx: 'orb', col: '#ffd070' } },  // ★ big-bang energy ball; dedicated fx art coming from ドット絵作成くん
   goririn:   { strong: { name: 'メガドラミング', power: 28 },     special: { name: 'メガパンチ',       fx: 'multi', shape: 'glove', hits: 1, col: '#ff7ab0' } },
   kuuko:     { strong: { name: 'ぎゅうぎゅうハグ', power: 27 },   special: { name: 'くうこ弾',         fx: 'orb',   col: '#7ad8ff' } },
@@ -573,7 +574,7 @@ const PROP_IMGS = {
   town_road: 'assets/town/town_road.png', town_fence: 'assets/town/town_fence.png', town_flowerbed: 'assets/town/town_flowerbed.png', town_lamp: 'assets/town/town_lamp.png', town_tree: 'assets/town/town_tree.png',
   wmap: 'assets/worldmap/worldmap.png', wseg0: 'assets/worldmap/worldmap_path_seg0.png', wseg1: 'assets/worldmap/worldmap_path_seg1.png', wseg2: 'assets/worldmap/worldmap_path_seg2.png', wseg3: 'assets/worldmap/worldmap_path_seg3.png', wseg4: 'assets/worldmap/worldmap_path_seg4.png', wseg5: 'assets/worldmap/worldmap_path_seg5.png', wseg6: 'assets/worldmap/worldmap_path_seg6.png',
   wmap2: 'assets/worldmap/worldmap2.png', w2seg0: 'assets/worldmap/worldmap2_path_seg0.png', w2seg1: 'assets/worldmap/worldmap2_path_seg1.png',
-  // world 3 map art (not delivered yet: falls back to the tinted code map): wmap3: 'assets/worldmap/worldmap3.png', w3seg0/1: 'assets/worldmap/worldmap3_path_seg0/1.png'
+  wmap3: 'assets/worldmap/worldmap3.png', w3seg0: 'assets/worldmap/worldmap3_path_seg0.png', w3seg1: 'assets/worldmap/worldmap3_path_seg1.png',
   bld_shop: 'assets/town/shop.png', bld_clinic: 'assets/town/hospital.png', bld_house: 'assets/town/grandma_house.png', bld_nuihouse: 'assets/town/nui_house.png',
   tree: 'assets/props/street_tree.png', fence: 'assets/props/fence.png', signpost: 'assets/props/signpost.png',
   ui_frame: 'assets/ui/ui_frame_9slice.png', ui_rowbar: 'assets/ui/ui_row_highlight_9slice.png', ui_cursor: 'assets/ui/ui_cursor_anim.png',

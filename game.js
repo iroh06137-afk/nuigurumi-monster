@@ -3433,7 +3433,7 @@
 
 
   // placeholder town people: the boy with his blue clothes recolored (replaced once the human sprites are approved)
-  const NPC_LOOKS = { girl: [255, 111, 168], mushitori: [86, 180, 70], oneesan: [160, 96, 214], karate: [236, 236, 228], gaki: [236, 140, 40], akira: [70, 70, 110] };
+  const NPC_LOOKS = { girl: [255, 111, 168], mushitori: [86, 180, 70], oneesan: [160, 96, 214], karate: [236, 236, 228], gaki: [236, 140, 40] };
   function makeNpcSprites() {
     const src = SPR.player; if (!src) return;
     for (const [look, col] of Object.entries(NPC_LOOKS)) {
