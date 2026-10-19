@@ -213,6 +213,24 @@
   const textOps = [];
   const fontPx = size => 8 * Math.max(1, Math.round(size * S / 8));
   function T(s, x, y, o = {}) { textOps.push([String(s), x, y, o.size || 4, o.c || '#4a2c12', o.ol || null, o.al || 'left', o.ol2 || null]); }
+  // greedy word wrap by measured width (breaks at spaces, or inside a word that is too long by itself)
+  function wrapW(s, maxW, size = 4) {
+    const out = []; let cur = '';
+    for (const word of String(s).split(' ')) {
+      const tryS = cur ? cur + ' ' + word : word;
+      if (measure(tryS, size) <= maxW) { cur = tryS; continue; }
+      if (cur) out.push(cur);
+      cur = '';
+      for (const ch of word) { if (cur && measure(cur + ch, size) > maxW) { out.push(cur); cur = ch; } else cur += ch; }
+    }
+    if (cur || !out.length) out.push(cur);
+    return out;
+  }
+  function fitW(s, maxW, size = 4) {   // one line, cut with … if it doesn't fit
+    s = String(s); if (measure(s, size) <= maxW) return s;
+    while (s.length && measure(s + '…', size) > maxW) s = s.slice(0, -1);
+    return s + '…';
+  }
   function measure(s, size = 4) { tctx.font = fontPx(size) + "px Misaki, 'DotGothic16'"; return tctx.measureText(s).width / S; }
   function flushText() {
     const key = S + '|' + JSON.stringify(textOps);
@@ -3462,12 +3480,13 @@
       else if (c.kind === 'swap') l2 = 'なかまと こうたい';
       else if (c.kind === 'special') l2 = sideBond() >= 100 ? specialOf(a).name : `きずな ${sideBond()}%`;
       else { const mm = movesOf(a)[c.kind]; l2 = mm ? mm.name : ''; }
-    } else if (B.cur || B.phase === 'end') { [l1, l2] = wrap2(B.msg, 12); }
+    } else if (B.cur || B.phase === 'end') { const ls = wrapW(B.msg, STATUS_W); l1 = ls[0]; l2 = ls.slice(1).join(' '); }
     else { l1 = 'スタミナ'; l2 = 'ためちゅう…'; }
     if (netWait) { if (NET.paused) { l1 = 'つうしんが きれた…'; l2 = 'つなぎなおしちゅう'; } else { l1 = 'あいての ばん'; l2 = 'まってね'; } }
-    T(l1, 4.5, 79); T(l2, 4.5, 83.5);
+    T(fitW(l1, STATUS_W), 4.5, 79); T(fitW(l2, STATUS_W), 4.5, 83.5);
   }
 
+  const STATUS_W = 48;   // text width of the status box left of the command buttons
   function drawTalk() {
     const t = G.talk; if (G.state !== 'talk' || !t) return;
     const x = 4, y = 14, w = 152, h = 23;   // top of the screen so the speakers stay visible
@@ -3573,12 +3592,14 @@
   }
   function drawBanner() {
     if (!G.banner || G.state === 'talk') return;   // the talk box sits where the banner would
-    const s = G.banner.text, w = Math.ceil(measure(s)) + 8;
+    // long text wraps onto more lines (centred) and the box grows to fit, so nothing runs off the 160px screen
+    const lines = wrapW(G.banner.text, W - 14), LH = 6;
+    const w = Math.ceil(Math.max(...lines.map(l => measure(l)))) + 8, h = 9 + (lines.length - 1) * LH;
     const x = Math.floor((W - w) / 2), y = 8;
-    rect(x + 1, y, w - 2, 9, '#5a3418'); rect(x, y + 1, w, 7, '#5a3418');
-    rect(x + 1, y + 1, w - 2, 7, '#fff8e0');
-    rect(x + 1, y + 7, w - 2, 1, '#e8d8b0');
-    T(s, W / 2, y + 2.5, { al: 'center' });
+    rect(x + 1, y, w - 2, h, '#5a3418'); rect(x, y + 1, w, h - 2, '#5a3418');
+    rect(x + 1, y + 1, w - 2, h - 2, '#fff8e0');
+    rect(x + 1, y + h - 2, w - 2, 1, '#e8d8b0');
+    lines.forEach((l, i) => T(l, W / 2, y + 2.5 + i * LH, { al: 'center' }));
   }
   function drawTitle() {
     if (G.titleScreen) { drawSetup(); return; }
@@ -3802,6 +3823,6 @@
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
+  window.NM = { measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();
