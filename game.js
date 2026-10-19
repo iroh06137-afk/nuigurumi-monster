@@ -1572,6 +1572,95 @@
     G.state = 'talk'; player.moving = false; comp.moving = false;
     SFX.blip();
   }
+  // ---------- talk guests: a plush who speaks but isn't on screen steps in beside the player for the talk ----------
+  const SP_BY_NAME = {}; for (const k in SPECIES) if (!SP_BY_NAME[SPECIES[k].name]) SP_BY_NAME[SPECIES[k].name] = k;
+  function talkSpeaker(t) {
+    const p = t.pages[t.i]; if (!p) return null;
+    const m = /^([^「」\s…]+)「/.exec(p[0] || ''); const nm = m ? m[1] : t.name;
+    return nm && SP_BY_NAME[nm] ? SP_BY_NAME[nm] : null;
+  }
+  function onScreen(sp) {
+    const vis = a => a && a.alpha > 0 && Math.abs(a.x - (G.cam + W / 2)) < W / 2 + 4;
+    if (G.state !== 'title' && ally() && ally().sp === sp && vis(comp)) return true;
+    if (G.invader && G.invader.alive && G.invader.sp === sp && vis(G.invader)) return true;
+    if ((G.talkGuests || []).some(a => a.sp === sp)) return true;
+    return G.wilds.some(w => w.alive && w.sp === sp && vis(w)) || (G.npcs || []).some(n => n.def && n.def.sp === sp && vis(n));
+  }
+  function guestKey(sp) {
+    const own = G.party.concat(G.box || [], G.solo ? G.solo.party : []).find(m => m.sp === sp && (m.crown || sp !== 'oguri')) || G.party.concat(G.box || [], G.solo ? G.solo.party : []).find(m => m.sp === sp);
+    if (own) return memberKey(own);
+    if (sp === 'oguri' && G.flags.end_oyako && SPR.oguri_evo_crown) return 'oguri_evo_crown';
+    return SPR[SPECIES[sp].sprite] ? SPECIES[sp].sprite : sp;
+  }
+  // ---------- invasion carrot staging (driven by the current talk page) ----------
+  function updateInvFx(dt) {
+    const F = G.invFx, u = G.invader; if (!F || !u) return;
+    const p = G.state === 'talk' && G.talk ? G.talk.pages[G.talk.i].join('') : '';
+    if (p.includes('でんせつの にんじん')) F.gold = Math.max(F.gold, 1);
+    if (p.includes('もぐもぐ')) { F.gold = 2; F.eat = Math.min(1, F.eat + dt / 1.2); }
+    if (F.eat >= 1) F.glow = true;
+    if (p.includes('ひきあげよ') && !F.soldiers) {   // せいぎぐん soldiers grab the pile
+      F.pile = false; F.soldiers = [];
+      for (let i = 0; i < 3; i++) {
+        const x = clamp(u.x + [-34, -18, 16][i], G.cam + 8, G.cam + W - 8);
+        const a = Object.assign(newActor(x, -1, SPR.usagin_evo ? 'usagin_evo' : 'usagin'), { carrots: 2 + (i % 2) });
+        F.soldiers.push(a); burst(x, GROUND - 12, 'spark', 6, '#ffffff');
+      }
+      u.carrots = 3;
+    }
+    if (p.includes('にげていった') && F.soldiers && !F.run) {
+      F.run = true;
+      for (const a of F.soldiers.concat([u])) { a.runV = 90 + rand() * 30; a.face = 1; }
+    }
+    for (const a of (F.soldiers || []).concat(F.run ? [u] : [])) {
+      if (F.run) { a.x += (a.runV || 90) * dt; a.moving = true; a.face = 1; }
+      animActor(a, dt);
+    }
+    if (F.run && u.x > G.cam + W + 40) u.alpha = 0;
+    if (F.glow && rand() < dt * 10) burst(u.x + (rand() - 0.5) * 20, GROUND - 4 - rand() * 26, 'spark', 1, rand() < 0.5 ? '#ffe24a' : '#fff6b0');
+    if (F.gold === 1 && rand() < dt * 8) burst(u.x - 14, GROUND - 22, 'spark', 1, '#ffe24a');
+  }
+  let GOLD_CARROT = null;
+  function goldCarrot() {
+    if (GOLD_CARROT || !PROPS.item_carrot) return GOLD_CARROT;
+    const im = PROPS.item_carrot, [c, cx] = mk(im.width, im.height);
+    cx.drawImage(im, 0, 0); cx.globalCompositeOperation = 'source-atop'; cx.globalAlpha = 0.6; cx.fillStyle = '#ffd23a'; cx.fillRect(0, 0, im.width, im.height);
+    return (GOLD_CARROT = c);
+  }
+  function drawCarrot(img, x, y, sc = 1) {
+    if (!img) return; const w = Math.max(1, Math.round(img.width * sc)), h = Math.max(1, Math.round(img.height * sc));
+    g.drawImage(img, Math.round(x - w / 2), Math.round(y - h / 2), w, h);
+  }
+  function drawInvFx(cam) {
+    const F = G.invFx, u = G.invader; if (!F || !u || G.battle) return;
+    const C = PROPS.item_carrot;
+    if (F.pile && C) {   // the castle's carrot pile behind うさひめ
+      const px = u.x - 40 - cam;
+      [[0, 0], [10, 0], [20, 0], [5, -6], [15, -6], [10, -12]].forEach(([dx, dy]) => drawCarrot(C, px + dx, GROUND - 6 + dy, 0.75));
+    }
+    if (F.gold && F.eat < 1) {   // でんせつの にんじん at her mouth, shrinking while she eats
+      const sc = 1 - F.eat, wob = F.eat > 0 ? Math.sin(G.t * 30) : 0;
+      drawCarrot(goldCarrot(), u.x - 14 - cam + wob, GROUND - 20, sc);
+    }
+    for (const a of (F.soldiers || [])) {
+      drawActor(a, cam);
+      for (let k = 0; k < a.carrots; k++) drawCarrot(C, a.x - cam - a.face * 6 + (k % 2 ? 2 : -2), GROUND - 20 - k * 5, 0.75);
+    }
+    if (u.carrots && u.alpha > 0) for (let k = 0; k < u.carrots; k++) drawCarrot(C, u.x - cam - u.face * 8 + (k % 2 ? 2 : -2), GROUND - 22 - k * 5, 0.75);
+  }
+  function updateTalkGuests(dt) {
+    if (G.state === 'talk' && G.talk && !G.ending && !G.battle) {
+      G.talkGuestT = 0.4;
+      const sp = talkSpeaker(G.talk);
+      if (sp && !onScreen(sp)) {
+        const list = G.talkGuests || (G.talkGuests = []);
+        const side = -(Math.sign(comp.x - player.x) || 1), x = clamp(player.x + side * (22 + list.length * 22), G.cam + 10, G.cam + W - 10);
+        const a = Object.assign(newActor(x, -side, guestKey(sp)), { sp, guest: true });
+        list.push(a); burst(x, GROUND - 12, 'spark', 8, '#ffffff');
+      }
+    } else if (G.talkGuests && (G.talkGuestT -= dt) <= 0) G.talkGuests = null;
+    for (const a of G.talkGuests || []) { a.face = Math.sign(player.x - a.x) || a.face; animActor(a, dt); }
+  }
   function talkNext() {
     const t = G.talk; if (!t) { G.state = 'field'; return; }
     t.i++;
@@ -2031,6 +2120,7 @@
     G.invWait = 0;
     const x = clamp(player.x + 100, 40, WORLD_W - 20), u = Object.assign(newActor(x, -1, 'usahime'), trainerMember({ sp: 'usahime', lv: 30 }), { home: x, spawnX: x, alive: true, cool: true, story: true });
     u.key = 'usahime'; G.invader = u;
+    G.invFx = { pile: true, gold: 0, eat: 0, soldiers: null, run: false };
     say('', INVASION.talk, () => { oyakoStash(); startBattle(u); G.battle.story = { turns: 0 }; oyakoBuddy(); });
   }
   // the invasion battle is fought by the おやこ only: stash the party (like the さいごの はしり solo run), use the player's own
@@ -2080,7 +2170,7 @@
   function invasionOutro() {
     say('', INVASION.outro, () => {
       if (G.invader) { G.invader.alive = false; G.invader = null; }
-      oyakoRestore();
+      oyakoRestore(); G.invFx = null;
       G.flags.invaded = 1;
       if (!G.unl) G.unl = [G.unlocked];
       while (G.unl.length < MAP_WORLDS.length) G.unl.push(0);
@@ -2930,6 +3020,7 @@
       const e = G.battle.w; e.gold = (e.gold || 0) + dt;
       if (rand() < dt * 10) burst(e.x + (rand() - 0.5) * 20, GROUND - 4 - rand() * 26, 'spark', 1, rand() < 0.5 ? '#ffe24a' : '#fff6b0');
     }
+    updateTalkGuests(dt); updateInvFx(dt);
     if (G.buddy) {
       const o = G.party.find((m, i) => i !== G.active);
       if (!G.battle || !o) G.buddy.alpha = 0; else { G.buddy.key = memberKey(o); G.buddy.alpha = o.hp >= 1 ? 1 : 0.4; G.buddy.face = G.battle.side || 1; }
@@ -3718,6 +3809,8 @@
       for (const a of G.npcs) drawActor(a, cam);
       for (const w of G.wilds) if (w.alive && w.alpha > 0) drawActor(w, cam);
       if (G.invader && !G.battle && G.invader.alive) drawActor(G.invader, cam);
+      if (G.talkGuests && !G.battle) for (const a of G.talkGuests) drawActor(a, cam);
+      drawInvFx(cam);
     }
     drawArtFx(cam, 'under');
     if (G.battle && G.battle.w) drawActor(G.battle.w, cam);
