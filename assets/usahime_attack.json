@@ -10,65 +10,65 @@
   },
   "facing": "right",
   "name": "せいぎの にんじんシャワー",
-  "note": "せいぎの にんじんシャワー cast (うさひめ), facing RIGHT (mirror for left). Play 0->1->2, hold 2 until the shots have left, then 3, then return to usahime.png. fxSpawn = sprite-local pixel (frame coords) at the nose tip where the shots start; mirror x (31-x) when facing left.",
+  "note": "せいぎの にんじんシャワー cast (うさひめ), facing RIGHT (mirror for left). Play 0->1->2, hold 2 until the shots have left, then 3, then return to usahime.png. fxSpawn = sprite-local pixel (frame coords) at the nose tip; mirror x (31-x) when facing left.",
   "frames": [
     {
       "index": 0,
       "name": "attack_0",
-      "desc": "windup: crouches back 1px and squashes 1px (aiming the carrot shower)",
+      "desc": "brace: body back 1px and low, front legs planted forward",
       "x": 0,
       "y": 0,
       "w": 32,
       "h": 32,
       "duration": 200,
       "fxSpawn": {
-        "x": 26,
-        "y": 22
+        "x": 27,
+        "y": 15
       },
       "firesFx": false
     },
     {
       "index": 1,
       "name": "attack_1",
-      "desc": "release: springs forward 1px and up 1px, stretched - FIRE the shots from the nose",
+      "desc": "pounce: rears up 2px and forward, front paws raised, hind legs stretched back on the ground - FIRE",
       "x": 32,
       "y": 0,
       "w": 32,
       "h": 32,
       "duration": 90,
       "fxSpawn": {
-        "x": 28,
-        "y": 19
+        "x": 29,
+        "y": 12
       },
       "firesFx": true
     },
     {
       "index": 2,
       "name": "attack_2",
-      "desc": "hold: stays 1px forward while the carrots fly",
+      "desc": "hold: stays reared up while the carrots fly",
       "x": 64,
       "y": 0,
       "w": 32,
       "h": 32,
       "duration": 360,
       "fxSpawn": {
-        "x": 28,
-        "y": 21
+        "x": 29,
+        "y": 12
       },
       "firesFx": false
     },
     {
       "index": 3,
       "name": "attack_3",
-      "desc": "recovery: back in place (next: standing sprite)",
+      "desc": "recovery: back to standing (next: usahime.png)",
       "x": 96,
       "y": 0,
       "w": 32,
       "h": 32,
       "duration": 180,
       "fxSpawn": {
-        "x": 27,
-        "y": 21
+        "x": 28,
+        "y": 14
       },
       "firesFx": false
     }

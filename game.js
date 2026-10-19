@@ -2039,6 +2039,16 @@
     const B = G.battle, side = B.side || 1;
     G.buddy = newActor(clamp(B.allyTX - side * 46, 8, WORLD_W - 8), side, 'oguriking');
   }
+  // invasion: うさひめ ate the でんせつの にんじん -> takes 1 damage, and the おやこ never drop below 1 HP
+  function storyDmg(def, dmg) {
+    const B = G.battle; if (!B || !B.story) return dmg;
+    if (def === B.w) {
+      B.story.hits = (B.story.hits | 0) + 1;
+      if (B.story.hits % 3 === 1) { banner(INVASION.nodmg, 1.6); burst(def.x, GROUND - 18, 'spark', 10, '#ffe24a'); }
+      return def.hp > 1 ? 1 : 0;
+    }
+    return Math.min(dmg, Math.max(0, def.hp - 1));
+  }
   function* storyEnd() {
     const B = G.battle; B.story.done = true;
     banner(INVASION.stop + ' きょうは ここまでよ！」', 2.2); yield* wait(2.0);
@@ -2340,6 +2350,7 @@
       if (crit) dmg = Math.round(dmg * 1.5);
       const guarded = !!def.guard;
       if (guarded) { dmg = Math.max(1, Math.ceil(dmg / 2)); def.guard = false; }
+      dmg = storyDmg(def, dmg);
       def.hp = Math.max(0, def.hp - dmg);
       defA.flash = 0.3; defA.shake = crit || kind === 'special' ? 0.5 : 0.3;
       pop(defA.x, GROUND - 38, dmg, crit ? '#ff6a3a' : big ? '#ffdf3a' : '#ffffff');
@@ -2370,6 +2381,7 @@
       let dmg = hits > 1 ? Math.max(1, Math.round(total / hits)) : total;
       const guarded = !!def.guard;
       if (guarded) { dmg = Math.max(1, Math.ceil(dmg / 2)); if (h === hits - 1) def.guard = false; }
+      dmg = storyDmg(def, dmg);
       def.hp = Math.max(0, def.hp - dmg);
       defA.flash = 0.3; defA.shake = 0.5;
       pop(defA.x, GROUND - 38 - h * 5, dmg, '#ffdf3a');
@@ -2400,6 +2412,7 @@
       let dmg = hits > 1 ? Math.max(1, Math.round(total / hits)) : total;
       const guarded = !!def.guard;
       if (guarded) { dmg = Math.max(1, Math.ceil(dmg / 2)); if (landed === hits) def.guard = false; }
+      dmg = storyDmg(def, dmg);
       def.hp = Math.max(0, def.hp - dmg);
       defA.flash = 0.3; defA.shake = 0.5;
       pop(defA.x, GROUND - 38 - (landed - 1) * 5, dmg, '#ffdf3a');
@@ -2528,6 +2541,7 @@
   function* enemyTurn() {
     const B = G.battle, e = B.w, a = ally();
     if (B.story && !B.story.done && ++B.story.turns > INVASION.turns) { yield* storyEnd(); return; }
+    if (B.story) { e.st = Math.max(e.st, COST.special || COST.strong); yield* enemySpecial(); return; }   // powered up: only せいぎの にんじんシャワー
     const early = e.style === 'trick';
     const ev2 = typeof EVO_MOVES !== 'undefined' && EVO_MOVES[e.sp];
     if (e.evo && ev2 && ev2.super && e.spUsed && !e.spSuper && e.hp > 0 && e.hp <= e.maxHp / 2 && rand() < 0.6) { e.spSuper = true; yield* enemySpecial(); return; }
@@ -2891,6 +2905,10 @@
     SFX.sync();
     if (G.state === 'field' && G.tutWait > 0 && !G.talk) { G.tutWait -= dt; if (G.tutWait <= 0) startTutorial(); }
     if (G.state === 'ending') updateEnding(dt);
+    if (G.battle && G.battle.story && G.battle.w.hp > 0) {   // golden glow while powered up
+      const e = G.battle.w; e.gold = (e.gold || 0) + dt;
+      if (rand() < dt * 10) burst(e.x + (rand() - 0.5) * 20, GROUND - 4 - rand() * 26, 'spark', 1, rand() < 0.5 ? '#ffe24a' : '#fff6b0');
+    }
     if (G.buddy) {
       const o = G.party.find((m, i) => i !== G.active);
       if (!G.battle || !o) G.buddy.alpha = 0; else { G.buddy.key = memberKey(o); G.buddy.alpha = o.hp >= 1 ? 1 : 0.4; G.buddy.face = G.battle.side || 1; }

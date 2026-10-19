@@ -9,12 +9,12 @@
     "h": 32
   },
   "facing": "right",
-  "note": "うさひめ four-legged hop (same crouching body as ウサギン), facing RIGHT (native: 1); mirror horizontally for left. Lowest outline row 30 on contact frames 0 and 3; frames 1-2 airborne (body raised). Row 31 is empty.",
+  "note": "うさひめ long-legged four-legged trot, facing RIGHT (native: 1); mirror horizontally for left. Diagonal leg pairs alternate (0 stride A, 1 passing, 2 stride B, 3 passing). Lowest outline row 30 every frame; row 31 empty. Walk in place (game moves the actor).",
   "frames": [
     {
       "index": 0,
       "name": "walk_0",
-      "desc": "crouch (contact): body squashed 1px, ready to hop; lowest outline row 30",
+      "desc": "stride A (contact): near-front + far-hind reach forward, near-hind + far-front push back; all 4 feet on row 30",
       "x": 0,
       "y": 0,
       "w": 32,
@@ -24,7 +24,7 @@
     {
       "index": 1,
       "name": "walk_1",
-      "desc": "push-off: body stretched 1px tall and lifted 1px (hind feet leaving the ground)",
+      "desc": "passing: body up 1px, far-hind + near-front lifted & swinging forward, the other diagonal pair supports (feet row 30)",
       "x": 32,
       "y": 0,
       "w": 32,
@@ -34,7 +34,7 @@
     {
       "index": 2,
       "name": "walk_2",
-      "desc": "airborne: whole body 2px up (tiara and ears with it)",
+      "desc": "stride B (contact): far-front + near-hind reach forward, the other pair pushes back; all 4 feet on row 30",
       "x": 64,
       "y": 0,
       "w": 32,
@@ -44,7 +44,7 @@
     {
       "index": 3,
       "name": "walk_3",
-      "desc": "land (contact): back on the ground, squashed 1px; lowest outline row 30",
+      "desc": "passing: body up 1px, near-hind + far-front lifted & swinging forward, the other diagonal pair supports (feet row 30)",
       "x": 96,
       "y": 0,
       "w": 32,
