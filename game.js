@@ -1596,6 +1596,7 @@
   function updateInvFx(dt) {
     const F = G.invFx, u = G.invader; if (!F || !u) return;
     const p = G.state === 'talk' && G.talk ? G.talk.pages[G.talk.i].join('') : '';
+    if (G.state === 'talk' && !G.battle) for (const a of [player, comp]) a.face = Math.sign(u.x - a.x) || a.face;   // everyone faces the せいぎぐん side
     if (p.includes('でんせつの にんじん')) F.gold = Math.max(F.gold, 1);
     if (p.includes('もぐもぐ')) { F.gold = 2; F.eat = Math.min(1, F.eat + dt / 1.2); }
     if (F.eat >= 1) F.glow = true;
@@ -1635,8 +1636,8 @@
     const F = G.invFx, u = G.invader; if (!F || !u || G.battle) return;
     const C = PROPS.item_carrot;
     if (F.pile && C) {   // the castle's carrot pile behind うさひめ
-      const px = u.x - 40 - cam;
-      [[0, 0], [10, 0], [20, 0], [5, -6], [15, -6], [10, -12]].forEach(([dx, dy]) => drawCarrot(C, px + dx, GROUND - 6 + dy, 0.75));
+      const px = u.x - 30 - cam;
+      [[0, 0], [8, 0], [16, 0], [4, -6], [12, -6], [8, -12]].forEach(([dx, dy]) => drawCarrot(C, px + dx, GROUND - 6 + dy, 0.75));
     }
     if (F.gold && F.eat < 1) {   // でんせつの にんじん at her mouth, shrinking while she eats
       const sc = 1 - F.eat, wob = F.eat > 0 ? Math.sin(G.t * 30) : 0;
@@ -1654,12 +1655,24 @@
       const sp = talkSpeaker(G.talk);
       if (sp && !onScreen(sp)) {
         const list = G.talkGuests || (G.talkGuests = []);
-        const side = -(Math.sign(comp.x - player.x) || 1), x = clamp(player.x + side * (22 + list.length * 22), G.cam + 10, G.cam + W - 10);
+        // stand grounded, ~30px from everyone already there, inside the screen; prefer the side away from the partner
+        const lo = G.cam + 14, hi = G.cam + W - 14;
+        const taken = [player.x].concat(comp.alpha > 0 ? [comp.x] : [], list.map(a => a.x), G.invader && G.invader.alive ? [G.invader.x] : [], G.invFx && G.invFx.pile && G.invader ? [G.invader.x - 14] : [], G.wilds.filter(w => w.alive).map(w => w.x));
+        const free = x => x >= lo && x <= hi && taken.every(t => Math.abs(t - x) >= 24);
+        const pref = -(Math.sign(comp.x - player.x) || 1), cands = [];
+        for (const sd of [pref, -pref]) for (let d = 30; d <= 110; d += 6) cands.push(player.x + sd * d);
+        const x = cands.find(free) ?? clamp(player.x + pref * 30, lo, hi), side = Math.sign(x - player.x) || 1;
         const a = Object.assign(newActor(x, -side, guestKey(sp)), { sp, guest: true });
         list.push(a); burst(x, GROUND - 12, 'spark', 8, '#ffffff');
       }
     } else if (G.talkGuests && (G.talkGuestT -= dt) <= 0) G.talkGuests = null;
-    for (const a of G.talkGuests || []) { a.face = Math.sign(player.x - a.x) || a.face; animActor(a, dt); }
+    // speakers face the player, except in a confrontation (invasion): then they face the enemy side
+    const foe = G.invader && G.invFx ? G.invader : null;
+    for (const a of G.talkGuests || []) { a.y = 0; a.vy = 0; a.face = Math.sign((foe ? foe.x : player.x) - a.x) || a.face; animActor(a, dt); }
+    if (!foe && G.state === 'talk' && G.talkGuests && G.talkGuests.length) {   // the listener turns to the speaker
+      const sp = talkSpeaker(G.talk), a = G.talkGuests.find(x => x.sp === sp);
+      if (a) player.face = Math.sign(a.x - player.x) || player.face;
+    }
   }
   function talkNext() {
     const t = G.talk; if (!t) { G.state = 'field'; return; }
@@ -2148,7 +2161,7 @@
   // the partner stands behind the active one during the battle
   function oyakoBuddy() {
     const B = G.battle, side = B.side || 1;
-    G.buddy = newActor(clamp(B.allyTX - side * 46, 8, WORLD_W - 8), side, 'oguriking');
+    G.buddy = newActor(clamp(player.x - side * 26, G.camT + 14, G.camT + W - 14), side, 'oguriking');   // behind the player, fully on screen
   }
   // invasion: うさひめ ate the でんせつの にんじん -> takes 1 damage, and the おやこ never drop below 1 HP
   function storyDmg(def, dmg) {
@@ -3201,8 +3214,8 @@
       g.restore();
     }
     // the party walks along the bottom
-    const team = G.party.slice(0, 4), span = 160 + team.length * 26;
-    team.forEach((m, i) => endSpr(memberKey(m), ((E.t * 18 + (team.length - i) * 26) % span) - 20, true, true));
+    const team = G.party.slice(0, 4), span = 160 + team.length * 34;
+    team.forEach((m, i) => endSpr(memberKey(m), ((E.t * 18 + (team.length - i) * 34) % span) - 20, true, true));
     if (E.phase === 'name') {
       g.globalAlpha = Math.min(0.6, E.t); rect(0, 22, 160, 26, '#000000'); g.globalAlpha = 1;
       T(D.title, 80, 28, { size: 8, c: '#ffe24a', ol: '#5a3418', al: 'center' });
@@ -3580,7 +3593,7 @@
   const STATUS_W = 48;   // text width of the status box left of the command buttons
   function drawTalk() {
     const t = G.talk; if (G.state !== 'talk' || !t) return;
-    const x = 4, y = 14, w = 152, h = 23;   // top of the screen so the speakers stay visible
+    const x = 4, y = G.ending && G.ending.id === 'oyako' ? 64 : 14, w = 152, h = 23;   // top of the screen so the speakers stay visible (ending stills: bottom, so faces aren't covered)
     if (t.name) {
       const nw = Math.ceil(measure(t.name)) + 8;
       rect(x + 3, y - 7, nw, 8, '#5a3418'); rect(x + 4, y - 6, nw - 2, 7, '#ffd23a');
