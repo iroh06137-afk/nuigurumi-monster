@@ -1790,7 +1790,10 @@
     }
     persist();
     openMap(Math.min(ni + 1, MAP_NODES.length - 1));
-    if (crownMsg) playEnding('oyako', () => { openMap(Math.min(ni + 1, MAP_NODES.length - 1)); banner(crownMsg, 4); SFX.recruit(); });
+    if (crownMsg) playEnding('oyako', () => {
+      const back = () => { openMap(Math.min(ni + 1, MAP_NODES.length - 1)); banner(crownMsg, 4); SFX.recruit(); };
+      if (!G.flags.invaded && typeof OYAKO_HINT !== 'undefined') say('', OYAKO_HINT, back); else back();
+    });
   }
   function openMap(sel) {
     endSolo();
@@ -3287,6 +3290,9 @@
         if (clr) drawPattern(['..#..', '#####', '.###.', '#.#.#'], n.x - 2, n.y - 2, { '#': '#ffffff' });
       }
       if (!open) tiny('?', n.x - 1, n.y - 2, '#ffffff');
+      if (st && st.id === 'shironaka' && G.flags.end_oyako && !G.flags.invaded && Math.floor(G.t * 3) % 2) {   // the invasion is waiting here
+        rect(n.x + 4, n.y - 12, 5, 8, '#5a1010'); rect(n.x + 5, n.y - 11, 3, 6, '#ff3a3a'); tiny('!', n.x + 5, n.y - 11, '#ffffff');
+      }
       if (sel && Math.floor(G.t * 4) % 2) { g.strokeStyle = '#ffffff'; g.lineWidth = 1; g.strokeRect(n.x - 6.5, n.y - 6.5, 14, 13); }
     });
     // boy on the map (feet on the node)

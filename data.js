@@ -710,6 +710,8 @@ const STAGES = [
   },
 ];
 // せいぎぐん invasion (story event in しろの なか after おやこエンド): talk -> story battle vs うさひめ (no game over, ends after a few turns) -> outro -> world 4 opens
+// after おやこエンド: hint that something is happening in しろの なか (where the invasion starts)
+const OYAKO_HINT = [['…とおもった', 'そのとき'], ['オグリキング「…むっ？', 'しろの ほうが さわがしい」'], ['オグリキャップ「だれか きたみたい！', 'しろの なかへ いこう！」']];
 const INVASION = {
   talk: [['？？？「そこまでよ！ あくの しろの', 'オグリたち！」'], ['うさひめ「わたしは うさひめ！', 'せいぎぐんの リーダーよ！」'],
          ['オグリキング「せいぎぐん だと…？', 'なにを しに きた」'], ['うさひめ「この しろの にんじん', 'ぜんぶ いただいて いくわ！」'],
