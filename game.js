@@ -2034,7 +2034,34 @@
     G.invWait = 0;
     const x = clamp(player.x + 100, 40, WORLD_W - 20), u = Object.assign(newActor(x, -1, 'usahime'), trainerMember({ sp: 'usahime', lv: 30 }), { home: x, spawnX: x, alive: true, cool: true, story: true });
     u.key = 'usahime'; G.invader = u;
-    say('', INVASION.talk, () => { startBattle(u); G.battle.story = { turns: 0 }; });
+    say('', INVASION.talk, () => { oyakoStash(); startBattle(u); G.battle.story = { turns: 0 }; oyakoBuddy(); });
+  }
+  // the invasion battle is fought by the おやこ only: stash the party (like the さいごの はしり solo run), use the player's own
+  // crowned オグリキャップ / オグリキング (from party or box) or temporary ones, and put everything back exactly afterwards
+  function oyakoStash() {
+    const all = G.party.concat(G.box || []), keep = [];
+    const pick = (sp, build) => {
+      const m = all.find(o => o.sp === sp && (sp !== CROWN.sp || o.crown)) || all.find(o => o.sp === sp);
+      if (!m) return build();
+      keep.push([m, Object.assign({}, m)]); return m;
+    };
+    const ogLv = (all.find(o => o.sp === CROWN.sp) || { lv: 30 }).lv;
+    const O = pick(CROWN.sp, () => Object.assign(trainerMember({ sp: CROWN.sp, lv: ogLv }), { evo: 1 }));
+    const K = pick(CROWN.oyako.partner, () => trainerMember({ sp: CROWN.oyako.partner, lv: 30 }));
+    if (!O.crown) { O.evo = 1; O.crown = 1; for (const k of ['maxHp', 'atk', 'def', 'spd']) O[k] = Math.round(O[k] * CROWN.mult); }
+    for (const m of [O, K]) { m.hp = m.maxHp; m.st = 0; }
+    G.solo = { party: G.party, active: G.active, inv: keep };   // saves made meanwhile keep the real party
+    G.party = [O, K]; G.active = 0; comp.key = compKey();
+  }
+  function oyakoRestore() {
+    if (!G.solo || !G.solo.inv) return;
+    for (const [m, snap] of G.solo.inv) { for (const k of Object.keys(m)) if (!(k in snap)) delete m[k]; Object.assign(m, snap); }
+    endSolo(); G.buddy = null;
+  }
+  // the partner stands behind the active one during the battle
+  function oyakoBuddy() {
+    const B = G.battle, side = B.side || 1;
+    G.buddy = newActor(clamp(B.allyTX - side * 46, 8, WORLD_W - 8), side, 'oguriking');
   }
   function* storyEnd() {
     const B = G.battle; B.story.done = true;
@@ -2046,6 +2073,7 @@
   function invasionOutro() {
     say('', INVASION.outro, () => {
       if (G.invader) { G.invader.alive = false; G.invader = null; }
+      oyakoRestore();
       G.flags.invaded = 1;
       if (!G.unl) G.unl = [G.unlocked];
       while (G.unl.length < MAP_WORLDS.length) G.unl.push(0);
@@ -2887,6 +2915,11 @@
     SFX.sync();
     if (G.state === 'field' && G.tutWait > 0 && !G.talk) { G.tutWait -= dt; if (G.tutWait <= 0) startTutorial(); }
     if (G.state === 'ending') updateEnding(dt);
+    if (G.buddy) {
+      const o = G.party.find((m, i) => i !== G.active);
+      if (!G.battle || !o) G.buddy.alpha = 0; else { G.buddy.key = memberKey(o); G.buddy.alpha = o.hp >= 1 ? 1 : 0.4; G.buddy.face = G.battle.side || 1; }
+      animActor(G.buddy, dt);
+    }
     if (G.state === 'field') updateField(dt);
     if (G.state === 'field' && G.invWait > 0 && (G.invWait -= dt) <= 0) startInvasion();
     if (G.fieldCo && G.state === 'field' && G.fieldCo.next().done) G.fieldCo = null;
@@ -3667,6 +3700,7 @@
     drawActor(comp, cam);
     drawActor(player, cam);
     if (G.oppHero && G.battle) drawActor(G.oppHero, cam);
+    if (G.buddy && G.battle && G.buddy.alpha > 0) drawActor(G.buddy, cam);
     if (G.battle && G.battle.phase !== 'done') { drawBars(G.battle.w, G.battle.w, cam); if (comp.alpha > 0) drawBars(comp, ally(), cam); }
     if (G.battle && G.battle.phase !== 'done' && ally().guard && comp.alpha > 0) drawPattern(ICONS.shield, Math.round(comp.x - cam) - 4, GROUND - 42, { w: '#ffffff', y: '#6aa8e8' });
     drawFxShots(cam);
