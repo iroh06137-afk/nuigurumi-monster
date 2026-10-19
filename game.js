@@ -244,6 +244,8 @@
 
   // ---------- sprites ----------
   const SPR = {};
+  // art that isn't drawn yet (world 4, うさひめ, endings): only loaded once embedded in assets-img.js, so no 404s
+  const artReady = src => (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src]) || !/(\/w4\/|worldmap4|usahime|\/ending\/)/.test(src);
   function loadImg(src) {
     return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('failed to load ' + src)); i.src = (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src]) ? ASSET_DATA[src] : src; });
   }
@@ -302,6 +304,30 @@
       SPR[k + '_crown'] = Object.assign({}, S, fr, { top: Math.max(0, (S.top | 0) - 3) });
       if (S.walk) SPR[k + '_crown'].walk = { ms: S.walk.ms, frames: S.walk.frames.map(w => crownFrame(w.n)) };
       if (S.attack) SPR[k + '_crown'].attack = S.attack.map(w => crownFrame(w.n));
+    }
+  }
+  // placeholder for sprites whose art isn't in yet: うさひめ = usagin_evo with its colors turned green (white / pink kept)
+  function greenFrame(src) {
+    const [n, nx] = mk(32, 32); nx.drawImage(src, 0, 0);
+    const id = nx.getImageData(0, 0, 32, 32), d = id.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (!d[i + 3]) continue;
+      const [h, s, l] = rgb2hsl(d[i], d[i + 1], d[i + 2]), px = (i >> 2) % 32, py = (i >> 2) >> 5;
+      if (l < 0.18) continue;                                              // outline
+      if ((h > 0.83 || h < 0.06) && s > 0.35) continue;                    // pink nose / ears
+      if (l > 0.75 && px >= 12 && px <= 19 && py >= 15 && py <= 26) continue;   // white mouth + belly
+      const o = hsl2rgb(0.32, 0.55, Math.max(0.25, Math.min(0.62, l * 0.75))); d[i] = o[0]; d[i + 1] = o[1]; d[i + 2] = o[2];
+    }
+    nx.putImageData(id, 0, 0);
+    const [f, fx] = mk(32, 32); fx.translate(32, 0); fx.scale(-1, 1); fx.drawImage(n, 0, 0);
+    return { n, f, wn: silhouette(n), wf: silhouette(f) };
+  }
+  function makePendingSprites() {
+    if (!SPR.usahime && SPR.usagin_evo) {
+      const S = SPR.usagin_evo;
+      SPR.usahime = Object.assign({}, S, greenFrame(S.n));
+      if (S.walk) SPR.usahime.walk = { ms: S.walk.ms, frames: S.walk.frames.map(w => greenFrame(w.n)) };
+      if (S.attack) SPR.usahime.attack = S.attack.map(w => greenFrame(w.n));
     }
   }
   const FXIMG = {};   // sp -> { shot: frames, hit: frames } (pixel-art special fx)
@@ -1198,6 +1224,7 @@
     Object.assign(comp, { x: sx - 22, face: 1, ox: 0, y: 0, vy: 0, alpha: 1, moving: false });
     G.cam = G.camT = clamp(sx - 70, 0, Math.max(0, WORLD_W - W)); G.benchUsed = false; G.battle = null;
     G.state = 'field'; G.fade = 1; G.fadeSpeed = -2;
+    G.invWait = st.id === 'shironaka' && G.flags.end_oyako && !G.flags.invaded && !G.friend && !G.versus ? 1.0 : 0;
     banner(st.soloOguri && G.solo ? st.name + '  オグリキャップだけで はしりぬけろ！' : st.name + '  セーブした', 1.8);
     persist();
   }
@@ -1781,7 +1808,7 @@
     G.unl[G.world] = G.unlocked;
     // the last stage of world k opens world k+1
     const nw = G.world + 1;
-    if (ni === MAP_NODES.length - 1 && nw < MAP_WORLDS.length && !(G.unl[nw] > 0)) {
+    if (ni === MAP_NODES.length - 1 && nw < MAP_WORLDS.length && !(G.unl[nw] > 0) && !(nw === 3 && !G.flags.invaded)) {
       G.unl[nw] = 1; persist(); setWorld(nw); openMap(0);
       banner(`あたらしい ちほう「${WORLD_NAMES[nw]}」へ！`, 3); return;
     }
@@ -2001,6 +2028,32 @@
     let ax = -1;
     if (st.btn >= 0) ax = BTN[st.btn].x + BTN[st.btn].w / 2 - 2; else if (st.btn === -1) ax = 26;
     if (ax >= 0) drawPattern(['#######', '#yyyyy#', '.#yyy#.', '..#y#..', '...#...'], Math.round(ax) - 1, 66 + bob, { '#': '#5a1a1a', y: '#ffe24a' });
+  }
+  // ---------- せいぎぐん invasion (story) ----------
+  function startInvasion() {
+    G.invWait = 0;
+    const x = clamp(player.x + 100, 40, WORLD_W - 20), u = Object.assign(newActor(x, -1, 'usahime'), trainerMember({ sp: 'usahime', lv: 30 }), { home: x, spawnX: x, alive: true, cool: true, story: true });
+    u.key = 'usahime'; G.invader = u;
+    say('', INVASION.talk, () => { startBattle(u); G.battle.story = { turns: 0 }; });
+  }
+  function* storyEnd() {
+    const B = G.battle; B.story.done = true;
+    banner(INVASION.stop + ' きょうは ここまでよ！」', 2.2); yield* wait(2.0);
+    B.phase = 'end'; B.result = 'story';
+    for (const m of G.party) if (m.hp < 1) m.hp = 1;
+    endBattle();
+  }
+  function invasionOutro() {
+    say('', INVASION.outro, () => {
+      if (G.invader) { G.invader.alive = false; G.invader = null; }
+      G.flags.invaded = 1;
+      if (!G.unl) G.unl = [G.unlocked];
+      while (G.unl.length < MAP_WORLDS.length) G.unl.push(0);
+      G.unl[G.world | 0] = G.unlocked;
+      if (!(G.unl[3] > 0)) G.unl[3] = 1;
+      persist(); setWorld(3); openMap(0);
+      banner(`あたらしい ちほう「${WORLD_NAMES[3]}」へ！`, 3);
+    });
   }
   function startBattle(w) {
     // しょうこ: if くうこ is with us, she calls her little sister over first (くうこ fights on her side until beaten)
@@ -2470,6 +2523,7 @@
   }
   function* enemyTurn() {
     const B = G.battle, e = B.w, a = ally();
+    if (B.story && !B.story.done && ++B.story.turns > INVASION.turns) { yield* storyEnd(); return; }
     const early = e.style === 'trick';
     const ev2 = typeof EVO_MOVES !== 'undefined' && EVO_MOVES[e.sp];
     if (e.evo && ev2 && ev2.super && e.spUsed && !e.spSuper && e.hp > 0 && e.hp <= e.maxHp / 2 && rand() < 0.6) { e.spSuper = true; yield* enemySpecial(); return; }
@@ -2518,6 +2572,7 @@
   }
   function* enemyFaint() {
     const B = G.battle, e = B.w;
+    if (B.story) { e.hp = 1; yield* storyEnd(); return; }
     if (e.mind && G.mind) { yield* mindWake(e); return; }
     if (G.versus && B.oppTeam) {
       const T = B.oppTeam; T[B.oppIdx].hp = 0;
@@ -2587,6 +2642,7 @@
   }
   function* allyFaint() {
     const B = G.battle, a = ally();
+    if (B.story) { a.hp = 1; comp.alpha = 1; yield* storyEnd(); return; }   // story battle: never a game over
     if (G.versus) {
       banner(`${a.name}は たおれた…`, 1.8);
       const left = G.party.findIndex(m => m.hp >= 1);
@@ -2766,6 +2822,7 @@
     }
     G.state = 'field';
     G.battle = null;
+    if (B.story) { invasionOutro(); return; }
     const join = () => {
       if (!joinAsk) return;
       const sp = joinAsk.sp, nm = SPECIES[sp].name, lv = joinAsk.lv || 1;
@@ -2831,6 +2888,7 @@
     if (G.state === 'field' && G.tutWait > 0 && !G.talk) { G.tutWait -= dt; if (G.tutWait <= 0) startTutorial(); }
     if (G.state === 'ending') updateEnding(dt);
     if (G.state === 'field') updateField(dt);
+    if (G.state === 'field' && G.invWait > 0 && (G.invWait -= dt) <= 0) startInvasion();
     if (G.fieldCo && G.state === 'field' && G.fieldCo.next().done) G.fieldCo = null;
     else if (G.state === 'battle') { physics(player, dt); physics(comp, dt); updateBattle(dt); }
     else if (G.state === 'title') { for (const w of G.wilds) w.face = -1; }
@@ -2889,8 +2947,8 @@
   const LAYER = {};
   function loadLayers(st) {
     const add = (k, src) => { if (LAYER[k] !== undefined) return; LAYER[k] = null; loadImg(src).then(i => { LAYER[k] = i; }).catch(() => { LAYER[k] = false; }); };
-    for (const k of ['far', 'near', 'ground']) add(st.id + '_' + k, st.layers + '_' + k + '.png');
-    if (st.tiles) for (const k of ['l', 'm', 'r']) add(st.id + '_tile_' + k, st.tiles + '_tile_' + k + '.png');
+    for (const k of ['far', 'near', 'ground']) if (artReady(st.layers + '_' + k + '.png')) add(st.id + '_' + k, st.layers + '_' + k + '.png');
+    if (st.tiles) for (const k of ['l', 'm', 'r']) if (artReady(st.tiles + '_tile_' + k + '.png')) add(st.id + '_tile_' + k, st.tiles + '_tile_' + k + '.png');
   }
   function tileRow(img, cam, par, y) {
     const w = img.width, off = Math.floor(cam * par) % w;
@@ -3602,6 +3660,7 @@
       drawRoadProps(cam); drawTown(cam); drawSign(cam); drawBench(cam);
       for (const a of G.npcs) drawActor(a, cam);
       for (const w of G.wilds) if (w.alive && w.alpha > 0) drawActor(w, cam);
+      if (G.invader && !G.battle && G.invader.alive) drawActor(G.invader, cam);
     }
     drawArtFx(cam, 'under');
     if (G.battle && G.battle.w) drawActor(G.battle.w, cam);
@@ -3674,10 +3733,11 @@
   }
   async function boot() {
     resize();
+    if (typeof SPRITES_PENDING !== 'undefined') for (const [k, s] of Object.entries(SPRITES_PENDING)) if (artReady(s.src)) SPRITES[k] = s;
     await Promise.all(Object.entries(SPRITES).map(([k, s]) => loadImg(s.src).then(img => prepSprite(k, img))));
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.walk).map(([k, s]) => loadImg(s.walk.src).then(img => prepWalk(k, img, s.walk)).catch(() => {})));
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.attack).map(([k, s]) => loadImg(s.attack.src).then(img => { SPR[k].attack = sheetFrames(img, s.attack.frames); }).catch(() => {})));
-    makeCrownSprites();
+    makeCrownSprites(); makePendingSprites();
     if (typeof FX_ART !== 'undefined') await Promise.all(Object.keys(FX_ART).map(sp => Promise.all([loadImg('assets/fx/' + sp + '_shot.png'), loadImg('assets/fx/' + sp + '_hit.png')])
       .then(([a, b]) => { FXIMG[sp] = { shot: sheetFrames(a, 4), hit: sheetFrames(b, FX_ART[sp].hit.n || 4, FX_ART[sp].hit.size || 32) }; }).catch(() => {})));
     // optional 'super' fx art (e.g. 超はかいおぐり波): only when embedded in ASSET_DATA, so no 404s; else the normal fx is drawn scaled up
@@ -3686,7 +3746,7 @@
       return Promise.all([ASSET_DATA[ks] ? loadImg(ks).then(i => { FXIMG[sp].shotS = sheetFrames(i, 4, Math.round(i.height)); }) : 0,
                           ASSET_DATA[kh] ? loadImg(kh).then(i => { FXIMG[sp].hitS = sheetFrames(i, H.n || 4, Math.round(i.height)); }) : 0]).catch(() => {});
     }));
-    await Promise.all(Object.entries(PROP_IMGS).map(([k, src]) => loadImg(src).then(img => { PROPS[k] = img; }).catch(e => console.warn(e))));
+    await Promise.all(Object.entries(PROP_IMGS).filter(([, src]) => artReady(src)).map(([k, src]) => loadImg(src).then(img => { PROPS[k] = img; }).catch(e => console.warn(e))));
     makeNpcSprites();
     try { await document.fonts.load('8px Misaki'); await document.fonts.load("8px 'DotGothic16'"); } catch (e) { console.warn('font load failed', e); }
     G.bg = G.bgCache.oka = BG.build(WORLD_W, STAGES[0].theme);

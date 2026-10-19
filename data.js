@@ -69,6 +69,12 @@ const SPRITES = {
   oguri:   { src: 'assets/oguri-cap.png', native: -1, walk: { src: 'assets/oguri_walk.png', frames: 4, ms: 150 } }, // faces left; flipped for right
 };
 
+// sprites whose art isn't drawn yet: used (moved into SPRITES at boot) once the files are embedded in assets-img.js;
+// until then game.js builds a placeholder (usahime = usagin_evo recolored green).
+const SPRITES_PENDING = {
+  usahime: { src: 'assets/usahime.png', native: 1, walk: { src: 'assets/usahime_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/usahime_attack.png', frames: 4 } },
+};
+
 const SPECIES = {
   goririn: {
     name: 'ゴリリン', sprite: 'goririn',
@@ -352,6 +358,14 @@ const SPECIES = {
       strong: { name: 'いわの ボディプレス', power: 32, acc: 0.83 },
     },
   },
+  usahime: {  // world 4 boss: green rabbit princess, leader of せいぎぐん. not recruitable (for now). art pending (placeholder = recolored usagin_evo)
+    name: 'うさひめ', sprite: 'usahime', boss: true, noEvo: true,
+    hp: 220, atk: 22, def: 16, spd: 15, recruitBase: 0,
+    moves: {
+      attack: { name: 'うさうさキック',   power: 14, acc: 0.96 },
+      strong: { name: 'にんじんハンマー', power: 32, acc: 0.86 },
+    },
+  },
   mori_boss: {
     name: 'もりの ぬし', sprite: 'tanukin', boss: true,
     hp: 72, atk: 10, def: 8, spd: 7, recruitBase: 0,
@@ -441,6 +455,7 @@ const EVO_MOVES = {
   wanigard: { special: { name: 'がぶりかみつき', fx: 'orb', col: '#5ac05a' } },
   toragar: { special: { name: 'やみのつめ', fx: 'fire', col: '#ff8a2a' } },
   goremun: { special: { name: 'ごろごろいわおとし', fx: 'orb', col: '#a09080' } },
+  usahime: { special: { name: 'せいぎの にんじんシャワー', fx: 'multi', shape: 'orb', hits: 3, col: '#ff8a2a' } },
   oguriking: { strong: { name: 'パンチングパンチ', fxFrom: 'kangarun' }, special: { name: 'はかいおぐり波', fx: 'beam', col: '#ffd23a' },
     // at hp <= half: 超はかいおぐり波 (power x mult). fx art: assets/fx/oguriking_shot_super.png / _hit_super.png if present in ASSET_DATA, else the normal fx drawn x scale
     super: { name: '超はかいおぐり波', mult: 1.5, scale: 1.75, col: '#ff7aff' } },
@@ -671,7 +686,42 @@ const STAGES = [
     pickups: [ { x: 212, h: 35, coins: 40 }, { x: 356, h: 35, coins: 40 }, { x: 486, h: 35, coins: 40 }, { x: 832, h: 35, coins: 50 }, { x: 966, h: 35, coins: 50 }, { x: 560, h: 0, item: 'carrot', id: 'carrot1' }, { x: 904, h: 21, item: 'carrot', id: 'carrot2' } ],
     exit: ['おうの みち', 'ゴール'],
   },
+  // ===== world 4: せいぎぐんの くに (opens after the せいぎぐん invasion event, which needs おやこエンド). art pending: assets/w4/<id>_* =====
+  {
+    id: 'seimachi', name: 'せいぎぐんの まち', width: 1000, theme: 'town', town: true, world: 3,
+    layers: 'assets/w4/seimachi', tiles: 'assets/w4/seimachi',
+    spawns: [],
+    buildings: [ { k: 'shop', x: 260, name: 'せいぎショップ' }, { k: 'clinic', x: 520, name: 'せいぎびょういん' } ],
+    exit: ['このさき', 'せいぎぐんの みち'],
+  },
+  {
+    id: 'seimichi', name: 'せいぎぐんの みち', width: 1300, theme: 'day', world: 3, highJump: true, bench: 640,
+    layers: 'assets/w4/seimichi', tiles: 'assets/w4/seimichi',
+    spawns: [ { sp: 'usagin', x: 260, lv: 26, evo: 1 }, { sp: 'kangarun', x: 440, lv: 26, evo: 1 }, { sp: 'shikanon', x: 700, lv: 27, evo: 1 }, { sp: 'nyankon', x: 900, lv: 27, evo: 1 }, { sp: 'usagin', x: 1120, lv: 28, evo: 1 }, { sp: 'tenton', x: 552, lv: 27, evo: 1, plat: 2 } ],
+    plats: [ { x: 180, w: 48, h: 21 }, { x: 300, w: 32, h: 35 }, { x: 520, w: 64, h: 21 }, { x: 800, w: 48, h: 21 }, { x: 1000, w: 48, h: 35 } ],
+    pickups: [ { x: 316, h: 35, coins: 40 }, { x: 1024, h: 35, coins: 45 } ],
+    exit: ['このさき', 'せいぎぐんの しろ'],
+  },
+  {
+    id: 'seishiro', name: 'せいぎぐんの しろ', width: 1300, theme: 'night', world: 3, highJump: true, bench: 600,
+    layers: 'assets/w4/seishiro', tiles: 'assets/w4/seishiro',
+    spawns: [ { sp: 'kangarun', x: 260, lv: 28, evo: 1 }, { sp: 'usagin', x: 460, lv: 28, evo: 1 }, { sp: 'pandan', x: 720, lv: 29, evo: 1 }, { sp: 'wankon', x: 920, lv: 29, evo: 1 }, { sp: 'usahime', x: 1180, lv: 30, boss: 1 } ],
+    plats: [ { x: 160, w: 48, h: 21 }, { x: 520, w: 64, h: 21 }, { x: 800, w: 48, h: 35 } ],
+    pickups: [ { x: 544, h: 21, coins: 50 }, { x: 824, h: 35, coins: 50 } ],
+    exit: ['このさき', 'じゅんびちゅう'],
+  },
 ];
+// せいぎぐん invasion (story event in しろの なか after おやこエンド): talk -> story battle vs うさひめ (no game over, ends after a few turns) -> outro -> world 4 opens
+const INVASION = {
+  talk: [['？？？「そこまでよ！ あくの しろの', 'オグリたち！」'], ['うさひめ「わたしは うさひめ！', 'せいぎぐんの リーダーよ！」'],
+         ['オグリキング「せいぎぐん だと…？', 'なにを しに きた」'], ['うさひめ「この しろの にんじん', 'ぜんぶ いただいて いくわ！」'],
+         ['オグリキャップ「にんじんは みんなの', 'ものだよ！ わたさない！」'], ['うさひめ「せいぎの ために', 'じゃまする ものは ゆるさない！」']],
+  turns: 3,
+  stop: 'うさひめ「…なかなか やるわね！', 
+  outro: [['うさひめ「きょうは このくらいに', 'しておいて あげる！」'], ['うさひめ「せいぎぐん にんじんを', 'もって ひきあげよ！」'],
+          ['せいぎぐんは にんじんを かかえて', 'にげていった…'], ['オグリキング「…にんじんが', 'ほとんど なくなった」'],
+          ['オグリキャップ「とりかえしに いこう！', 'せいぎぐんの くにへ！」']],
+};
 // endings (each plays once; flag G.flags['end_' + id]). art: assets/ending/end_<id>.png (160x90) + assets/ending/staffroll_bg.png,
 // used when embedded in assets-img.js (ASSET_DATA); until then game.js draws a night-sky placeholder.
 const ENDINGS = {
@@ -712,6 +762,7 @@ const PROP_IMGS = {
   wmap: 'assets/worldmap/worldmap.png', wseg0: 'assets/worldmap/worldmap_path_seg0.png', wseg1: 'assets/worldmap/worldmap_path_seg1.png', wseg2: 'assets/worldmap/worldmap_path_seg2.png', wseg3: 'assets/worldmap/worldmap_path_seg3.png', wseg4: 'assets/worldmap/worldmap_path_seg4.png', wseg5: 'assets/worldmap/worldmap_path_seg5.png', wseg6: 'assets/worldmap/worldmap_path_seg6.png',
   wmap2: 'assets/worldmap/worldmap2.png', w2seg0: 'assets/worldmap/worldmap2_path_seg0.png', w2seg1: 'assets/worldmap/worldmap2_path_seg1.png',
   wmap3: 'assets/worldmap/worldmap3.png', w3seg0: 'assets/worldmap/worldmap3_path_seg0.png', w3seg1: 'assets/worldmap/worldmap3_path_seg1.png', w3seg2: 'assets/worldmap/worldmap3_path_seg2.png',
+  wmap4: 'assets/worldmap/worldmap4.png', w4seg0: 'assets/worldmap/worldmap4_path_seg0.png', w4seg1: 'assets/worldmap/worldmap4_path_seg1.png',   // art pending (loaded only once embedded)
   item_carrot: 'assets/items/carrot.png', item_carrot_idle: 'assets/items/item_carrot_idle.png', item_carrot_get: 'assets/items/carrot_get.png',   // にんじん: 16x16 / idle 4f 150ms (anchor 8,15) / pickup sparkle 4f 90ms (anchor 8,8)
   bld_shop: 'assets/town/shop.png', bld_clinic: 'assets/town/hospital.png', bld_house: 'assets/town/grandma_house.png', bld_nuihouse: 'assets/town/nui_house.png',
   tree: 'assets/props/street_tree.png', fence: 'assets/props/fence.png', signpost: 'assets/props/signpost.png',
@@ -743,9 +794,15 @@ const MAP_W3 = [
   { x: 134, y: 28, stage: 13 },
   { x: 150, y: 12, stage: 14 },   // さいごの はしり (オグリキャップ solo run)
 ];
-const MAP_WORLDS = [MAP_W1, MAP_W2, MAP_W3];
-const WORLD_NAMES = ['ぜんたいマップ', 'もりの くに', 'あくの しろ'];   // map title / banner per world
-const WORLD_TINTS = [null, null, 'rgba(36,0,64,0.55)'];              // overlay used when the world has no map art
+// world 4 (せいぎぐんの くに): opens after the せいぎぐん invasion event
+const MAP_W4 = [
+  { x: 26,  y: 60, stage: 15 },
+  { x: 80,  y: 44, stage: 16 },
+  { x: 134, y: 26, stage: 17 },
+];
+const MAP_WORLDS = [MAP_W1, MAP_W2, MAP_W3, MAP_W4];
+const WORLD_NAMES = ['ぜんたいマップ', 'もりの くに', 'あくの しろ', 'せいぎぐんの くに'];   // map title / banner per world
+const WORLD_TINTS = [null, null, 'rgba(36,0,64,0.55)', 'rgba(20,90,40,0.45)'];              // overlay used when the world has no map art
 let MAP_NODES = MAP_W1;   // the world shown on the map (game.js switches it)
 
 let WORLD_W = STAGES[0].width;   // current stage width (set by enterStage)
