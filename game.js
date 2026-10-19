@@ -106,7 +106,7 @@
   function ctlMode() {
     if (G.state === 'field' && G.near) return 'near';
     if (G.state === 'field' || G.state === 'map') return 'field';
-    if (G.state === 'talk') return 'talk';
+    if (G.state === 'talk' || G.state === 'ending') return 'talk';
     if (G.state === 'title') return G.nameEdit ? 'off' : 'title';
     if (G.state === 'menu' || G.state === 'versus' || G.state === 'netroom') return 'back';
     if (G.state === 'battle' && G.battle) {
@@ -1014,6 +1014,7 @@
       return;
     }
     if (G.state === 'versus') { versusKey(code); return; }
+    if (G.state === 'ending') { if (['Enter', 'NumpadEnter', 'Space', 'KeyE', 'KeyX', 'Escape'].includes(code)) endingSkip(); return; }
     if (G.state === 'netroom') { if (['Escape', 'KeyX', 'Backspace'].includes(code)) closeNet(); return; }
     if (code === 'KeyT') { G.waitMode = !G.waitMode; banner(G.waitMode ? 'WAITモード：えらぶ あいだ じかんが とまる' : 'ACTIVEモード：えらぶ あいだも あいては うごく', 1.6); return; }
     if (code === 'KeyM') {
@@ -1099,6 +1100,7 @@
     const [x, y] = logicalPos(e);
     if (G.state === 'versus') { versusTap(x, y); return; }
     if (G.state === 'netroom') { if (y > 56) closeNet(); return; }
+    if (G.state === 'ending') { endingSkip(); return; }
     if (G.chip && inRect(x, y, G.chip)) { onKey('KeyT'); return; }
     if (G.state === 'talk') { talkNext(); return; }
     if (G.state === 'battle' && tutOn()) { tutStep(1); return; }
@@ -1674,7 +1676,9 @@
         else { (G.box = G.box || []).push(m); banner(`${nm}が なかまに なった！ ぬいハウスへ いったよ`, 2.6); }
         SFX.recruit(); persist();
       } else banner(`${nm}「${SPECIES[M.sp].declineLine || 'そう… また あいましょう'}」`, 2.0);
-      closeMenu(); return;
+      closeMenu();
+      if (k === '_yes' && M.sp === 'oguriking' && !endCrown()) playEnding('tochu', () => openMap(Math.max(0, MAP_NODES.findIndex(n => n.stage === G.stage))));
+      return;
     }
     const it = ITEMS[k];
     if (M.kind === 'shop') {
@@ -1783,7 +1787,7 @@
     }
     persist();
     openMap(Math.min(ni + 1, MAP_NODES.length - 1));
-    if (crownMsg) { banner(crownMsg, 4); SFX.recruit(); }
+    if (crownMsg) playEnding('oyako', () => { openMap(Math.min(ni + 1, MAP_NODES.length - 1)); banner(crownMsg, 4); SFX.recruit(); });
   }
   function openMap(sel) {
     endSolo();
@@ -2771,6 +2775,7 @@
     else if (refuse) {
       const r = refuse; say(SPECIES[r.sp].name, SPECIES[r.sp].refuseLines, () => {
         Object.assign(r, { alive: true, alpha: 1, oy: 0, hp: r.maxHp, st: 0, guard: false, spUsed: false, spSuper: false, cool: true, toHome: true });   // walk away (>110px) and back to fight again
+        playEnding('hitori', () => openMap(Math.max(0, MAP_NODES.findIndex(n => n.stage === G.stage))));   // first time only
       });
     }
     else join();
@@ -2824,6 +2829,7 @@
     G.t += dt;
     SFX.sync();
     if (G.state === 'field' && G.tutWait > 0 && !G.talk) { G.tutWait -= dt; if (G.tutWait <= 0) startTutorial(); }
+    if (G.state === 'ending') updateEnding(dt);
     if (G.state === 'field') updateField(dt);
     if (G.fieldCo && G.state === 'field' && G.fieldCo.next().done) G.fieldCo = null;
     else if (G.state === 'battle') { physics(player, dt); physics(comp, dt); updateBattle(dt); }
@@ -2933,6 +2939,75 @@
       }
       drawPattern(['.###.', '#yyy#', '#ywy#', '#yyy#', '.###.'], x - 2, y, { '#': '#8a5a10', y: '#ffd23a', w: '#fff6b0' });
     });
+  }
+  // ---------- endings: talk (say) on a still picture -> staff roll -> ending name -> map ----------
+  const ENDIMG = {};
+  const endImg = src => { if (!(typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src])) return null;   // only embedded art (no 404s)
+    if (ENDIMG[src] === undefined) { ENDIMG[src] = null; loadImg(src).then(i => { ENDIMG[src] = i; }).catch(() => { ENDIMG[src] = false; }); } return ENDIMG[src] || null; };
+  function playEnding(id, then) {
+    const D = ENDINGS[id];
+    if (!D || G.flags['end_' + id]) { if (then) then(); return false; }
+    G.flags['end_' + id] = 1; if (id === 'oyako') G.flags.w4hook = 1;   // w4hook: sequel teaser flag (sequel not built yet)
+    persist();
+    endImg(D.img); endImg(STAFF_BG);
+    G.ending = { id, phase: 'talk', t: 0, then }; G.menu = null; player.moving = false;
+    say('', D.talk, () => { G.ending.phase = 'roll'; G.ending.t = 0; G.state = 'ending'; });
+    return true;
+  }
+  const ROLL_GAP = 10, rollLen = () => STAFF.length * ROLL_GAP + 90 + 20;
+  function updateEnding(dt) {
+    const E = G.ending; if (!E) return; E.t += dt;
+    if (E.phase === 'roll' && E.t * 12 > rollLen()) endingSkip();
+    else if (E.phase === 'name' && E.t > 3) endingSkip();
+  }
+  function endingSkip() {
+    const E = G.ending; if (!E || E.phase === 'talk') return;
+    if (E.phase === 'roll') { E.phase = 'name'; E.t = 0; SFX.win(); return; }
+    G.ending = null; G.state = 'field';
+    if (E.then) E.then(); else openMap(G.mapSel || 0);
+  }
+  function endSky(dark) {
+    const c = dark ? ['#0a0a22', '#141838', '#20244a'] : ['#141a48', '#283070', '#3c4890'];
+    for (let i = 0; i < 3; i++) rect(0, i * 20, 160, 20, c[i]);
+    rect(0, 60, 160, 30, dark ? '#1a2a1a' : '#2a5a32'); rect(0, 60, 160, 2, dark ? '#2a3a22' : '#4a8a3a');
+    for (let i = 0; i < 26; i++) { const x = (i * 53 + 7) % 160, y = (i * 29 + 3) % 56; if ((Math.floor(G.t * 2) + i) % 7) rect(x, y, 1, 1, '#ffffff'); }
+    rect(128, 8, 9, 9, '#fff6c8'); rect(127, 10, 11, 5, '#fff6c8'); rect(130, 7, 5, 11, '#fff6c8');
+  }
+  function endSpr(k, x, right, walk) {
+    const s = SPR[k]; if (!s) return;
+    let fr = s; if (walk && s.walk) fr = s.walk.frames[Math.floor(G.t * 1000 / s.walk.ms) % s.walk.frames.length];
+    g.drawImage((right ? 1 : -1) === s.native ? fr.n : fr.f, Math.round(x) - 16, 70 - 31);
+  }
+  const endCrown = () => G.party.concat(G.box || []).find(m => m.sp === 'oguri' && m.crown) || null;
+  function drawEnding() {
+    const E = G.ending, D = ENDINGS[E.id];
+    if (E.phase === 'talk') {
+      const im = endImg(D.img);
+      if (im) g.drawImage(im, 0, 0); else {
+        endSky(E.id === 'hitori');
+        for (const c of D.cast) {
+          if (c === 'king') endSpr('oguriking', E.id === 'oyako' ? 66 : 112, E.id === 'oyako', false);
+          else if (c === 'crown') { const o = endCrown(); endSpr(o ? memberKey(o) : 'oguri', 96, false, false); }
+          else if (c === 'kingAlone') endSpr('oguriking', 60 + Math.min(90, E.t * 6), true, true);
+          else if (c === 'party') G.party.filter(m => m.sp !== 'oguriking').slice(0, 3).forEach((m, i) => endSpr(memberKey(m), 30 + i * 24, true, false));
+        }
+      }
+      return;
+    }
+    const bg = endImg(STAFF_BG);
+    if (bg) g.drawImage(bg, 0, 0); else { endSky(true); rect(0, 60, 160, 30, '#10101e'); }
+    if (E.phase === 'roll') {
+      const y0 = 90 - E.t * 12;
+      STAFF.forEach((l, i) => { const y = y0 + i * ROLL_GAP; if (l && y > -8 && y < 62) T(l, 80, y, { size: i === 0 || l === 'つくったひと' ? 8 : 4, c: '#ffffff', ol: '#1a1a3a', al: 'center' }); });
+    }
+    // the party walks along the bottom
+    const team = G.party.slice(0, 4), span = 160 + team.length * 26;
+    team.forEach((m, i) => endSpr(memberKey(m), ((E.t * 18 + (team.length - i) * 26) % span) - 20, true, true));
+    if (E.phase === 'name') {
+      g.globalAlpha = Math.min(0.6, E.t); rect(0, 22, 160, 26, '#000000'); g.globalAlpha = 1;
+      T(D.title, 80, 28, { size: 8, c: '#ffe24a', ol: '#5a3418', al: 'center' });
+      T('～ おしまい ～', 80, 40, { size: 4, c: '#ffffff', al: 'center' });
+    }
   }
   function drawActor(a, cam) {
     if (a.alpha <= 0) return;
@@ -3486,6 +3561,11 @@
     if (oppSp) blit(oppSp, 136, -1);
   }
   function render() {
+    if (G.ending) {
+      drawEnding(); drawTalk();
+      vctx.drawImage(low, 0, 0, W * S, H * S); flushText();
+      return;
+    }
     if (G.state === 'map') {
       drawMap(); drawBanner();
       vctx.drawImage(low, 0, 0, W * S, H * S); flushText();

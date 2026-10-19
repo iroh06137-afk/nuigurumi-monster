@@ -672,6 +672,22 @@ const STAGES = [
     exit: ['おうの みち', 'ゴール'],
   },
 ];
+// endings (each plays once; flag G.flags['end_' + id]). art: assets/ending/end_<id>.png (160x90) + assets/ending/staffroll_bg.png,
+// used when embedded in assets-img.js (ASSET_DATA); until then game.js draws a night-sky placeholder.
+const ENDINGS = {
+  oyako: { title: 'おやこエンド', img: 'assets/ending/end_oyako.png', cast: ['king', 'crown'],
+    talk: [['オグリキング「…りっぱに なったな', 'オグリキャップ」'], ['オグリキャップ「とうさんの かんむり', 'ちゃんと まもるよ」'],
+           ['オグリキング「もう ちからで したがえるのは', 'やめだ」'], ['オグリキング「これからは みんなと はしる', 'おまえの せなかを みせてくれ」'],
+           ['オグリキャップ「うん！ いっしょに かえろう', 'とうさん」'], ['ふたりは なかよく', 'へいわな ぬいぐるみの くにへ かえっていった']] },
+  hitori: { title: 'ひとりのおうエンド', img: 'assets/ending/end_hitori.png', cast: ['kingAlone'],
+    talk: [['オグリキング「…わが子は', 'ここにも おらぬか」'], ['オグリキング「ならば この あしで', 'さがしに いくまでだ」'],
+           ['オグリキング「どこに いようと', 'かならず みつけてみせる」'], ['…オグリキングは ひとり', 'よるの みちへ きえていった']] },
+  tochu: { title: 'とちゅうエンド', img: 'assets/ending/end_tochu.png', cast: ['party', 'king'],
+    talk: [['オグリキング「…よし ついていこう', 'だが わすれるな」'], ['オグリキング「わが子は まだ', 'ほんとうの おうでは ない」'],
+           ['オグリキング「しろの おく「さいごの はしり」', 'そこで まっている ものが ある」'], ['…ものがたりは まだ', 'おわらない みたいだ']] },
+};
+const STAFF_BG = 'assets/ending/staffroll_bg.png';
+const STAFF = ['ぬいぐるみモンスター', '', '', 'つくったひと', '', 'え', 'ドット絵作成くん', '', 'ゲーム', 'ゲーム開発くん', '', '', 'あそんでくれて', 'ありがとう'];
 // オグリキャップ crown event. sprite: <key>_crown (oguri_crown / oguri_evo_crown). Add SPRITES entries with those keys when the real art
 // arrives (done: oguri_crown / oguri_evo_crown); game.js only draws a placeholder crown if an entry is missing.
 const CROWN = {
