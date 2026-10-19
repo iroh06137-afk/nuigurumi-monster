@@ -1584,7 +1584,7 @@
     if (G.state !== 'title' && ally() && ally().sp === sp && vis(comp)) return true;
     if (G.invader && G.invader.alive && G.invader.sp === sp && vis(G.invader)) return true;
     if ((G.talkGuests || []).some(a => a.sp === sp)) return true;
-    return G.wilds.some(w => w.alive && w.sp === sp && vis(w)) || (G.npcs || []).some(n => n.def && n.def.sp === sp && vis(n));
+    return G.wilds.some(w => w.alive && w.sp === sp && (vis(w) || Math.abs(w.x - player.x) < 140)) || (G.npcs || []).some(n => n.def && n.def.sp === sp && vis(n));
   }
   function guestKey(sp) {
     const own = G.party.concat(G.box || [], G.solo ? G.solo.party : []).find(m => m.sp === sp && (m.crown || sp !== 'oguri')) || G.party.concat(G.box || [], G.solo ? G.solo.party : []).find(m => m.sp === sp);
