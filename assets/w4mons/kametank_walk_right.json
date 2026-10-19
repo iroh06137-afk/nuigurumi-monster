@@ -1,0 +1,64 @@
+{
+  "image": "kametank_walk_right.png",
+  "size": {
+    "w": 128,
+    "h": 32
+  },
+  "frameSize": {
+    "w": 32,
+    "h": 32
+  },
+  "facing": "right",
+  "note": "Right-facing カメタンク tank roll, made from the faithful downscale of the reference sheet; mirror horizontally for left. The body stays still and the tread texture scrolls 1px per frame. Baseline row 30 in all frames; Row 31 is empty.",
+  "frames": [
+    {
+      "index": 0,
+      "name": "walk_0",
+      "desc": "roll: tread texture shifted 0px (silhouette unchanged); lowest outline row 30",
+      "x": 0,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 150
+    },
+    {
+      "index": 1,
+      "name": "walk_1",
+      "desc": "roll: tread texture shifted 1px (silhouette unchanged); lowest outline row 30",
+      "x": 32,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 150
+    },
+    {
+      "index": 2,
+      "name": "walk_2",
+      "desc": "roll: tread texture shifted 2px (silhouette unchanged); lowest outline row 30",
+      "x": 64,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 150
+    },
+    {
+      "index": 3,
+      "name": "walk_3",
+      "desc": "roll: tread texture shifted 3px (silhouette unchanged); lowest outline row 30",
+      "x": 96,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 150
+    }
+  ],
+  "frameDurationMs": 150,
+  "loop": true,
+  "order": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "baselineRow": 30
+}

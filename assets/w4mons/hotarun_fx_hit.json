@@ -1,0 +1,68 @@
+{
+  "image": "hotarun_fx_hit.png",
+  "size": {
+    "w": 128,
+    "h": 32
+  },
+  "frameSize": {
+    "w": 32,
+    "h": 32
+  },
+  "facing": "right",
+  "name": "ランタンライト",
+  "note": "ランタンライト impact on the target. Play once. Anchor: frame centre (16,16) on the target body centre (about GROUND-14).",
+  "frames": [
+    {
+      "index": 0,
+      "name": "hit_0",
+      "desc": "impact flash",
+      "x": 0,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 90
+    },
+    {
+      "index": 1,
+      "name": "hit_1",
+      "desc": "burst",
+      "x": 32,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 90
+    },
+    {
+      "index": 2,
+      "name": "hit_2",
+      "desc": "ring and glow sparks",
+      "x": 64,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 90
+    },
+    {
+      "index": 3,
+      "name": "hit_3",
+      "desc": "fading sparks",
+      "x": 96,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 90
+    }
+  ],
+  "frameDurationMs": 90,
+  "loop": false,
+  "order": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "anchor": {
+    "x": 16,
+    "y": 16
+  }
+}

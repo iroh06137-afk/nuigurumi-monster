@@ -4,6 +4,16 @@
 
 // 32x32 sprites. native = direction the source art faces (1 = right, -1 = left).
 const SPRITES = {
+  usagihei: { src: 'assets/w4mons/usagihei_right.png', native: 1, walk: { src: 'assets/w4mons/usagihei_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/usagihei_attack_right.png', frames: 4 } },   // w4 せいぎぐん: rabbit spear soldier
+  hamuranger: { src: 'assets/w4mons/hamuranger_right.png', native: 1, walk: { src: 'assets/w4mons/hamuranger_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/hamuranger_attack_right.png', frames: 4 } },   // w4 せいぎぐん: hamster ranger, rapid seeds
+  poppon: { src: 'assets/w4mons/poppon_right.png', native: 1, walk: { src: 'assets/w4mons/poppon_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/poppon_attack_right.png', frames: 4 } },   // w4 せいぎぐん: pigeon courier, very fast
+  hotarun: { src: 'assets/w4mons/hotarun_right.png', native: 1, walk: { src: 'assets/w4mons/hotarun_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/hotarun_attack_right.png', frames: 4 } },   // w4 せいぎぐん: firefly lantern
+  hiyokorappa: { src: 'assets/w4mons/hiyokorappa_right.png', native: 1, walk: { src: 'assets/w4mons/hiyokorappa_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/hiyokorappa_attack_right.png', frames: 4 } },   // w4 せいぎぐん: chick bugler: fanfare raises attack
+  mogurakouhei: { src: 'assets/w4mons/mogurakouhei_right.png', native: 1, walk: { src: 'assets/w4mons/mogurakouhei_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/mogurakouhei_attack_right.png', frames: 4 } },   // w4 せいぎぐん: mole engineer: attacks from below (low shots)
+  arupakacook: { src: 'assets/w4mons/arupakacook_right.png', native: 1, walk: { src: 'assets/w4mons/arupakacook_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/arupakacook_attack_right.png', frames: 4 } },   // w4 せいぎぐん: alpaca cook: heals itself
+  paoon: { src: 'assets/w4mons/paoon_right.png', native: 1, walk: { src: 'assets/w4mons/paoon_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/paoon_attack_right.png', frames: 4 } },   // w4 せいぎぐん: elephant captain (まち mid-boss): fanfare raises attack
+  kametank: { src: 'assets/w4mons/kametank_right.png', native: 1, walk: { src: 'assets/w4mons/kametank_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/kametank_attack_right.png', frames: 4 } },   // w4 せいぎぐん: turtle tank (みち mid-boss): very tanky, very slow
+  usaknight: { src: 'assets/w4mons/usaknight_right.png', native: 1, walk: { src: 'assets/w4mons/usaknight_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/usaknight_attack_right.png', frames: 4 } },   // w4 せいぎぐん: rabbit knight (しろ mid-boss): fast 3-hit sword
   npc_girl: { src: 'assets/npc/girl.png', native: 1 },
   npc_mushitori: { src: 'assets/npc/mushitori.png', native: 1 },
   npc_gaki: { src: 'assets/npc/gaki.png', native: 1 },
@@ -300,6 +310,86 @@ const SPECIES = {
       strong: { name: 'パンチングパンチ', power: 31, acc: 0.86 },
     },
   },
+  usagihei: {  // w4 (せいぎぐん): rabbit spear soldier
+    name: 'うさぎへい', sprite: 'usagihei', noEvo: true,
+    hp: 54, atk: 15, def: 11, spd: 13, recruitBase: 0.06,
+    moves: {
+      attack: { name: 'やりつつき', power: 14, acc: 0.95 },
+      strong: { name: 'にんじんやりつき', power: 32, acc: 0.85, fxFrom: 'usagihei', },
+    },
+  },
+  hamuranger: {  // w4 (せいぎぐん): hamster ranger, rapid seeds
+    name: 'ハムレンジャー', sprite: 'hamuranger', noEvo: true,
+    hp: 48, atk: 14, def: 9, spd: 14, recruitBase: 0.06,
+    moves: {
+      attack: { name: 'ほおぶくろタックル', power: 14, acc: 0.95 },
+      strong: { name: 'ひまわりのたねマシンガン', power: 32, acc: 0.85, fxFrom: 'hamuranger', },
+    },
+  },
+  poppon: {  // w4 (せいぎぐん): pigeon courier, very fast
+    name: 'ポッポン', sprite: 'poppon', noEvo: true,
+    hp: 44, atk: 13, def: 8, spd: 19, recruitBase: 0.06,
+    moves: {
+      attack: { name: 'つばさビンタ', power: 14, acc: 0.95 },
+      strong: { name: 'そくたつレター', power: 32, acc: 0.85, fxFrom: 'poppon', },
+    },
+  },
+  hotarun: {  // w4 (せいぎぐん): firefly lantern
+    name: 'ホタルン', sprite: 'hotarun', noEvo: true,
+    hp: 46, atk: 15, def: 9, spd: 12, recruitBase: 0.06,
+    moves: {
+      attack: { name: 'ひかりの たいあたり', power: 14, acc: 0.95 },
+      strong: { name: 'ランタンライト', power: 32, acc: 0.85, fxFrom: 'hotarun', },
+    },
+  },
+  hiyokorappa: {  // w4 (せいぎぐん): chick bugler: fanfare raises attack
+    name: 'ヒヨコらっぱ', sprite: 'hiyokorappa', noEvo: true,
+    hp: 46, atk: 12, def: 9, spd: 13, recruitBase: 0.06,
+    moves: {
+      attack: { name: 'ぴよキック', power: 14, acc: 0.95 },
+      strong: { name: 'ぴよぴよファンファーレ', power: 28, acc: 0.85, fxFrom: 'hiyokorappa', buff: 0.2, },
+    },
+  },
+  mogurakouhei: {  // w4 (せいぎぐん): mole engineer: attacks from below (low shots)
+    name: 'モグラこうへい', sprite: 'mogurakouhei', noEvo: true,
+    hp: 56, atk: 16, def: 13, spd: 9, recruitBase: 0.06,
+    moves: {
+      attack: { name: 'もぐらトンネル', power: 14, acc: 0.95 },
+      strong: { name: 'つちくれボム', power: 32, acc: 0.85, fxFrom: 'mogurakouhei', },
+    },
+  },
+  arupakacook: {  // w4 (せいぎぐん): alpaca cook: heals itself
+    name: 'アルパカコック', sprite: 'arupakacook', noEvo: true,
+    hp: 60, atk: 13, def: 11, spd: 10, recruitBase: 0.06,
+    moves: {
+      attack: { name: 'おたまアタック', power: 14, acc: 0.95 },
+      strong: { name: 'にんじんシュート', power: 28, acc: 0.85, fxFrom: 'arupakacook', heal: 0.25, },
+    },
+  },
+  paoon: {  // w4 (せいぎぐん): elephant captain (まち mid-boss): fanfare raises attack
+    name: 'パオーン隊長', sprite: 'paoon', noEvo: true, boss: true, gate: [["パオーン隊長「パオーン！ ここから さきは", "せいぎぐんの なわばりだ！」"], ["パオーン隊長「とおりたければ", "わがはいを たおして ゆけ！」"]],
+    hp: 125, atk: 20, def: 15, spd: 11, recruitBase: 0,
+    moves: {
+      attack: { name: 'はなで ぺちん', power: 14, acc: 0.95 },
+      strong: { name: 'パオーンファンファーレ', power: 28, acc: 0.85, fxFrom: 'paoon', buff: 0.2, },
+    },
+  },
+  kametank: {  // w4 (せいぎぐん): turtle tank (みち mid-boss): very tanky, very slow
+    name: 'カメタンク', sprite: 'kametank', noEvo: true, boss: true, gate: [["カメタンク「ゴゴゴ… この みちは", "カメタンクが まもって いる」"], ["カメタンク「ぼくの こうらは", "ぜったいに われないぞ！」"]],
+    hp: 160, atk: 19, def: 26, spd: 5, recruitBase: 0,
+    moves: {
+      attack: { name: 'こうらタックル', power: 14, acc: 0.95 },
+      strong: { name: 'こうらキャノン', power: 32, acc: 0.85, fxFrom: 'kametank', },
+    },
+  },
+  usaknight: {  // w4 (せいぎぐん): rabbit knight (しろ mid-boss): fast 3-hit sword
+    name: 'ウサナイト', sprite: 'usaknight', noEvo: true, boss: true, gate: [["ウサナイト「うさひめさまには", "ゆびいっぽん ふれさせない！」"], ["ウサナイト「せいぎの けんを", "うけてみよ！」"]],
+    hp: 118, atk: 21, def: 15, spd: 19, recruitBase: 0,
+    moves: {
+      attack: { name: 'たてアタック', power: 14, acc: 0.95 },
+      strong: { name: 'せいぎのけん', power: 32, acc: 0.85, fxFrom: 'usaknight', },
+    },
+  },
   lioneru: {  // w3 (あくの しろ): lion, castle gatekeeper, high atk
     name: 'ライオネル', sprite: 'lioneru', noEvo: true,  // never evolves; special usable at base form
     hp: 58, atk: 17, def: 12, spd: 10, recruitBase: 0.06,
@@ -436,6 +526,16 @@ for (const sp of ['tenton', 'risurin', 'kinokon', 'shikanon', 'haririn', 'choura
 EVOLVE.shouko = { lv: 10, sprite: 'shouko', name: null, hp: 0, atk: 0, def: 0, spd: 0 };
 EVOLVE.oguriking = { lv: 25, sprite: 'oguriking', name: null, hp: 0, atk: 0, def: 0, spd: 0 };
 const EVO_MOVES = {
+  usagihei: { special: { name: 'にんじんやり みだれづき', fx: 'wave', col: '#ffd04a', } },
+  hamuranger: { special: { name: 'たねマシンガン フルバースト', fx: 'wave', col: '#ffd04a', } },
+  poppon: { special: { name: 'そくたつ びゅんびゅんレター', fx: 'wave', col: '#ffd04a', } },
+  hotarun: { special: { name: 'ランタン フラッシュ', fx: 'wave', col: '#ffd04a', } },
+  hiyokorappa: { special: { name: 'ぴよぴよ だいがっそう', fx: 'wave', col: '#ffd04a', buff: 0.3, } },
+  mogurakouhei: { special: { name: 'ちていから どかーん', fx: 'wave', col: '#ffd04a', } },
+  arupakacook: { special: { name: 'とくせい にんじんスープ', fx: 'wave', col: '#ffd04a', heal: 0.4, } },
+  paoon: { special: { name: 'パオーン だいこうしん', fx: 'wave', col: '#ffd04a', buff: 0.3, } },
+  kametank: { special: { name: 'こうら フルバースト', fx: 'wave', col: '#ffd04a', } },
+  usaknight: { special: { name: 'せいぎの みだれぎり', fx: 'wave', col: '#ffd04a', } },
   tenton: { special: { name: 'てんとうミサイル', fx: 'orb', col: '#e83a3a' } },
   risurin: { special: { name: 'どんぐりマシンガン', fx: 'multi', shape: 'orb', hits: 3, col: '#b07a3a' } },
   kinokon: { special: { name: 'ねむりほうし弾', fx: 'orb', col: '#e8a0e0' } },
@@ -494,6 +594,16 @@ const MIND = {
   },
 };
 const FX_ART = {
+  usagihei: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[24, 9], [26, 10], [26, 11], [25, 10]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  hamuranger: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[26, 12], [28, 13], [28, 14], [27, 13]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  poppon: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[30, 14], [31, 14], [31, 15], [30, 14]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 190}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  hotarun: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[28, 26], [30, 26], [30, 26], [29, 26]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  hiyokorappa: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[28, 16], [30, 16], [30, 17], [29, 16]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  mogurakouhei: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[26, 17], [28, 18], [28, 19], [27, 18]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  arupakacook: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[26, 20], [28, 21], [28, 21], [27, 21]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  paoon: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[28, 12], [30, 12], [30, 13], [29, 12]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  kametank: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[28, 11], [29, 12], [29, 13], [29, 12]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  usaknight: {"cast": {"order": [0, 1, 2, 1, 2, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[28, 12], [30, 11], [30, 12], [29, 11]], "fire": [1, 3, 5], "hold": 6}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   lioneru: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[26, 14], [28, 15], [28, 15], [27, 15]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   wolfun: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[25, 14], [27, 15], [27, 15], [26, 15]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   saiguard: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[25, 14], [27, 14], [27, 14], [26, 14]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
@@ -688,14 +798,14 @@ const STAGES = [
   {
     id: 'seimachi', name: 'せいぎぐんの まち', width: 1000, theme: 'town', town: true, world: 3,
     layers: 'assets/w4/seimachi', tiles: 'assets/w4/seimachi',
-    spawns: [],
+    spawns: [ { sp: 'hotarun', x: 600, lv: 24 }, { sp: 'paoon', x: 700, lv: 27, gate: 'seimachi' }, { sp: 'usagihei', x: 800, lv: 24 }, { sp: 'hiyokorappa', x: 900, lv: 25 } ],
     buildings: [ { k: 'shop', x: 260, name: 'せいぎショップ' }, { k: 'clinic', x: 520, name: 'せいぎびょういん' } ],
     exit: ['このさき', 'せいぎぐんの みち'],
   },
   {
     id: 'seimichi', name: 'せいぎぐんの みち', width: 1300, theme: 'day', world: 3, highJump: true, bench: 640,
     layers: 'assets/w4/seimichi', tiles: 'assets/w4/seimichi',
-    spawns: [ { sp: 'usagin', x: 260, lv: 26, evo: 1 }, { sp: 'kangarun', x: 440, lv: 26, evo: 1 }, { sp: 'shikanon', x: 700, lv: 27, evo: 1 }, { sp: 'nyankon', x: 900, lv: 27, evo: 1 }, { sp: 'usagin', x: 1120, lv: 28, evo: 1 }, { sp: 'tenton', x: 552, lv: 27, evo: 1, plat: 2 } ],
+    spawns: [ { sp: 'hamuranger', x: 240, lv: 25 }, { sp: 'poppon', x: 400, lv: 25, style: 'fast' }, { sp: 'mogurakouhei', x: 560, lv: 26 }, { sp: 'kametank', x: 760, lv: 28, gate: 'seimichi' }, { sp: 'arupakacook', x: 940, lv: 26 }, { sp: 'usagihei', x: 1120, lv: 27 }, { sp: 'poppon', x: 1024, lv: 26, plat: 4, style: 'fast' } ],
     plats: [ { x: 180, w: 48, h: 21 }, { x: 300, w: 32, h: 35 }, { x: 520, w: 64, h: 21 }, { x: 800, w: 48, h: 21 }, { x: 1000, w: 48, h: 35 } ],
     pickups: [ { x: 316, h: 35, coins: 40 }, { x: 1024, h: 35, coins: 45 } ],
     exit: ['このさき', 'せいぎぐんの しろ'],
@@ -703,7 +813,7 @@ const STAGES = [
   {
     id: 'seishiro', name: 'せいぎぐんの しろ', width: 1300, theme: 'day', world: 3, highJump: true, bench: 600,
     layers: 'assets/w4/seishiro', tiles: 'assets/w4/seishiro',
-    spawns: [ { sp: 'kangarun', x: 260, lv: 28, evo: 1 }, { sp: 'usagin', x: 460, lv: 28, evo: 1 }, { sp: 'pandan', x: 720, lv: 29, evo: 1 }, { sp: 'wankon', x: 920, lv: 29, evo: 1 }, { sp: 'usahime', x: 1180, lv: 30, boss: 1 } ],
+    spawns: [ { sp: 'usagihei', x: 240, lv: 27 }, { sp: 'hiyokorappa', x: 420, lv: 28 }, { sp: 'usaknight', x: 620, lv: 29, gate: 'seishiro' }, { sp: 'arupakacook', x: 800, lv: 28 }, { sp: 'hamuranger', x: 824, lv: 28, plat: 2 }, { sp: 'mogurakouhei', x: 980, lv: 29 }, { sp: 'usahime', x: 1180, lv: 30, boss: 1 } ],
     plats: [ { x: 160, w: 48, h: 21 }, { x: 520, w: 64, h: 21 }, { x: 800, w: 48, h: 35 } ],
     pickups: [ { x: 544, h: 21, coins: 50 }, { x: 824, h: 35, coins: 50 } ],
     exit: ['このさき', 'じゅんびちゅう'],

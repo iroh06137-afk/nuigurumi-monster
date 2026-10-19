@@ -938,8 +938,8 @@
   }
 
   function spawnWilds() {
-    G.wilds = STAGES[G.stage].spawns.map((s, i) => (Object.assign(newActor(s.x, -1, SPECIES[s.sp].sprite), s.lv ? trainerMember({ sp: s.sp, lv: s.lv, evo: SPECIES[s.sp].evoOnly || (s.evo ? 1 : 0) }) : newMember(s.sp), {
-      home: s.x, spawnX: s.x, alive: !(SPECIES[s.sp].recruitAfter && G.flags && G.flags['joined_' + s.sp]), cool: false, wt: 1 + rand() * 2, wdir: 0, toHome: false, idx: i,
+    G.wilds = STAGES[G.stage].spawns.map((s, i) => (Object.assign(newActor(s.x, -1, SPECIES[s.sp].sprite), s.lv ? trainerMember({ sp: s.sp, lv: s.lv, style: s.style, evo: SPECIES[s.sp].evoOnly || (s.evo ? 1 : 0) }) : newMember(s.sp), {
+      home: s.x, spawnX: s.x, alive: !(SPECIES[s.sp].recruitAfter && G.flags && G.flags['joined_' + s.sp]) && !(s.gate && G.flags && G.flags['gate_' + s.gate]), gate: s.gate || null, cool: false, wt: 1 + rand() * 2, wdir: 0, toHome: false, idx: i,
     }, platOf(s))));
     for (const w of G.wilds) w.key = memberKey(w);   // evolved wilds (evo: 1) show their evolved art when it exists
   }
@@ -997,7 +997,14 @@
     return { name: 'きずなの ' + st.name, power: Math.round(st.power * 1.9), acc: 1 };
   }
   const stRate = u => (TUNING.stBase + u.spd * TUNING.stPerSpd) * (u.crown && typeof CROWN !== 'undefined' ? CROWN.stMult : 1);   // crown perk: faster stamina
-  function calcDmg(a, d, mv) { return Math.max(1, Math.round(mv.power * a.atk / (a.atk + d.def) * (0.85 + rand() * 0.3))); }
+  function calcDmg(a, d, mv) { return Math.max(1, Math.round(mv.power * a.atk * (a._buff || 1) / (a.atk + d.def) * (0.85 + rand() * 0.3))); }
+  // move side effects (せいぎぐん): buff = attack up for this battle (ファンファーレ), heal = recover part of max HP (にんじんスープ)
+  function afterMove(att, mv) {
+    if (!att || !mv || att.hp <= 0 || !G.battle) return;
+    const B = G.battle, A = att === B.w ? B.w : comp;
+    if (mv.buff) { att._buff = Math.min(1.6, (att._buff || 1) + mv.buff); banner(`${att.name}の こうげきが あがった！`, 1.4); burst(A.x, GROUND - 20, 'spark', 10, '#ff8a4a'); }
+    if (mv.heal) { const v = Math.round(att.maxHp * mv.heal); att.hp = Math.min(att.maxHp, att.hp + v); pop(A.x, GROUND - 40, '+' + v, '#7aff8a'); banner(`${att.name}は げんきを とりもどした！`, 1.4); burst(A.x, GROUND - 16, 'spark', 10, '#7aff8a'); }
+  }
   function recruitChance(e) {
     const base = SPECIES[e.sp].recruitBase + (G.cookie ? ITEMS.cookie.amt : 0);
     return clamp(base + TUNING.recruitHpWeight * (1 - e.hp / e.maxHp), TUNING.recruitMin, TUNING.recruitMax);
@@ -1604,7 +1611,7 @@
       F.pile = false; F.soldiers = [];
       for (let i = 0; i < 3; i++) {
         const x = clamp(u.x + [-34, -18, 16][i], G.cam + 8, G.cam + W - 8);
-        const a = Object.assign(newActor(x, -1, SPR.usagin_evo ? 'usagin_evo' : 'usagin'), { carrots: 2 + (i % 2) });
+        const a = Object.assign(newActor(x, -1, SPR.usagihei ? 'usagihei' : 'usagin_evo'), { carrots: 2 + (i % 2) });
         F.soldiers.push(a); burst(x, GROUND - 12, 'spark', 6, '#ffffff');
       }
       u.carrots = 3;
@@ -2036,9 +2043,16 @@
     physics(player, dt); physics(comp, dt);
     followUpdate(dt);
     for (const m of G.party) m.hp = Math.min(m.maxHp, m.hp + TUNING.regenPerSec * dt);
+    for (const w of G.wilds) if (w.alive && w.gate && player.x > w.x - 18) { player.x = w.x - 18; if (comp.x > w.x - 20) comp.x = w.x - 20; }   // mid-boss gate: can't pass until beaten
     for (const w of G.wilds) {
       if (!w.alive) continue;
-      wildUpdate(w, dt);
+      if (w.gate) { w.face = Math.sign(player.x - w.x) || -1; w.moving = false; }
+      else wildUpdate(w, dt);
+      if (w.gate && !w.cool && Math.abs(w.x - player.x) < TUNING.encounterDist + 6) {
+        w.cool = true; G.camT = clamp((player.x + w.x) / 2 - W / 2, 0, WORLD_W - W);   // frame both for the line
+        say('', SPECIES[w.sp].gate || [[SPECIES[w.sp].name + '「とおさないぞ！」', '']], () => { w.cool = false; startBattle(w); });
+        return;
+      }
       const dx = w.x - player.x;
       if (w.cool) { if (Math.abs(dx) > 110) w.cool = false; continue; }
       if (!w.toHome && Math.abs(dx) < TUNING.encounterDist && (SPECIES[w.sp].boss || (w.pl ? player.plat === w.pl : player.y === 0))) { if (!mindTalk(w)) startBattle(w); return; }
@@ -2211,6 +2225,7 @@
     if (ally().hp < 1) G.active = Math.max(0, G.party.findIndex(m => m.hp >= 1));
     comp.key = compKey();
     const side = Math.sign(w.x - player.x) || 1;
+    for (const m of G.party.concat([w])) if (m) delete m._buff;
     const B = G.battle = {
       w, side, phase: 'intro', q: [], cur: null, sel: 0, runTries: 0, result: null, msg: '',
       allyTX: player.x + side * 26, enemyTX: clamp(player.x + side * 90, 20, WORLD_W - 20),
@@ -2461,7 +2476,8 @@
     if (src && typeof FX_ART !== 'undefined' && FX_ART[src] && FXIMG[src] && SPR[attA.key] && SPR[attA.key].attack) yield* artStrike(attA, att, defA, def, mv, FX_ART[src], src);
     else yield* strike(attA, att, defA, def, mv, kind);
   }
-  function* strike(attA, att, defA, def, mv, kind) {
+  function* strike(attA, att, defA, def, mv, kind) { yield* strike0(attA, att, defA, def, mv, kind); afterMove(att, mv); }
+  function* strike0(attA, att, defA, def, mv, kind) {
     const dir = Math.sign(defA.x - attA.x) || 1;
     const big = kind === 'strong' || kind === 'special';
     const dist = kind === 'special' ? 30 : big ? 22 : 10;
@@ -2491,7 +2507,8 @@
     yield* wait(0.35);
   }
   // projectile special (evolved forms): wind up, shoot mv.fx at the target, hit (mv.hits times)
-  function* fxStrike(attA, att, defA, def, mv) {
+  function* fxStrike(attA, att, defA, def, mv) { yield* fxStrike0(attA, att, defA, def, mv); afterMove(att, mv); }
+  function* fxStrike0(attA, att, defA, def, mv) {
     const dir = Math.sign(defA.x - attA.x) || 1, hits = mv.hits || 1;
     yield* tween(v => attA.ox = v, 0, -dir * 4, 0.18); yield* wait(0.06);
     attA.ox = dir * 2;
@@ -2524,7 +2541,8 @@
     yield* wait(0.35);
   }
   // pixel-art special: plays the attacker's cast frames, launches shots on fire steps, holds until they land
-  function* artStrike(attA, att, defA, def, mv, A, fxSp) {
+  function* artStrike(attA, att, defA, def, mv, A, fxSp) { yield* artStrike0(attA, att, defA, def, mv, A, fxSp); afterMove(att, mv); }
+  function* artStrike0(attA, att, defA, def, mv, A, fxSp) {
     const dir = Math.sign(defA.x - attA.x) || 1, C = A.cast, frames = SPR[attA.key].attack, img0 = FXIMG[fxSp || att.sp];
     const sup = !!mv.super, img = { shot: (sup && img0.shotS) || img0.shot, hit: (sup && img0.hitS) || img0.hit };
     const scS = sup && !img0.shotS ? mv.scale || 1.75 : mv.artScale || 1, scH = sup && !img0.hitS ? mv.scale || 1.75 : mv.artScale || 1;
@@ -2765,6 +2783,7 @@
     yield* tween(v => { e.alpha = v; e.oy = (1 - v) * 3; }, 1, 0, 0.4);
     burst(e.x, GROUND - 12, 'spark', 10, '#fff2a0');
     e.alive = false;
+    if (e.gate && !G.friend && !G.versus) { G.flags['gate_' + e.gate] = 1; banner(`${e.name}を たおした！ みちが ひらけた！`, 2.2); }   // mid-boss gate stays open in the save
     if (ups) { SFX.level(); banner(`${ally().name}は レベル ${ally().lv} に あがった！`, 2.2); yield* wait(1.2); yield* tryEvolve(); }
     persist();
     yield* wait(1.0);
