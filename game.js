@@ -1630,6 +1630,7 @@
   }
   let GOLD_CARROT = null;
   function goldCarrot() {
+    if (PROPS.gold_carrot) return PROPS.gold_carrot;   // real art
     if (GOLD_CARROT || !PROPS.item_carrot) return GOLD_CARROT;
     const im = PROPS.item_carrot, [c, cx] = mk(im.width, im.height);
     cx.drawImage(im, 0, 0); cx.globalCompositeOperation = 'source-atop'; cx.globalAlpha = 0.6; cx.fillStyle = '#ffd23a'; cx.fillRect(0, 0, im.width, im.height);
@@ -1648,7 +1649,7 @@
     }
     if (F.gold && F.eat < 1) {   // でんせつの にんじん at her mouth, shrinking while she eats
       const sc = 1 - F.eat, wob = F.eat > 0 ? Math.sin(G.t * 30) : 0;
-      drawCarrot(goldCarrot(), u.x - 14 - cam + wob, GROUND - 20, sc);
+      drawCarrot(goldCarrot(), u.x - 14 - cam + wob, GROUND - 20, sc * (PROPS.gold_carrot ? 0.6 : 1));
     }
     for (const a of (F.soldiers || [])) {
       drawActor(a, cam);
@@ -2050,7 +2051,7 @@
       else wildUpdate(w, dt);
       if (w.gate && !w.cool && Math.abs(w.x - player.x) < TUNING.encounterDist + 6) {
         w.cool = true; G.camT = clamp((player.x + w.x) / 2 - W / 2, 0, WORLD_W - W);   // frame both for the line
-        say('', SPECIES[w.sp].gate || [[SPECIES[w.sp].name + '「とおさないぞ！」', '']], () => { w.cool = false; startBattle(w); });
+        say('', allyLines(SPECIES[w.sp].gate || [[SPECIES[w.sp].name + '「とおさないぞ！」', '']]), () => { w.cool = false; startBattle(w); });
         return;
       }
       const dx = w.x - player.x;
@@ -2187,6 +2188,7 @@
     }
     return Math.min(dmg, Math.max(0, def.hp - 1));
   }
+  const allyLines = pages => pages.map(p => p.map(l => l.replace(/\{ALLY\}/g, ally() ? ally().name : pName())));
   function* storyEnd() {
     const B = G.battle; B.story.done = true;
     banner(INVASION.stop + ' きょうは ここまでよ！」', 2.2); yield* wait(2.0);
@@ -2243,6 +2245,7 @@
     ally().st = 25; w.st = 5 + rand() * 30; w.wdir = 0;
     G.camT = clamp(player.x + side * 45 - W / 2, 0, WORLD_W - W);
     banner(G.friend ? `たいせん！ ${w.name} が むかってきた！` : w.trainer ? `${w.trainerName}が しょうぶを しかけてきた！` : (SPECIES[w.sp].boss ? `${w.name}が たちはだかった！` : `やせいの ${w.name}が あらわれた！`), 2.0);
+    if (!G.friend && !w.trainer && SPECIES[w.sp].taunt && rand() < 0.6) setTimeout(() => { if (G.battle && G.battle.w === w) banner(SPECIES[w.sp].taunt, 2.6); }, 2000);   // smug せいぎぐん grunts
     // versus: the other player stands behind their plush (their own look online, the other gender offline)
     G.oppHero = null;
     if (G.versus) {
@@ -2984,6 +2987,7 @@
     G.state = 'field';
     G.battle = null;
     if (B.story) { invasionOutro(); return; }
+    if (B.result === 'win' && B.w.gate && SPECIES[B.w.sp].gateLose && !G.friend && !G.versus) { say('', allyLines(SPECIES[B.w.sp].gateLose), () => {}); return; }   // mid-boss: unrepentant after losing
     const join = () => {
       if (!joinAsk) return;
       const sp = joinAsk.sp, nm = SPECIES[sp].name, lv = joinAsk.lv || 1;
@@ -3432,7 +3436,8 @@
       }
       if (!open) tiny('?', n.x - 1, n.y - 2, '#ffffff');
       if (st && st.id === 'shironaka' && G.flags.end_oyako && !G.flags.invaded && Math.floor(G.t * 3) % 2) {   // the invasion is waiting here
-        rect(n.x + 4, n.y - 12, 5, 8, '#5a1010'); rect(n.x + 5, n.y - 11, 3, 6, '#ff3a3a'); tiny('!', n.x + 5, n.y - 11, '#ffffff');
+        if (PROPS.mark_red) g.drawImage(PROPS.mark_red, n.x - 4, n.y - 19, 16, 16);   // art: 32x32, drawn at half size above the node
+        else { rect(n.x + 4, n.y - 12, 5, 8, '#5a1010'); rect(n.x + 5, n.y - 11, 3, 6, '#ff3a3a'); tiny('!', n.x + 5, n.y - 11, '#ffffff'); }
       }
       if (sel && Math.floor(G.t * 4) % 2) { g.strokeStyle = '#ffffff'; g.lineWidth = 1; g.strokeRect(n.x - 6.5, n.y - 6.5, 14, 13); }
     });

@@ -311,7 +311,7 @@ const SPECIES = {
     },
   },
   usagihei: {  // w4 (せいぎぐん): rabbit spear soldier
-    name: 'うさぎへい', sprite: 'usagihei', noEvo: true,
+    name: 'うさぎへい', sprite: 'usagihei', noEvo: true, taunt: 'うさぎへい「せいぎの じゃまを する やつは みんな わるもの！」',
     hp: 54, atk: 15, def: 11, spd: 13, recruitBase: 0.06,
     moves: {
       attack: { name: 'やりつつき', power: 14, acc: 0.95 },
@@ -335,7 +335,7 @@ const SPECIES = {
     },
   },
   hotarun: {  // w4 (せいぎぐん): firefly lantern
-    name: 'ホタルン', sprite: 'hotarun', noEvo: true,
+    name: 'ホタルン', sprite: 'hotarun', noEvo: true, taunt: 'ホタルン「ぼくらの ひかりは せいぎの ひかり。きみたちは まっくら だね」',
     hp: 46, atk: 15, def: 9, spd: 12, recruitBase: 0.06,
     moves: {
       attack: { name: 'ひかりの たいあたり', power: 14, acc: 0.95 },
@@ -343,7 +343,7 @@ const SPECIES = {
     },
   },
   hiyokorappa: {  // w4 (せいぎぐん): chick bugler: fanfare raises attack
-    name: 'ヒヨコらっぱ', sprite: 'hiyokorappa', noEvo: true,
+    name: 'ヒヨコらっぱ', sprite: 'hiyokorappa', noEvo: true, taunt: 'ヒヨコらっぱ「ぴよっ！ せいぎぐんに さからうなんて はずかしく ないの？」',
     hp: 46, atk: 12, def: 9, spd: 13, recruitBase: 0.06,
     moves: {
       attack: { name: 'ぴよキック', power: 14, acc: 0.95 },
@@ -367,7 +367,11 @@ const SPECIES = {
     },
   },
   paoon: {  // w4 (せいぎぐん): elephant captain (まち mid-boss): fanfare raises attack
-    name: 'パオーン隊長', sprite: 'paoon', noEvo: true, boss: true, gate: [["パオーン隊長「パオーン！ ここから さきは", "せいぎぐんの なわばりだ！」"], ["パオーン隊長「とおりたければ", "わがはいを たおして ゆけ！」"]],
+    name: 'パオーン隊長', sprite: 'paoon', noEvo: true, boss: true, 
+    gate: [["パオーン隊長「パオーン！ わがはいたちは せいぎ！", "せいぎは なにを しても ゆるされるのだ！」"], ["パオーン隊長「あくの しろの にんじんは", "せいぎの もの。とうぜんだろう？」"], ["{ALLY}「かってに もっていって", "なにが せいぎだよ！」"], ["パオーン隊長「わるものの いいわけなど", "きく みみは もたん！ かかれ！」"]],
+    gateLose: [["パオーン隊長「パオッ！？ せいぎが まけるなんて", "おかしい！ なにかの まちがいだ！」"], ["パオーン隊長「おぼえておれ！ うさひめさまに", "いいつけて やるからな！」"], ["{ALLY}「…ぜんぜん", "はんせい してない…」"]],
+    gateGold: [["パオーン隊長「パオーン！ でんせつの にんじんで", "わがはいは きんいろに なったのだ！」"], ["パオーン隊長「まえの まけは ノーカウント！", "せいぎは まけないのだからな！」"], ["パオーン隊長「わるものは だまって", "せいぎに ひれふせ！」"]],   // for the gold return visit (not triggered in this build yet)
+    gateGoldLose: [["パオーン隊長「きんいろでも まけるなんて…", "せかいの ほうが まちがっている！」"], ["{ALLY}「まちがってるのは", "そっちだってば！」"]],
     hp: 125, atk: 20, def: 15, spd: 11, recruitBase: 0,
     moves: {
       attack: { name: 'はなで ぺちん', power: 14, acc: 0.95 },
@@ -375,7 +379,11 @@ const SPECIES = {
     },
   },
   kametank: {  // w4 (せいぎぐん): turtle tank (みち mid-boss): very tanky, very slow
-    name: 'カメタンク', sprite: 'kametank', noEvo: true, boss: true, gate: [["カメタンク「ゴゴゴ… この みちは", "カメタンクが まもって いる」"], ["カメタンク「ぼくの こうらは", "ぜったいに われないぞ！」"]],
+    name: 'カメタンク', sprite: 'kametank', noEvo: true, boss: true, 
+    gate: [["カメタンク「ゴゴゴ… この みちは", "せいぎの ものだけが とおれるんだ」"], ["カメタンク「きみたちは…", "あ、だめだねぇ わるものの かおだ」"], ["{ALLY}「かおで", "きめないでよ！」"], ["カメタンク「わるものの はなしは", "きかない きまりなんだよ。ふふん」"]],
+    gateLose: [["カメタンク「ゴゴ… ぼくの こうらが…？", "せいぎが まけるなんて ありえないよ」"], ["カメタンク「きょうは みのがして あげるだけ", "かんちがい しないでよね」"], ["{ALLY}「…まけおしみ", "だよね」"]],
+    gateGold: [["カメタンク「ゴゴゴ… きんいろの こうらは", "せいぎの あかしなんだ」"], ["カメタンク「わるものは とおさないよ", "なんど きても ね」"], ["カメタンク「まけた ことにして", "かえったら？ ふふん」"]],   // for the gold return visit (not triggered in this build yet)
+    gateGoldLose: [["カメタンク「きんいろの こうらが…", "こんなの せいぎじゃ ないよ…」"], ["{ALLY}「じぶんに あまいなぁ…」", ""]],
     hp: 160, atk: 19, def: 26, spd: 5, recruitBase: 0,
     moves: {
       attack: { name: 'こうらタックル', power: 14, acc: 0.95 },
@@ -383,7 +391,11 @@ const SPECIES = {
     },
   },
   usaknight: {  // w4 (せいぎぐん): rabbit knight (しろ mid-boss): fast 3-hit sword
-    name: 'ウサナイト', sprite: 'usaknight', noEvo: true, boss: true, gate: [["ウサナイト「うさひめさまには", "ゆびいっぽん ふれさせない！」"], ["ウサナイト「せいぎの けんを", "うけてみよ！」"]],
+    name: 'ウサナイト', sprite: 'usaknight', noEvo: true, boss: true, 
+    gate: [["ウサナイト「とまれ！ ここは", "うさひめさまの しろだ！」"], ["ウサナイト「うさひめさまが ただしいと いえば", "ただしい！ それが せいぎだ！」"], ["ウサナイト「おまえたちの しろの にんじん？", "せいぎの ほうしゅうだよ」"], ["{ALLY}「それ どろぼうって", "いうんだよ！」"], ["ウサナイト「わるものが せいぎを かたるな！", "せいぎの けんを うけてみよ！」"]],
+    gateLose: [["ウサナイト「ばかな… せいぎが まけるなんて", "おかしい！」"], ["ウサナイト「うさひめさまが きっと", "おまえたちを さばいて くださる！」"], ["{ALLY}「さばかれるのは", "どっちかな」"]],
+    gateGold: [["ウサナイト「うさひめさまから いただいた", "きんいろの よろいだ！」"], ["ウサナイト「にんじんを かえせ？", "せいぎに かえす ものなど ない！」"], ["ウサナイト「せいぎに さからう ものは", "なんど でも きりすてる！」"]],   // for the gold return visit (not triggered in this build yet)
+    gateGoldLose: [["ウサナイト「きんいろの よろいが…", "まちがって いるのは おまえたちだ！」"], ["{ALLY}「…はなしが", "つうじないね」"]],
     hp: 118, atk: 21, def: 15, spd: 19, recruitBase: 0,
     moves: {
       attack: { name: 'たてアタック', power: 14, acc: 0.95 },
@@ -873,6 +885,7 @@ const PROP_IMGS = {
   wmap: 'assets/worldmap/worldmap.png', wseg0: 'assets/worldmap/worldmap_path_seg0.png', wseg1: 'assets/worldmap/worldmap_path_seg1.png', wseg2: 'assets/worldmap/worldmap_path_seg2.png', wseg3: 'assets/worldmap/worldmap_path_seg3.png', wseg4: 'assets/worldmap/worldmap_path_seg4.png', wseg5: 'assets/worldmap/worldmap_path_seg5.png', wseg6: 'assets/worldmap/worldmap_path_seg6.png',
   wmap2: 'assets/worldmap/worldmap2.png', w2seg0: 'assets/worldmap/worldmap2_path_seg0.png', w2seg1: 'assets/worldmap/worldmap2_path_seg1.png',
   wmap3: 'assets/worldmap/worldmap3.png', w3seg0: 'assets/worldmap/worldmap3_path_seg0.png', w3seg1: 'assets/worldmap/worldmap3_path_seg1.png', w3seg2: 'assets/worldmap/worldmap3_path_seg2.png',
+  gold_carrot: 'assets/w4mons/gold_carrot.png', mark_red: 'assets/w4mons/mark_red.png', mark_gold: 'assets/w4mons/mark_gold.png',   // でんせつの にんじん / map ！ marks (32x32)
   wmap4: 'assets/worldmap/worldmap4.png', w4seg0: 'assets/worldmap/worldmap4_path_seg0.png', w4seg1: 'assets/worldmap/worldmap4_path_seg1.png',
   item_carrot: 'assets/items/carrot.png', item_carrot_idle: 'assets/items/item_carrot_idle.png', item_carrot_get: 'assets/items/carrot_get.png',   // にんじん: 16x16 / idle 4f 150ms (anchor 8,15) / pickup sparkle 4f 90ms (anchor 8,8)
   bld_shop: 'assets/town/shop.png', bld_clinic: 'assets/town/hospital.png', bld_house: 'assets/town/grandma_house.png', bld_nuihouse: 'assets/town/nui_house.png',
