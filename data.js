@@ -44,6 +44,7 @@ const SPRITES = {
   tsumaguro_evo: { src: 'assets/evo/tsumaguro.png', native: 1, attack: { src: 'assets/evo/tsumaguro_attack.png', frames: 4 }, walk: { src: 'assets/evo/tsumaguro_walk.png', frames: 4, ms: 150 } },
   oguri_evo: { src: 'assets/evo/oguri.png', native: 1, attack: { src: 'assets/evo/oguri_attack.png', frames: 4 }, walk: { src: 'assets/evo/oguri_walk.png', frames: 4, ms: 150 } },
   kitsunen_evo: { src: 'assets/evo/kitsunen.png', native: 1, attack: { src: 'assets/evo/kitsunen_attack.png', frames: 4 }, walk: { src: 'assets/evo/kitsunen_walk.png', frames: 4, ms: 150 } },
+  usahime: { src: 'assets/usahime.png', native: 1, walk: { src: 'assets/usahime_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/usahime_attack.png', frames: 4 } },   // world-4 boss (4-legged, tiara)
   usagin_evo: { src: 'assets/evo/usagin.png', native: 1, attack: { src: 'assets/evo/usagin_attack.png', frames: 4 }, walk: { src: 'assets/evo/usagin_walk.png', frames: 4, ms: 150 } },
   kangarun_evo: { src: 'assets/evo/kangarun.png', native: 1, attack: { src: 'assets/evo/kangarun_attack.png', frames: 4 }, walk: { src: 'assets/evo/kangarun_walk.png', frames: 4, ms: 150 } },
   kaerun_evo: { src: 'assets/evo/kaerun.png', native: 1, attack: { src: 'assets/evo/kaerun_attack.png', frames: 4 }, walk: { src: 'assets/evo/kaerun_walk.png', frames: 4, ms: 150 } },
@@ -69,11 +70,8 @@ const SPRITES = {
   oguri:   { src: 'assets/oguri-cap.png', native: -1, walk: { src: 'assets/oguri_walk.png', frames: 4, ms: 150 } }, // faces left; flipped for right
 };
 
-// sprites whose art isn't drawn yet: used (moved into SPRITES at boot) once the files are embedded in assets-img.js;
-// until then game.js builds a placeholder (usahime = usagin_evo recolored green).
-const SPRITES_PENDING = {
-  usahime: { src: 'assets/usahime.png', native: 1, walk: { src: 'assets/usahime_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/usahime_attack.png', frames: 4 } },
-};
+// sprites listed here are only loaded once their files are embedded in assets-img.js (none pending right now)
+const SPRITES_PENDING = {};
 
 const SPECIES = {
   goririn: {
@@ -358,7 +356,7 @@ const SPECIES = {
       strong: { name: 'いわの ボディプレス', power: 32, acc: 0.83 },
     },
   },
-  usahime: {  // world 4 boss: green rabbit princess, leader of せいぎぐん. not recruitable (for now). art pending (placeholder = recolored usagin_evo)
+  usahime: {  // world 4 boss: green rabbit princess, leader of せいぎぐん. not recruitable (for now)
     name: 'うさひめ', sprite: 'usahime', boss: true, noEvo: true,
     hp: 220, atk: 22, def: 16, spd: 15, recruitBase: 0,
     moves: {
@@ -703,7 +701,7 @@ const STAGES = [
     exit: ['このさき', 'せいぎぐんの しろ'],
   },
   {
-    id: 'seishiro', name: 'せいぎぐんの しろ', width: 1300, theme: 'night', world: 3, highJump: true, bench: 600,
+    id: 'seishiro', name: 'せいぎぐんの しろ', width: 1300, theme: 'day', world: 3, highJump: true, bench: 600,
     layers: 'assets/w4/seishiro', tiles: 'assets/w4/seishiro',
     spawns: [ { sp: 'kangarun', x: 260, lv: 28, evo: 1 }, { sp: 'usagin', x: 460, lv: 28, evo: 1 }, { sp: 'pandan', x: 720, lv: 29, evo: 1 }, { sp: 'wankon', x: 920, lv: 29, evo: 1 }, { sp: 'usahime', x: 1180, lv: 30, boss: 1 } ],
     plats: [ { x: 160, w: 48, h: 21 }, { x: 520, w: 64, h: 21 }, { x: 800, w: 48, h: 35 } ],
@@ -762,7 +760,7 @@ const PROP_IMGS = {
   wmap: 'assets/worldmap/worldmap.png', wseg0: 'assets/worldmap/worldmap_path_seg0.png', wseg1: 'assets/worldmap/worldmap_path_seg1.png', wseg2: 'assets/worldmap/worldmap_path_seg2.png', wseg3: 'assets/worldmap/worldmap_path_seg3.png', wseg4: 'assets/worldmap/worldmap_path_seg4.png', wseg5: 'assets/worldmap/worldmap_path_seg5.png', wseg6: 'assets/worldmap/worldmap_path_seg6.png',
   wmap2: 'assets/worldmap/worldmap2.png', w2seg0: 'assets/worldmap/worldmap2_path_seg0.png', w2seg1: 'assets/worldmap/worldmap2_path_seg1.png',
   wmap3: 'assets/worldmap/worldmap3.png', w3seg0: 'assets/worldmap/worldmap3_path_seg0.png', w3seg1: 'assets/worldmap/worldmap3_path_seg1.png', w3seg2: 'assets/worldmap/worldmap3_path_seg2.png',
-  wmap4: 'assets/worldmap/worldmap4.png', w4seg0: 'assets/worldmap/worldmap4_path_seg0.png', w4seg1: 'assets/worldmap/worldmap4_path_seg1.png',   // art pending (loaded only once embedded)
+  wmap4: 'assets/worldmap/worldmap4.png', w4seg0: 'assets/worldmap/worldmap4_path_seg0.png', w4seg1: 'assets/worldmap/worldmap4_path_seg1.png',
   item_carrot: 'assets/items/carrot.png', item_carrot_idle: 'assets/items/item_carrot_idle.png', item_carrot_get: 'assets/items/carrot_get.png',   // にんじん: 16x16 / idle 4f 150ms (anchor 8,15) / pickup sparkle 4f 90ms (anchor 8,8)
   bld_shop: 'assets/town/shop.png', bld_clinic: 'assets/town/hospital.png', bld_house: 'assets/town/grandma_house.png', bld_nuihouse: 'assets/town/nui_house.png',
   tree: 'assets/props/street_tree.png', fence: 'assets/props/fence.png', signpost: 'assets/props/signpost.png',

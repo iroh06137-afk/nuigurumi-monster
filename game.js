@@ -306,30 +306,6 @@
       if (S.attack) SPR[k + '_crown'].attack = S.attack.map(w => crownFrame(w.n));
     }
   }
-  // placeholder for sprites whose art isn't in yet: うさひめ = usagin_evo with its colors turned green (white / pink kept)
-  function greenFrame(src) {
-    const [n, nx] = mk(32, 32); nx.drawImage(src, 0, 0);
-    const id = nx.getImageData(0, 0, 32, 32), d = id.data;
-    for (let i = 0; i < d.length; i += 4) {
-      if (!d[i + 3]) continue;
-      const [h, s, l] = rgb2hsl(d[i], d[i + 1], d[i + 2]), px = (i >> 2) % 32, py = (i >> 2) >> 5;
-      if (l < 0.18) continue;                                              // outline
-      if ((h > 0.83 || h < 0.06) && s > 0.35) continue;                    // pink nose / ears
-      if (l > 0.75 && px >= 12 && px <= 19 && py >= 15 && py <= 26) continue;   // white mouth + belly
-      const o = hsl2rgb(0.32, 0.55, Math.max(0.25, Math.min(0.62, l * 0.75))); d[i] = o[0]; d[i + 1] = o[1]; d[i + 2] = o[2];
-    }
-    nx.putImageData(id, 0, 0);
-    const [f, fx] = mk(32, 32); fx.translate(32, 0); fx.scale(-1, 1); fx.drawImage(n, 0, 0);
-    return { n, f, wn: silhouette(n), wf: silhouette(f) };
-  }
-  function makePendingSprites() {
-    if (!SPR.usahime && SPR.usagin_evo) {
-      const S = SPR.usagin_evo;
-      SPR.usahime = Object.assign({}, S, greenFrame(S.n));
-      if (S.walk) SPR.usahime.walk = { ms: S.walk.ms, frames: S.walk.frames.map(w => greenFrame(w.n)) };
-      if (S.attack) SPR.usahime.attack = S.attack.map(w => greenFrame(w.n));
-    }
-  }
   const FXIMG = {};   // sp -> { shot: frames, hit: frames } (pixel-art special fx)
 
   // ---------- game state ----------
@@ -3089,7 +3065,10 @@
     if (bg) g.drawImage(bg, 0, 0); else { endSky(true); rect(0, 60, 160, 30, '#10101e'); }
     if (E.phase === 'roll') {
       const y0 = 90 - E.t * 12;
-      STAFF.forEach((l, i) => { const y = y0 + i * ROLL_GAP; if (l && y > -8 && y < 62) T(l, 80, y, { size: i === 0 || l === 'つくったひと' ? 8 : 4, c: '#ffffff', ol: '#1a1a3a', al: 'center' }); });
+      // the staffroll art has silhouettes from y58 down: the text rises from behind that line and never goes below it
+      g.save(); g.beginPath(); g.rect(0, 0, 160, 57); g.clip();
+      STAFF.forEach((l, i) => { const y = y0 + i * ROLL_GAP - 32; if (l && y > -8 && y < 58) T(l, 80, y, { size: i === 0 || l === 'つくったひと' ? 8 : 4, c: '#ffffff', ol: '#1a1a3a', al: 'center' }); });
+      g.restore();
     }
     // the party walks along the bottom
     const team = G.party.slice(0, 4), span = 160 + team.length * 26;
@@ -3771,7 +3750,7 @@
     await Promise.all(Object.entries(SPRITES).map(([k, s]) => loadImg(s.src).then(img => prepSprite(k, img))));
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.walk).map(([k, s]) => loadImg(s.walk.src).then(img => prepWalk(k, img, s.walk)).catch(() => {})));
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.attack).map(([k, s]) => loadImg(s.attack.src).then(img => { SPR[k].attack = sheetFrames(img, s.attack.frames); }).catch(() => {})));
-    makeCrownSprites(); makePendingSprites();
+    makeCrownSprites();
     if (typeof FX_ART !== 'undefined') await Promise.all(Object.keys(FX_ART).map(sp => Promise.all([loadImg('assets/fx/' + sp + '_shot.png'), loadImg('assets/fx/' + sp + '_hit.png')])
       .then(([a, b]) => { FXIMG[sp] = { shot: sheetFrames(a, 4), hit: sheetFrames(b, FX_ART[sp].hit.n || 4, FX_ART[sp].hit.size || 32) }; }).catch(() => {})));
     // optional 'super' fx art (e.g. 超はかいおぐり波): only when embedded in ASSET_DATA, so no 404s; else the normal fx is drawn scaled up
