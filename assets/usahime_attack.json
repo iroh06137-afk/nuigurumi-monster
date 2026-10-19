@@ -10,35 +10,35 @@
   },
   "facing": "right",
   "name": "せいぎの にんじんシャワー",
-  "note": "せいぎの にんじんシャワー cast (うさひめ), facing RIGHT (mirror for left). Play 0->1->2, hold 2 until the shots have left, then 3, then return to usahime.png. fxSpawn = sprite-local pixel (frame coords) at the nose tip; mirror x (31-x) when facing left.",
+  "note": "せいぎの にんじんシャワー cast (うさひめ), facing RIGHT (mirror for left). Play 0->1->2, hold 2 until the shots have left, then 3, then return to usahime.png. fxSpawn = sprite-local pixel at the nose tip; mirror x (31-x) when facing left.",
   "frames": [
     {
       "index": 0,
       "name": "attack_0",
-      "desc": "brace: body back 1px and low, front legs planted forward",
+      "desc": "brace: crouches back 1px, squashed 1px",
       "x": 0,
       "y": 0,
       "w": 32,
       "h": 32,
       "duration": 200,
       "fxSpawn": {
-        "x": 27,
-        "y": 15
+        "x": 26,
+        "y": 16
       },
       "firesFx": false
     },
     {
       "index": 1,
       "name": "attack_1",
-      "desc": "pounce: rears up 2px and forward, front paws raised, hind legs stretched back on the ground - FIRE",
+      "desc": "pounce: rears up 2px and forward 1px, hind legs lengthened to stay on the ground, front paws raised - FIRE from the nose",
       "x": 32,
       "y": 0,
       "w": 32,
       "h": 32,
       "duration": 90,
       "fxSpawn": {
-        "x": 29,
-        "y": 12
+        "x": 28,
+        "y": 13
       },
       "firesFx": true
     },
@@ -52,23 +52,23 @@
       "h": 32,
       "duration": 360,
       "fxSpawn": {
-        "x": 29,
-        "y": 12
+        "x": 28,
+        "y": 13
       },
       "firesFx": false
     },
     {
       "index": 3,
       "name": "attack_3",
-      "desc": "recovery: back to standing (next: usahime.png)",
+      "desc": "return: back to standing (next: usahime.png)",
       "x": 96,
       "y": 0,
       "w": 32,
       "h": 32,
       "duration": 180,
       "fxSpawn": {
-        "x": 28,
-        "y": 14
+        "x": 27,
+        "y": 15
       },
       "firesFx": false
     }

@@ -9,12 +9,12 @@
     "h": 32
   },
   "facing": "right",
-  "note": "うさひめ long-legged four-legged trot, facing RIGHT (native: 1); mirror horizontally for left. Diagonal leg pairs alternate (0 stride A, 1 passing, 2 stride B, 3 passing). Lowest outline row 30 every frame; row 31 empty. Walk in place (game moves the actor).",
+  "note": "うさひめ rabbit hop (ぴょんぴょん), faithful downscale of the approved reference, facing RIGHT (native: 1); mirror horizontally for left. 0 crouch, 1 push-off, 2 airborne peak, 3 landing. Lowest outline row 30 on ground frames 0,1,3; frame 2 airborne. Row 31 empty. Hop in place (game moves the actor).",
   "frames": [
     {
       "index": 0,
       "name": "walk_0",
-      "desc": "stride A (contact): near-front + far-hind reach forward, near-hind + far-front push back; all 4 feet on row 30",
+      "desc": "crouch/gather: body squashed 1px (down 1px), all paws on the ground (lowest outline row 30)",
       "x": 0,
       "y": 0,
       "w": 32,
@@ -24,7 +24,7 @@
     {
       "index": 1,
       "name": "walk_1",
-      "desc": "passing: body up 1px, far-hind + near-front lifted & swinging forward, the other diagonal pair supports (feet row 30)",
+      "desc": "push-off: body up 2px with a 1px stretch, hind legs lengthened 2px so the hind paws still push on row 30; front paws lifted",
       "x": 32,
       "y": 0,
       "w": 32,
@@ -34,7 +34,7 @@
     {
       "index": 2,
       "name": "walk_2",
-      "desc": "stride B (contact): far-front + near-hind reach forward, the other pair pushes back; all 4 feet on row 30",
+      "desc": "airborne peak: whole body up 3px, all paws off the ground",
       "x": 64,
       "y": 0,
       "w": 32,
@@ -44,7 +44,7 @@
     {
       "index": 3,
       "name": "walk_3",
-      "desc": "passing: body up 1px, near-hind + far-front lifted & swinging forward, the other diagonal pair supports (feet row 30)",
+      "desc": "landing: body up 1px coming down, front legs lengthened 1px so the front paws touch down first (row 30), hind paws still in the air",
       "x": 96,
       "y": 0,
       "w": 32,
