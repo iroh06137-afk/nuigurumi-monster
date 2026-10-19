@@ -2065,7 +2065,13 @@
   // しょうこ meets くうこ: a short talk on the field before the battle (and the mind control) starts
   function mindTalk(w) {
     const sp = SPECIES[w.sp], msp = sp.mindSp || (sp.mindKuuko && 'kuuko'), k = msp && G.party.find(m => m.sp === msp), T = MIND[w.sp];
-    if (!k || !T || G.friend || G.versus || !G.party.some(m => m !== k && m.hp >= 1)) return false;
+    if (!T || G.friend || G.versus) return false;
+    if (!k || !G.party.some(m => m !== k && m.hp >= 1)) {   // no mind control possible: noChild talk (if any), then a normal boss battle
+      if (!T.noChild) return false;
+      w.cool = true; w.toHome = false;
+      say('', T.noChild, () => { w.cool = false; startBattle(w); });
+      return true;
+    }
     w.cool = true; w.toHome = false;
     const K = k.name;
     say('', T.talk.map(l => l.map(x => x.replace(/@/g, K))), () => { w.cool = false; startBattle(w); });
@@ -2725,7 +2731,10 @@
   function endBattle() {
     const B = G.battle;
     if (G.mind) { const M = G.mind; restoreMind(); Object.assign(B.w, M.boss, { mind: false }); B.w.key = SPECIES[M.boss.sp].sprite; }
-    const joinAsk = B.result === 'win' && !G.friend && SPECIES[B.w.sp] && SPECIES[B.w.sp].recruitAfter && !(G.flags['joined_' + B.w.sp]) ? B.w : null;
+    const need = SPECIES[B.w.sp] && SPECIES[B.w.sp].joinNeed, hasNeed = !need || G.party.concat(G.box || []).some(m => m.sp === need);
+    const canJoin = B.result === 'win' && !G.friend && !G.versus && SPECIES[B.w.sp] && SPECIES[B.w.sp].recruitAfter && !(G.flags['joined_' + B.w.sp]);
+    const joinAsk = canJoin && hasNeed ? B.w : null;
+    const refuse = canJoin && !hasNeed ? B.w : null;   // e.g. オグリキング without オグリキャップ: won't join, stays to be fought again
     const crownTalk = B.result === 'win' && !G.friend && !G.versus && typeof CROWN !== 'undefined' && B.w.sp === CROWN.oyako.partner && !G.flags.crownTalk && ownedOguri();
     G.oppHero = null; G.arena = null;
     if (B.trainerActor) { const t = B.trainerActor; t.tx = t.homeX; t.tface = -1; }
@@ -2759,6 +2768,11 @@
       say(nm, SPECIES[sp].joinLines || [['…まけたわ。', 'あなたたち つよいのね'], ['わたしも いっしょに', 'つれていって くれる？']], () => { G.menu = { kind: 'ask', sel: 0, sp, lv }; G.state = 'menu'; });
     };
     if (crownTalk) { G.flags.crownTalk = 1; persist(); say('', CROWN.talk, join); }
+    else if (refuse) {
+      const r = refuse; say(SPECIES[r.sp].name, SPECIES[r.sp].refuseLines, () => {
+        Object.assign(r, { alive: true, alpha: 1, oy: 0, hp: r.maxHp, st: 0, guard: false, spUsed: false, spSuper: false, cool: true, toHome: true });   // walk away (>110px) and back to fight again
+      });
+    }
     else join();
   }
   function whiteoutReset() {

@@ -289,6 +289,7 @@ const SPECIES = {
   oguriking: {  // ★ world-3 final boss (しろの なか); joins after you win (flag joined_oguriking). art under sprite key 'oguriking'
     name: 'オグリキング', sprite: 'oguriking', boss: true, mindSp: 'oguri', recruitAfter: true, evoOnly: 25,  // always counts as evolved, joins at lv25+
     joinLines: [['…みごとだ。', 'おまえたち つよいな'], ['おれも いっしょに', 'つれていって くれ！']], declineLine: 'そうか… また あおう',
+    joinNeed: 'oguri', refuseLines: [['…わが子が おらぬなら', 'おまえたちに ついていく りゆうは ない'], ['わが子を つれて', 'また くるがよい']],   // joins only if オグリキャップ is owned (party or box); else stays in the stage
     hp: 200, atk: 21, def: 15, spd: 13, recruitBase: 0,
     moves: {
       attack: { name: 'キングキック',       power: 14, acc: 0.96 },
@@ -475,6 +476,8 @@ const MIND = {
     talk: [['オグリキング「よく きたな…', 'わが子 @よ」'], ['@「とうさん！？', 'なんで こんな ことを…」'], ['オグリキング「にんげんたちに', 'けらいが どんどん うばわれている」'], ['オグリキング「へいわな ぬいぐるみ', 'せかいを とりもどさねば ならぬ」'], ['オグリキング「わが子よ', 'つぎの おうに なるのだ」'],
            ['@「ちがう！ ぼくは', 'みんなと はしるんだ！」'], ['オグリキング「ならば', 'おうの ちからで したがえる！」']],
     voice: 'オグリキングの こえ…', call: 'オグリキング「わが子よ、つぎの おうに なれ」', obey: 'オグリキングの いいなりに なってしまった！',
+    // オグリキャップ not in the party (or nobody else can fight): this talk instead, then a normal boss battle (no mind control)
+    noChild: [['オグリキング「…わが子は', 'どこだ」'], ['オグリキング「にんげんよ', 'わが子を どこへ やった！」'], ['オグリキング「ならば', 'ちからずくで とりかえす！」']],
   },
 };
 const FX_ART = {
