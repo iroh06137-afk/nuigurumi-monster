@@ -3508,15 +3508,16 @@
   }
   function drawCrowd(E, D) {
     const cam = Math.round(E.cam || 0), t = G.t, im = endImg(D.img);
-    if (im) { g.drawImage(im, -cam, 0); if (im.width < D.panW) for (let x = im.width; x - cam < 160; x += im.width) g.drawImage(im, x - cam, 0); }
+    if (im) g.drawImage(im, -cam, 0);   // 900px painted field; no tiling (the pan stops at its right edge)
     else { endSky(false); rect(0, 20, 160, 70, '#7ac860'); rect(0, 38, 160, 52, '#96d870'); }
-    // うさひめ peeks over the far hill at the very end (laugh hop = code; art pending assets/usahime_laugh.png)
-    { const ux = 868 - cam, s = SPR.usahime; if (s && ux > -20 && ux < 180) { const up = E.peek || 0, hop = (G.talk && /うーしっしっ/.test(G.talk.pages[G.talk.i].join(''))) ? Math.floor(t * 10) % 2 : 0;
-      g.save(); g.beginPath(); g.rect(ux - 10, 0, 20, 23); g.clip(); g.drawImage(s.native === -1 ? s.n : s.f, ux - 8, 23 - up * 12 - hop, 16, 16); g.restore(); } }
+    // うさひめ peeks over the far hill (centre x 868, top y 42) at the very end: top-left (850,20) when fully up, clipped at the hill line
+    { const ux = 850 - cam, s = SPR.usahime; if (s && ux > -40 && ux < 170) { const up = E.peek || 0, laugh = G.talk && /うーしっしっ/.test(G.talk.pages[G.talk.i].join(''));
+      const fr = laugh && USF.laugh ? USF.laugh[Math.floor(t * 1000 / 160) % 4] : s, hop = laugh && !USF.laugh ? Math.floor(t * 10) % 2 : 0;
+      g.save(); g.beginPath(); g.rect(ux - 4, 0, 40, 42); g.clip(); g.drawImage(s.native === -1 ? fr.n : fr.f, ux, Math.round(20 + (1 - up) * 22) - hop); g.restore(); } }
     const C = E.crowd || [];
     for (const row of [1, 0]) for (const a of C) {
       if (a.row !== row) continue;
-      const sc = row ? 0.5 : 1, gy = row ? 33 : 64, sz = 32 * sc, s = SPR[a.k];
+      const sc = row ? 0.5 : 1, gy = row ? 57 : 69, sz = 32 * sc, s = SPR[a.k];
       let x = a.x, face = a.face, yo = 0, walk = false;
       const ph = t + a.ph;
       if (a.act === 'bob' || a.act === 'eat') yo = Math.floor(ph * 2) % 3 === 0 ? -1 : 0;
@@ -3960,7 +3961,7 @@
   const STATUS_W = 48;   // text width of the status box left of the command buttons
   function drawTalk() {
     const t = G.talk; if (G.state !== 'talk' || !t) return;
-    const x = 4, y = G.ending && (G.ending.id === 'oyako' || ENDINGS[G.ending.id].low) ? 64 : 14, w = 152, h = 23;   // top of the screen so the speakers stay visible (ending stills: bottom, so faces aren't covered)
+    const x = 4, y = G.ending && ENDINGS[G.ending.id].crowd ? 2 : G.ending && (G.ending.id === 'oyako' || ENDINGS[G.ending.id].low) ? 64 : 14, w = 152, h = 23;   // top of the screen so the speakers stay visible (ending stills: bottom, so faces aren't covered; the true-ending field: top, over the empty sky)
     if (t.name) {
       const nw = Math.ceil(measure(t.name)) + 8;
       rect(x + 3, y - 7, nw, 8, '#5a3418'); rect(x + 4, y - 6, nw - 2, 7, '#ffd23a');

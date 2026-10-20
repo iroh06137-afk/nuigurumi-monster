@@ -897,11 +897,11 @@ const ENDINGS = {
   hitori: { title: 'ひとりのおうエンド', img: 'assets/ending/end_hitori.png', cast: ['kingAlone'],
     talk: [['オグリキング「…わが子は', 'ここにも おらぬか」'], ['オグリキング「ならば この あしで', 'さがしに いくまでだ」'],
            ['オグリキング「どこに いようと', 'かならず みつけてみせる」'], ['…オグリキングは ひとり', 'よるの みちへ きえていった']] },
-  // true ending: once on world-4 clear. still by ドット絵作成くん pending; assets/ending/end_true.png is a placeholder composed from existing art
+  // true ending: once on world-4 clear. background: assets/ending_true_bg.png by ドット絵作成くん (900x90, ground ~y68, peek hill x838-898 top y42)
   // true ending: once on world-4 clear. a slow sideways pan over a long picnic field (PAN.w px); every character is drawn by code over
   // assets/ending/end_true.png (sky + field only, PAN.w x 90; until ドット絵作成くん's art arrives: a placeholder made from simple shapes).
   // pan[i] = camera x while talk page i is shown
-  true: { title: 'トゥルーエンド', img: 'assets/ending/end_true.png', low: true, crowd: true, panW: 900,
+  true: { title: 'トゥルーエンド', img: 'assets/ending_true_bg.png', low: true, crowd: true, panW: 900,
     pan: [0, 0, 0, 180, 260, 400, 480, 560, 640, 740, 740],
     talk: [['ぽかぽか ひだまりの にんじんばたけ', 'きょうは みんなで ピクニック！'], ['オグリキャップ「とうさん この にんじん', 'あまくて おいしいね！」'],
            ['オグリキング「みんなで わけあう にんじんは', 'いちばんの ごちそうだ」'], ['ぬいぐるみの くにの みんなが', 'あつまった！'],
