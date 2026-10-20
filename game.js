@@ -750,7 +750,7 @@
       o.type = type || 'square';
       o.frequency.setValueAtTime(freq, c.currentTime);
       if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, slide), c.currentTime + dur);
-      g.gain.setValueAtTime(vol, c.currentTime);
+      g.gain.value = vol; g.gain.setValueAtTime(vol, c.currentTime);
       g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
       o.connect(g); g.connect(dest || master);
       o.start(); o.stop(c.currentTime + dur + 0.02);
@@ -764,7 +764,7 @@
       const f = c.createBiquadFilter(); f.type = type || 'lowpass'; f.frequency.value = freq || 600;
       if (q) f.Q.value = q;
       const g = c.createGain();
-      g.gain.setValueAtTime(vol, c.currentTime);
+      g.gain.value = vol; g.gain.setValueAtTime(vol, c.currentTime);
       g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
       src.connect(f); f.connect(g); g.connect(master);
       src.start(); src.stop(c.currentTime + dur + 0.02);
@@ -782,7 +782,7 @@
       const src = c.createBufferSource(); src.buffer = n;
       const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp || 800;
       const g = c.createGain();
-      g.gain.setValueAtTime(vol, c.currentTime);
+      g.gain.value = vol; g.gain.setValueAtTime(vol, c.currentTime);
       g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
       src.connect(f); f.connect(g); g.connect(master);
       src.start(); src.stop(c.currentTime + dur + 0.02);
@@ -809,26 +809,101 @@
       },
       town:   { bpm: 120, lead: [76,79,84,79, 81,79,76,0, 74,77,81,77, 79,76,72,0], bass: [48,55,52,55, 53,57,48,57, 50,53,57,53, 55,59,48,0] },
       map:    { bpm: 88,  lead: [72,0,74,0, 76,0,74,0, 72,0,69,0, 71,0,72,0], bass: [48,0,0,55, 45,0,0,52, 41,0,0,48, 43,0,0,50] },
+      // ---- optional song fields (new themes): intro {lead,bass,drum,harm} played once before the loop, harm = extra voice,
+      //      battle: true = battle-style voices + drum kit, leadType / leadVol / harmType / harmVol / harmLen = voice overrides
+      // うさひめ (last boss): E minor, intro rising E-F-F#-G hits, then a 64-step loop; bars 7-8 = the mocking 「うーしっしっ」 trill
+      usahime: {
+        bpm: 180, battle: true, harmType: 'square', harmVol: 0.04, harmLen: 1.8,
+        intro: {
+          lead: [76,0,0,76, 0,0,76,0, 77,0,0,77, 0,0,77,0, 78,0,0,78, 0,0,78,0, 79,0,83,0, 88,87,86,83],
+          bass: [28,0,0,28, 0,0,28,0, 29,0,0,29, 0,0,29,0, 30,0,0,30, 0,0,30,0, 31,31,31,31, 35,35,35,35],
+          drum: [1,0,0,1, 0,0,1,0, 1,0,0,1, 0,0,1,0, 1,0,0,1, 0,0,1,0, 1,2,1,2, 2,2,2,2],
+          harm: [64,0,0,0, 0,0,0,0, 65,0,0,0, 0,0,0,0, 66,0,0,0, 0,0,0,0, 67,0,0,0, 71,0,0,0],
+        },
+        lead: [76,0,79,0, 83,0,81,79, 76,0,0,72, 76,79,84,0, 81,0,78,0, 74,0,78,81, 83,0,0,81, 78,0,75,0,
+               76,0,79,0, 83,0,88,0, 86,84,83,84, 86,0,84,0, 84,83,81,83, 84,0,81,0, 83,81,83,81, 78,0,75,0],
+        bass: [40,40,52,40, 40,40,52,40, 36,36,48,36, 36,36,48,36, 38,38,50,38, 38,38,50,38, 35,35,47,35, 35,35,47,35,
+               40,40,52,40, 40,40,52,40, 36,36,48,36, 36,36,48,36, 33,33,45,33, 33,33,45,33, 35,35,47,35, 35,47,35,47],
+        drum: [1,0,2,1, 1,0,2,0, 1,0,2,1, 1,0,2,0, 1,0,2,1, 1,0,2,0, 1,0,2,1, 1,1,2,2,
+               1,0,2,1, 1,0,2,0, 1,0,2,1, 1,0,2,0, 1,0,2,1, 1,0,2,0, 1,1,2,1, 2,2,2,2],
+        harm: [67,0,0,0, 71,0,0,0, 64,0,0,0, 67,0,0,0, 66,0,0,0, 69,0,0,0, 63,0,0,0, 66,0,0,0,
+               67,0,0,0, 71,0,0,0, 67,0,0,0, 64,0,0,0, 64,0,0,0, 69,0,0,0, 66,0,0,0, 63,0,0,0],
+      },
+      // せいぎぐん mid-bosses: B♭ major military march, oom-pah bass, snare rolls
+      seigi_mid: {
+        bpm: 132, battle: true, leadType: 'square', leadVol: 0.08, harmType: 'square', harmVol: 0.035, harmLen: 1.2,
+        lead: [70,0,70,70, 74,0,77,0, 82,0,0,0, 77,0,74,0, 75,0,75,75, 79,0,82,0, 77,0,0,77, 79,0,81,0,
+               82,0,82,82, 81,0,79,0, 77,0,79,0, 81,0,77,0, 79,0,75,0, 74,0,72,0, 70,0,0,0, 70,70,70,0],
+        bass: [46,0,53,0, 46,0,53,0, 46,0,53,0, 46,0,53,0, 39,0,46,0, 39,0,46,0, 41,0,48,0, 41,0,48,0,
+               46,0,53,0, 46,0,53,0, 39,0,46,0, 39,0,46,0, 41,0,48,0, 41,0,48,0, 46,0,53,0, 46,46,46,0],
+        drum: [1,0,2,0, 1,0,2,2, 1,0,2,0, 1,0,2,2, 1,0,2,0, 1,0,2,2, 1,0,2,0, 1,2,2,2,
+               1,0,2,0, 1,0,2,2, 1,0,2,0, 1,0,2,2, 1,0,2,0, 1,0,2,2, 1,2,1,2, 2,2,2,0],
+        harm: [62,0,0,0, 65,0,0,0, 62,0,0,0, 65,0,0,0, 63,0,0,0, 67,0,0,0, 65,0,0,0, 69,0,0,0,
+               62,0,0,0, 65,0,0,0, 63,0,0,0, 67,0,0,0, 65,0,0,0, 69,0,0,0, 62,0,0,0, 65,0,0,0],
+      },
+      // true ending: F major, gentle picnic waltz-like phrase with a soft harmony voice
+      true_end: {
+        bpm: 96, leadVol: 0.06, harmType: 'square', harmVol: 0.03, harmLen: 1.7,
+        lead: [72,0,77,0, 76,0,72,0, 74,0,77,0, 81,0,79,0, 77,0,76,0, 74,0,76,0, 77,0,0,0, 76,74,72,0,
+               74,0,77,0, 81,0,77,0, 79,0,77,0, 74,0,77,0, 76,0,74,0, 72,0,76,0, 77,0,0,0, 0,0,0,0],
+        bass: [41,0,48,0, 53,0,48,0, 46,0,53,0, 58,0,53,0, 48,0,55,0, 60,0,55,0, 41,0,48,0, 53,0,48,0,
+               38,0,45,0, 50,0,45,0, 46,0,53,0, 58,0,53,0, 48,0,55,0, 60,0,55,0, 41,0,48,0, 53,0,0,0],
+        harm: [69,0,0,0, 65,0,0,0, 70,0,0,0, 74,0,0,0, 67,0,0,0, 72,0,0,0, 69,0,0,0, 65,0,0,0,
+               65,0,0,0, 69,0,0,0, 70,0,0,0, 65,0,0,0, 67,0,0,0, 64,0,0,0, 65,0,0,0, 69,0,0,0],
+      },
     };
+    // one step of a song as events: ['t', freq, dur, type, vol, slide] = tone on the BGM bus, ['n', dur, vol, hp] = noise (master bus).
+    // shared by tick() and the offline renderer (SFX.render) so a render plays exactly what the game plays
+    function stepEvents(name, song, part, i) {
+      const P = part || song, out = [], beat = 60 / song.bpm / 2;
+      const lead = P.lead[i % P.lead.length], bass = P.bass[i % P.bass.length], harm = P.harm && P.harm[i % P.harm.length];
+      const isBattle = name === 'battle' || name === 'boss' || !!song.battle;
+      if (lead) out.push(['t', n2f(lead), beat * (isBattle ? 0.55 : 0.85), song.leadType || (isBattle ? 'sawtooth' : 'square'), song.leadVol || (isBattle ? 0.08 : 0.07)]);
+      if (bass) out.push(['t', n2f(bass), beat * (isBattle ? 0.7 : 0.95), 'square', isBattle ? 0.11 : 0.09]);
+      if (harm) out.push(['t', n2f(harm), beat * (song.harmLen || 1.6), song.harmType || 'square', song.harmVol || 0.035]);
+      if (isBattle && P.drum) {
+        const dr = P.drum[i % P.drum.length];
+        if (dr === 1) out.push(['t', 90, 0.06, 'square', 0.08, 50]);
+        if (dr === 2) { out.push(['t', 220, 0.04, 'square', 0.04]); out.push(['n', 0.05, 0.06, 1800]); }
+      } else if (i % 4 === 0) out.push(['t', 180, 0.04, 'square', 0.03]);
+      return out;
+    }
+    let intro = false;
     function tick() {
       if (!ticking || !ctx) return;
       const song = SONGS[theme] || SONGS.field;
       const beat = 60 / song.bpm / 2;
-      const len = song.lead.length;
-      if (!G.muted && bgmGain) {
-        const lead = song.lead[step % len];
-        const bass = song.bass[step % song.bass.length];
-        const isBattle = theme === 'battle' || theme === 'boss';
-        if (lead) tone(bgmGain, n2f(lead), beat * (isBattle ? 0.55 : 0.85), isBattle ? 'sawtooth' : 'square', isBattle ? 0.08 : 0.07);
-        if (bass) tone(bgmGain, n2f(bass), beat * (isBattle ? 0.7 : 0.95), 'square', isBattle ? 0.11 : 0.09);
-        if (isBattle && song.drum) {
-          const dr = song.drum[step % song.drum.length];
-          if (dr === 1) tone(bgmGain, 90, 0.06, 'square', 0.08, 50);
-          if (dr === 2) { tone(bgmGain, 220, 0.04, 'square', 0.04); noise(0.05, 0.06, 1800); }
-        } else if (step % 4 === 0) tone(bgmGain, 180, 0.04, 'square', 0.03);
-      }
-      step = (step + 1) % len;
+      const part = intro && song.intro ? song.intro : song, len = part.lead.length;
+      if (!G.muted && bgmGain) for (const e of stepEvents(theme, song, part, step)) { if (e[0] === 't') tone(bgmGain, e[1], e[2], e[3], e[4], e[5]); else noise(e[1], e[2], e[3]); }
+      step++;
+      if (step >= len) { step = 0; intro = false; }
       setTimeout(tick, beat * 1000);
+    }
+    // offline render of a theme (OfflineAudioContext, same graph: BGM bus 0.22 -> master 0.7; drum noise straight to master)
+    async function render(name, secs, sr) {
+      sr = sr || 44100; const song = SONGS[name], c = new OfflineAudioContext(1, Math.ceil(sr * secs), sr);
+      const mst = c.createGain(); mst.gain.value = 0.7; mst.connect(c.destination);
+      const bus = c.createGain(); bus.gain.value = 0.22; bus.connect(mst);
+      let t = 0, st = 0, inIntro = !!song.intro; const beat = 60 / song.bpm / 2;
+      while (t < secs) {
+        const part = inIntro ? song.intro : song, t0 = t; t = Math.round(t * sr) / sr;   // sample-aligned like the live clock (else a noise burst can start before its gain envelope)
+        for (const e of stepEvents(name, song, part, st)) {
+          if (e[0] === 't') {
+            const [, freq, dur, type, vol, slide] = e, o = c.createOscillator(), g = c.createGain();
+            o.type = type || 'square'; o.frequency.setValueAtTime(freq, t); if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, slide), t + dur);
+            g.gain.value = vol; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + 0.02);
+          } else {
+            const [, dur, vol, hp] = e, b = c.createBuffer(1, Math.floor(sr * dur), sr), d = b.getChannelData(0);
+            for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1;
+            const src = c.createBufferSource(); src.buffer = b; const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp || 800;
+            const g = c.createGain(); g.gain.value = vol; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+            src.connect(f); f.connect(g); g.connect(mst); src.start(t); src.stop(t + dur + 0.02);
+          }
+        }
+        st++; if (st >= part.lead.length) { st = 0; inIntro = false; }
+        t = t0 + beat;
+      }
+      return (await c.startRendering()).getChannelData(0);
     }
     function start() {
       const c = ac(); if (!c) return;
@@ -841,13 +916,17 @@
       bgmGain.gain.setTargetAtTime(G.muted ? 0 : 0.22, ctx.currentTime, 0.05);
     }
     function setTheme(name) {
-      if (name && name !== theme) { theme = name; step = 0; }
+      if (name && name !== theme) { theme = name; step = 0; intro = !!(SONGS[name] && SONGS[name].intro); }
     }
     function sync() {
       let name = 'field';
       if (G.state === 'title') name = 'title';
       else if (G.state === 'map') name = 'map';
-      else if (G.state === 'battle') name = G.battle && G.battle.w && SPECIES[G.battle.w.sp] && SPECIES[G.battle.w.sp].boss ? 'boss' : 'battle';
+      else if (G.ending && G.ending.id === 'true') name = 'true_end';   // true ending pan + staff roll
+      else if (G.state === 'battle') {
+        const sp = G.battle && G.battle.w && SPECIES[G.battle.w.sp];
+        name = G.battle && G.battle.w.sp === 'usahime' ? 'usahime' : sp && sp.boss && sp.gate ? 'seigi_mid' : sp && sp.boss ? 'boss' : 'battle';
+      }
       else {
         const th = STAGES[G.stage] && STAGES[G.stage].theme;
         name = SONGS[th] ? th : 'field';
@@ -861,7 +940,7 @@
       try { const b = c.createBuffer(1, 1, 22050), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); } catch (e) {}
     }
     return {
-      unlock,
+      unlock, render, get theme() { return theme; }, get intro() { return intro; }, songs: SONGS,
       start, sync, setMuted: applyMute,
       jump() { beep(520, 0.12, 'square', 0.04, 280); },
       hit(kind) {
@@ -4158,6 +4237,6 @@
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
+  window.NM = { SFX, playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();
