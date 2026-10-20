@@ -1,0 +1,16 @@
+{
+ "image": "usahime_laugh.png",
+ "frames": 4,
+ "frameW": 32,
+ "frameH": 32,
+ "durations": [
+  160,
+  160,
+  160,
+  160
+ ],
+ "loop": true,
+ "facing": "right",
+ "baselineRow": 30,
+ "note": "うさひめ 「うーしっしっ」 laugh loop from usahime.png with minimal edits: eyes closed ^ arcs, small dark open mouth under the pink nose (wider on 1,3), upper body bobs up 1px with ears tilted back 1px on frames 1,3; feet stay on row 30."
+}

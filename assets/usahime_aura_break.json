@@ -1,0 +1,20 @@
+{
+ "image": "usahime_aura_break.png",
+ "frames": 6,
+ "frameW": 48,
+ "frameH": 48,
+ "durations": [
+  70,
+  70,
+  70,
+  70,
+  70,
+  70
+ ],
+ "loop": false,
+ "anchor": {
+  "x": 24,
+  "y": 24
+ },
+ "note": "aura cracks (0-1, flash sparkles on 1) then shatters into gold shards flying outward, shrinking/darkening and thinning out (2-5). Hide aura after last frame."
+}

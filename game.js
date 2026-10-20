@@ -2361,7 +2361,7 @@
   const W4_STAGES = ['seimachi', 'seimichi', 'seishiro'];
   const carrotsBack = () => W4_STAGES.filter(id => G.flags['gate_gold_' + id]).length;
   const usaNode = () => Math.max(0, MAP_W4.findIndex(n => STAGES[n.stage].id === 'seishiro'));
-  // laugh motion (art pending: assets/usahime_laugh.png): code hop while 「うーしっしっ」
+  // laugh: assets/usahime_laugh.png sheet while 「うーしっしっ」 (code hop only if the art is missing)
   function usaLaugh(a, t) { if (a) a.laughT = t; }
   function usahimeMeet(w) {
     w.cool = true; G.camT = clamp((player.x + w.x) / 2 - W / 2, 0, WORLD_W - W);
@@ -3290,16 +3290,18 @@
       const e = G.battle.w; e.gold = (e.gold || 0) + dt;
       if (rand() < dt * 10) burst(e.x + (rand() - 0.5) * 20, GROUND - 4 - rand() * 26, 'spark', 1, rand() < 0.5 ? '#ffe24a' : '#fff6b0');
     }
-    // うさひめ laugh (art pending: assets/usahime_laugh.png): hop while her line has 「うーしっしっ」 or after usaLaugh()
+    // うさひめ laugh (usahime_laugh.png, or a code hop without it) while her line has 「うーしっしっ」 or after usaLaugh()
     { const pg = G.state === 'talk' && G.talk && G.talk.pages[G.talk.i], laughing = pg && /^うさひめ「/.test(pg[0]) && /うーしっしっ|うしやあ/.test(pg.join(''));
       for (const a of G.wilds.concat(G.invader ? [G.invader] : [], G.talkGuests || [])) if (a && a.sp === 'usahime') {
         if (a.laughT > 0) a.laughT -= dt;
-        const on = laughing || a.laughT > 0; if (on) a.oy = -(Math.floor(G.t * 10) % 2) * 2; else if (a.wasLaugh) a.oy = 0; a.wasLaugh = on;
+        const on = laughing || a.laughT > 0; if (on && !USF.laugh) a.oy = -(Math.floor(G.t * 10) % 2) * 2; else if (a.wasLaugh) a.oy = 0; a.wasLaugh = on;   // with the laugh art the sheet animates instead of the code hop
       } }
-    if (G.battle && G.battle.final && !G.battle.auraBroke) {   // aura break (art pending: assets/fx/usahime_aura_break.png): code burst once
-      G.battle.auraBroke = 1; const e = G.battle.w; G.flashT = 0.25; G.shakeT = 0.4;
-      for (let i = 0; i < 3; i++) burst(e.x, GROUND - 16, 'spark', 12, ['#ffe24a', '#ffffff', '#ffb04a'][i]);
+    if (G.battle && G.battle.final && !G.battle.auraBroke && !G.vs) {   // after the VS cut-in so the break is visible
+        // aura break: usahime_aura_break.png once (code burst without the art)
+      G.battle.auraBroke = 1; const e = G.battle.w; G.flashT = 0.1; G.shakeT = 0.4; e.auraBreakT = 0;
+      if (!USF.brk) for (let i = 0; i < 3; i++) burst(e.x, GROUND - 16, 'spark', 12, ['#ffe24a', '#ffffff', '#ffb04a'][i]);
     }
+    if (G.battle && G.battle.w && G.battle.w.auraBreakT != null) G.battle.w.auraBreakT += dt;
     updateTalkGuests(dt); updateInvFx(dt);
     if (G.buddy) {
       const o = G.party.find((m, i) => i !== G.active);
@@ -3595,6 +3597,10 @@
     let fr = s;
     if (s.walk && a.moving && (a.y === 0 || a.plat)) fr = s.walk.frames[Math.floor(a.walkT * 1000 / s.walk.ms) % s.walk.frames.length];
     if (a.pose) fr = a.pose;
+    const usa = a.sp === 'usahime' && a.key === 'usahime';
+    if (usa && a.wasLaugh && USF.laugh) fr = USF.laugh[Math.floor(G.t * 1000 / 160) % 4];
+    // invincible (carrot-powered) until all three でんせつの にんじん are back; the rematch plays the break once, then no aura
+    if (usa && a.auraBreakT == null && !G.flags.w4clear && carrotsBack() < 3 && USF.aura) g.drawImage(USF.aura[Math.floor(G.t * 1000 / 120) % 4][flip ? 'f' : 'n'], x - 8, y - 8);
     if (a.mind) {   // placeholder aura: purple glow + sparks until ドット絵作成くん's overlay arrives
       const AU = SPR.mind_aura;
       if (AU) g.drawImage(flip ? AU.f : AU.n, x, y);
@@ -3607,6 +3613,7 @@
     }
     g.drawImage(flip ? fr.f : fr.n, x, y);
     if (a.flash > 0 && Math.floor(a.flash * 25) % 2 === 0) g.drawImage(flip ? fr.wf : fr.wn, x, y);
+    if (usa && a.auraBreakT != null && USF.brk) { const i = Math.floor(a.auraBreakT * 1000 / 70); if (i < 6) g.drawImage(USF.brk[i][flip ? 'f' : 'n'], x - 8, y - 8); }
     g.globalAlpha = 1;
   }
   function drawBars(a, unit, cam) {
@@ -4435,7 +4442,7 @@
   }
   // hand-drawn 16x16 art (assets/icons16): hub menu icons, and optional mini_<sprite id> plush minis. Only embedded files
   // are loaded (no 404s). A mini replaces any 16px draw of that plush's 32px frame; without one the downscaler is used.
-  const ICON16 = {}, MINI = new WeakMap();
+  const ICON16 = {}, MINI = new WeakMap(), USF = {};
   async function loadIcons16() {
     if (typeof ASSET_DATA === 'undefined') return;
     const keys = Object.keys(ASSET_DATA).filter(k => k.indexOf('assets/icons16/') === 0);
@@ -4458,6 +4465,9 @@
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.attack).map(([k, s]) => loadImg(s.attack.src).then(img => { SPR[k].attack = sheetFrames(img, s.attack.frames); }).catch(() => {})));
     makeCrownSprites();
     await loadIcons16();
+    // うさひめ fx art (only when embedded): laugh 32x32x4 @160ms loop, aura 48x48x4 @120ms loop, aura break 48x48x6 @70ms once
+    if (typeof ASSET_DATA !== 'undefined') await Promise.all([['laugh', 'assets/usahime_laugh.png', 4, 32], ['aura', 'assets/usahime_aura.png', 4, 48], ['brk', 'assets/usahime_aura_break.png', 6, 48]]
+      .filter(([, src]) => ASSET_DATA[src]).map(([k, src, n, S]) => loadImg(src).then(img => { USF[k] = sheetFrames(img, n, S); }).catch(() => {})));
     if (typeof FX_ART !== 'undefined') await Promise.all(Object.keys(FX_ART).map(sp => Promise.all([loadImg('assets/fx/' + sp + '_shot.png'), loadImg('assets/fx/' + sp + '_hit.png')])
       .then(([a, b]) => { FXIMG[sp] = { shot: sheetFrames(a, 4), hit: sheetFrames(b, FX_ART[sp].hit.n || 4, FX_ART[sp].hit.size || 32) }; }).catch(() => {})));
     // optional 'super' fx art (e.g. 超はかいおぐり波): only when embedded in ASSET_DATA, so no 404s; else the normal fx is drawn scaled up
@@ -4485,6 +4495,6 @@
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { SPR, hasMini: k => !!(SPR[k] && MINI.get(SPR[k].n)), openHub, hubKey, hubTap, jstDay, SFX, playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
+  window.NM = { SPR, USF, get carrots() { return carrotsBack(); }, hasMini: k => !!(SPR[k] && MINI.get(SPR[k].n)), openHub, hubKey, hubTap, jstDay, SFX, playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();

@@ -1,0 +1,18 @@
+{
+ "image": "usahime_aura.png",
+ "frames": 4,
+ "frameW": 48,
+ "frameH": 48,
+ "durations": [
+  120,
+  120,
+  120,
+  120
+ ],
+ "loop": true,
+ "anchor": {
+  "x": 24,
+  "y": 24
+ },
+ "note": "うさひめ invincibility aura. Draw centred on the 32x32 sprite centre (anchor 24,24 -> sprite pixel 16,16), behind or over her; centre is transparent."
+}
