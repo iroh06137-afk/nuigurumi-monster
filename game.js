@@ -2195,7 +2195,7 @@
   function storyDmg(def, dmg) {
     const B = G.battle; if (!B) return dmg;
     if (B.final && def === B.w && !B.finMv && oyakoPartner(ally())) {   // the finisher must be the gold おやこ おぐり波
-      if (def.hp - dmg < 1 && !B.finTold) { B.finTold = 1; setTimeout(() => banner(USAHIME.finish, 2.2), 900); }
+      if (def.hp - dmg < 1) { B.bond = 100; if (!B.finTold) { B.finTold = 1; setTimeout(() => banner(USAHIME.finish, 2.2), 900); } }   // at 1 HP: the bond gauge fills so the finisher is ready
       return Math.min(dmg, Math.max(0, def.hp - 1));
     }
     if (!B.story) return dmg;
@@ -2235,7 +2235,7 @@
     if (carrotsBack() >= 3) {
       say('', allyLines(USAHIME.rematch), () => {
         oyakoStash();
-        for (const m of G.party) { m.gold = 1; for (const k of ['maxHp', 'atk', 'def', 'spd']) m[k] = Math.round(m[k] * 1.3); m.hp = m.maxHp; }   // gold power-up (undone by oyakoRestore)
+        for (const m of G.party) { m.gold = 1; for (const k of ['maxHp', 'atk', 'def', 'spd']) m[k] = Math.round(m[k] * 1.5); m.hp = m.maxHp; }   // gold power-up (undone by oyakoRestore)
         comp.key = compKey(); G.flashT = 0.3; burst(comp.x, GROUND - 14, 'spark', 20, '#ffe24a');
         Object.assign(w, trainerMember({ sp: 'usahime', lv: 30 }), { cool: false });
         startBattle(w); G.battle.final = true; oyakoBuddy();
@@ -3551,8 +3551,8 @@
       }
       if (st && W === 3 && G.flags.usaLoss && !G.flags.w4clear) {   // うさひめ arc: red ！ = a carrot to take back here; gold ！ on しろ once all 3 are back
         const all = carrotsBack() >= 3;
-        if (all && st.id === 'seishiro') { if (PROPS.mark_gold) g.drawImage(PROPS.mark_gold, n.x - 4, n.y - 19 + (Math.floor(G.t * 3) % 2), 16, 16); }
-        else if (!G.flags['gate_gold_' + st.id] && Math.floor(G.t * 3) % 2 && PROPS.mark_red) g.drawImage(PROPS.mark_red, n.x - 4, n.y - 19, 16, 16);
+        if (all && st.id === 'seishiro') { if (PROPS.mark_gold) g.drawImage(PROPS.mark_gold, n.x + 4, n.y - 21 + (Math.floor(G.t * 3) % 2), 16, 16); }
+        else if (!G.flags['gate_gold_' + st.id] && Math.floor(G.t * 3) % 2 && PROPS.mark_red) g.drawImage(PROPS.mark_red, n.x + 4, n.y - 21, 16, 16);
       }
       if (sel && Math.floor(G.t * 4) % 2) { g.strokeStyle = '#ffffff'; g.lineWidth = 1; g.strokeRect(n.x - 6.5, n.y - 6.5, 14, 13); }
     });
