@@ -3338,9 +3338,12 @@
     // centre group (start of the pan): オグリキング, the hero, the crowned オグリキャップ
     add('oguriking', 50, 0, 'eat', 1); add(player.key || 'player', 80, 0, 'wave', 1); add(crown ? memberKey(crown) : (SPR.oguri_evo_crown ? 'oguri_evo_crown' : 'oguri'), 110, 0, 'eat', -1);
     // the player's own plush: party first, then the most recent box members
-    const own = G.party.filter(m => !isOyako(m)).concat((G.box || []).slice().reverse().filter(m => !isOyako(m)));
+    // せいぎぐん never join the picnic (even if owned): grunts, mid-bosses (and gold forms), うさひめ (she only peeks from the hill)
+    const SEIGI = new Set(['usagihei', 'hamuranger', 'poppon', 'hotarun', 'hiyokorappa', 'mogurakouhei', 'arupakacook', 'paoon', 'kametank', 'usaknight', 'usahime']);
+    const seigi = sp => SEIGI.has(sp) || SEIGI.has(String(sp).replace(/_gold$/, ''));
+    const own = G.party.filter(m => !isOyako(m) && !seigi(m.sp)).concat((G.box || []).slice().reverse().filter(m => !isOyako(m) && !seigi(m.sp)));
     const ownSp = new Set(G.party.concat(G.box || []).map(m => m.sp));
-    const wild = Object.keys(SPECIES).filter(k => { const d = SPECIES[k]; return !d.boss && !d.gold && !ownSp.has(k) && k !== 'oguri' && has(d.sprite); }).map(k => SPECIES[k].sprite);
+    const wild = Object.keys(SPECIES).filter(k => { const d = SPECIES[k]; return !d.boss && !d.gold && !seigi(k) && !ownSp.has(k) && k !== 'oguri' && has(d.sprite); }).map(k => SPECIES[k].sprite);
     const humans = ['npc_girl', 'npc_gaki', 'npc_oneesan', 'npc_mushitori', 'npc_karate', 'npc_akira', (G.gender | 0) === 1 ? 'player' : 'hero_girl'].filter(has);
     const acts = ['bob', 'eat', 'walk', 'wave', 'bob', 'eat'];
     let x = 160, ow = 0;
