@@ -898,10 +898,16 @@ const ENDINGS = {
     talk: [['オグリキング「…わが子は', 'ここにも おらぬか」'], ['オグリキング「ならば この あしで', 'さがしに いくまでだ」'],
            ['オグリキング「どこに いようと', 'かならず みつけてみせる」'], ['…オグリキングは ひとり', 'よるの みちへ きえていった']] },
   // true ending: once on world-4 clear. still by ドット絵作成くん pending; assets/ending/end_true.png is a placeholder composed from existing art
-  true: { title: 'トゥルーエンド', img: 'assets/ending/end_true.png', cast: ['party', 'king'], low: true,
+  // true ending: once on world-4 clear. a slow sideways pan over a long picnic field (PAN.w px); every character is drawn by code over
+  // assets/ending/end_true.png (sky + field only, PAN.w x 90; until ドット絵作成くん's art arrives: a placeholder made from simple shapes).
+  // pan[i] = camera x while talk page i is shown
+  true: { title: 'トゥルーエンド', img: 'assets/ending/end_true.png', low: true, crowd: true, panW: 900,
+    pan: [0, 0, 0, 180, 260, 400, 480, 560, 640, 740, 740],
     talk: [['ぽかぽか ひだまりの にんじんばたけ', 'きょうは みんなで ピクニック！'], ['オグリキャップ「とうさん この にんじん', 'あまくて おいしいね！」'],
-           ['オグリキング「みんなで わけあう にんじんは', 'いちばんの ごちそうだ」'], ['{NAME}「せいぎぐんの くにの こたちにも', 'おすそわけ しようよ！」'],
-           ['ぬいぐるみたちは わらいながら', 'にんじんを わけあった'], ['ぬいぐるみの くには きょうも', 'へいわで えがおが いっぱい'],
+           ['オグリキング「みんなで わけあう にんじんは', 'いちばんの ごちそうだ」'], ['ぬいぐるみの くにの みんなが', 'あつまった！'],
+           ['{NAME}「せいぎぐんの くにの こたちにも', 'おすそわけ しようよ！」'], ['ぬいぐるみたちは わらいながら', 'にんじんを わけあった'],
+           ['にんげんも ぬいぐるみも', 'みんな なかよし'], ['オグリキング「…にんげんも', 'わるくないのう」'],
+           ['ぬいぐるみの くには きょうも', 'へいわで えがおが いっぱい'],
            ['…とおくの おかの うえで', 'だれかが こっそり みている'], ['うさひめ「うーしっしっ…', 'つぎは まけないわよ」']] },
   tochu: { title: 'とちゅうエンド', img: 'assets/ending/end_tochu.png', cast: ['party', 'king'],
     talk: [['オグリキング「…よし ついていこう', 'だが わすれるな」'], ['オグリキング「わが子は まだ', 'ほんとうの おうでは ない」'],

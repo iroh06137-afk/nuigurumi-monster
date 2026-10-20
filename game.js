@@ -3151,7 +3151,7 @@
     G.t += dt;
     SFX.sync();
     if (G.state === 'field' && G.tutWait > 0 && !G.talk) { G.tutWait -= dt; if (G.tutWait <= 0) startTutorial(); }
-    if (G.state === 'ending') updateEnding(dt);
+    if (G.ending) updateEnding(dt);   // also during the ending talk (true ending pan)
     if (G.battle && G.battle.story && G.battle.w.hp > 0) {   // golden glow while powered up
       const e = G.battle.w; e.gold = (e.gold || 0) + dt;
       if (rand() < dt * 10) burst(e.x + (rand() - 0.5) * 20, GROUND - 4 - rand() * 26, 'spark', 1, rand() < 0.5 ? '#ffe24a' : '#fff6b0');
@@ -3293,13 +3293,20 @@
     G.flags['end_' + id] = 1; if (id === 'oyako') G.flags.w4hook = 1;   // w4hook: sequel teaser flag (sequel not built yet)
     persist();
     endImg(D.img); endImg(STAFF_BG);
-    G.ending = { id, phase: 'talk', t: 0, then }; G.menu = null; player.moving = false;
+    G.ending = { id, phase: 'talk', t: 0, then, cam: 0 }; G.menu = null; player.moving = false;
+    if (D.crowd) G.ending.crowd = buildCrowd(D);
     say('', D.talk, () => { G.ending.phase = 'roll'; G.ending.t = 0; G.state = 'ending'; });
     return true;
   }
   const ROLL_GAP = 10, rollLen = () => STAFF.length * ROLL_GAP + 90 + 20;
   function updateEnding(dt) {
     const E = G.ending; if (!E) return; E.t += dt;
+    const D = ENDINGS[E.id];
+    if (D.crowd && E.phase === 'talk' && G.talk) {   // slow pan to the group the current line is about
+      const tx = D.pan[Math.min(G.talk.i, D.pan.length - 1)], d = tx - (E.cam || 0);
+      E.cam = (E.cam || 0) + Math.sign(d) * Math.min(Math.abs(d), 28 * dt);
+      E.peek = G.talk.i >= D.pan.length - 2 ? Math.min(1, (E.peek || 0) + dt * 1.5) : 0;
+    }
     if (E.phase === 'roll' && E.t * 12 > rollLen()) endingSkip();
     else if (E.phase === 'name' && E.t > 3) endingSkip();
   }
@@ -3322,8 +3329,68 @@
     g.drawImage((right ? 1 : -1) === s.native ? fr.n : fr.f, Math.round(x) - 16, 70 - 31);
   }
   const endCrown = () => G.party.concat(G.box || []).find(m => m.sp === 'oguri' && m.crown) || null;
+  // ---------- true ending: long picnic field, slow pan, plush + humans drawn by code ----------
+  function buildCrowd(D) {
+    const C = [], has = k => k && SPR[k];
+    const add = (k, x, row, act, face, extra) => { if (has(k)) C.push(Object.assign({ k, x, row, act, face, ph: C.length * 1.7 }, extra || {})); };
+    const isOyako = m => m.sp === 'oguriking' || (m.sp === 'oguri' && m.crown);
+    const crown = endCrown();
+    // centre group (start of the pan): オグリキング, the hero, the crowned オグリキャップ
+    add('oguriking', 50, 0, 'eat', 1); add(player.key || 'player', 80, 0, 'wave', 1); add(crown ? memberKey(crown) : (SPR.oguri_evo_crown ? 'oguri_evo_crown' : 'oguri'), 110, 0, 'eat', -1);
+    // the player's own plush: party first, then the most recent box members
+    const own = G.party.filter(m => !isOyako(m)).concat((G.box || []).slice().reverse().filter(m => !isOyako(m)));
+    const ownSp = new Set(G.party.concat(G.box || []).map(m => m.sp));
+    const wild = Object.keys(SPECIES).filter(k => { const d = SPECIES[k]; return !d.boss && !d.gold && !ownSp.has(k) && k !== 'oguri' && has(d.sprite); }).map(k => SPECIES[k].sprite);
+    const humans = ['npc_girl', 'npc_gaki', 'npc_oneesan', 'npc_mushitori', 'npc_karate', 'npc_akira', (G.gender | 0) === 1 ? 'player' : 'hero_girl'].filter(has);
+    const acts = ['bob', 'eat', 'walk', 'wave', 'bob', 'eat'];
+    let x = 160, ow = 0;
+    for (const m of own.slice(0, 8)) { add(memberKey(m), x, 0, acts[ow % acts.length], ow % 2 ? -1 : 1); x += 32; ow++; }
+    // humans and plush getting along (pairs)
+    x = Math.max(x + 10, 390);
+    const pairs = ['share', 'pat', 'sit', 'tag', 'wave', 'share', 'pat'];
+    let wi = 0; const pal = () => own.length > 8 + wi ? memberKey(own[8 + wi++]) : wild.length ? wild[(wi++) % wild.length] : 'goririn';
+    humans.forEach((h, i) => { if (x > 790) return; const p = pairs[i % pairs.length], pk = pal();
+      add(h, x, 0, p, 1, { pair: 'h' }); add(pk, x + (p === 'tag' ? 30 : 24), 0, p, -1, { pair: 'p' }); x += p === 'tag' ? 64 : 56; });
+    for (; x < 830; x += 32) add(pal(), x, 0, acts[(x / 32 | 0) % acts.length], (x / 32 | 0) % 2 ? -1 : 1);
+    // back row (half size, standing on the far slope): the rest of the plush world
+    let bi = 0; for (let bx = 150; bx < 830; bx += 18) { const k = wild.length ? wild[(wi + bi) % wild.length] : null; add(k, bx, 1, acts[bi % acts.length], bi % 2 ? 1 : -1); bi++; }
+    return C;
+  }
+  function drawCrowd(E, D) {
+    const cam = Math.round(E.cam || 0), t = G.t, im = endImg(D.img);
+    if (im) { g.drawImage(im, -cam, 0); if (im.width < D.panW) for (let x = im.width; x - cam < 160; x += im.width) g.drawImage(im, x - cam, 0); }
+    else { endSky(false); rect(0, 20, 160, 70, '#7ac860'); rect(0, 38, 160, 52, '#96d870'); }
+    // うさひめ peeks over the far hill at the very end (laugh hop = code; art pending assets/usahime_laugh.png)
+    { const ux = 868 - cam, s = SPR.usahime; if (s && ux > -20 && ux < 180) { const up = E.peek || 0, hop = (G.talk && /うーしっしっ/.test(G.talk.pages[G.talk.i].join(''))) ? Math.floor(t * 10) % 2 : 0;
+      g.save(); g.beginPath(); g.rect(ux - 10, 0, 20, 23); g.clip(); g.drawImage(s.native === -1 ? s.n : s.f, ux - 8, 23 - up * 12 - hop, 16, 16); g.restore(); } }
+    const C = E.crowd || [];
+    for (const row of [1, 0]) for (const a of C) {
+      if (a.row !== row) continue;
+      const sc = row ? 0.5 : 1, gy = row ? 33 : 64, sz = 32 * sc, s = SPR[a.k];
+      let x = a.x, face = a.face, yo = 0, walk = false;
+      const ph = t + a.ph;
+      if (a.act === 'bob' || a.act === 'eat') yo = Math.floor(ph * 2) % 3 === 0 ? -1 : 0;
+      if (a.act === 'wave') yo = Math.floor(ph * 3) % 2 ? -2 : 0;
+      if (a.act === 'walk') { const v = Math.sin(ph * 0.6); x += v * 10; face = Math.cos(ph * 0.6) >= 0 ? 1 : -1; walk = true; }
+      if (a.act === 'tag') { const v = Math.sin(ph * 0.9 - (a.pair === 'p' ? 0.6 : 0)); x += v * 14; face = Math.cos(ph * 0.9) >= 0 ? 1 : -1; walk = true; }
+      if (a.act === 'pat' && a.pair === 'h') { x += Math.floor(ph * 2) % 2 ? 3 : 0; }
+      if (a.act === 'sit') yo = 2;
+      const sx = Math.round(x - cam);
+      if (sx < -20 || sx > 180) continue;
+      let fr = s; if (walk && s.walk) fr = s.walk.frames[Math.floor(t * 1000 / s.walk.ms) % s.walk.frames.length];
+      const img = (face > 0 ? 1 : -1) === s.native ? fr.n : fr.f;
+      if (row === 0) { g.globalAlpha = 0.25; rect(sx - 7, gy - 1, 14, 2, '#204010'); g.globalAlpha = 1; }
+      if (a.act === 'sit' && a.pair === 'h') rect(sx - 6, gy - 1, 36, 3, '#e8605a');   // a little blanket they share
+      g.drawImage(img, sx - sz / 2, gy - sz + 1 + yo, sz, sz);
+      const C2 = PROPS.item_carrot;
+      if (C2 && a.act === 'eat') g.drawImage(C2, sx + face * 7 * sc - 4 * sc, gy - 18 * sc + yo, 8 * sc, 8 * sc);
+      if (C2 && a.act === 'share' && a.pair === 'h') { const k = (Math.sin(ph) + 1) / 2; g.drawImage(C2, sx + 6 + k * 6, gy - 16, 8, 8); }
+      if (a.pair === 'p' && (a.act === 'pat' || a.act === 'share' || a.act === 'sit') && Math.floor(ph * 1.5) % 3 === 0) drawPattern(['.#.#.', '#####', '.###.', '..#..'], sx - 2, gy - sz - 4, { '#': '#ff6a9a' });   // heart
+    }
+  }
   function drawEnding() {
     const E = G.ending, D = ENDINGS[E.id];
+    if (E.phase === 'talk' && D.crowd) { drawCrowd(E, D); return; }
     if (E.phase === 'talk') {
       const im = endImg(D.img);
       if (im) g.drawImage(im, 0, 0); else {
