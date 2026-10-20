@@ -3356,6 +3356,17 @@
     let bi = 0; for (let bx = 150; bx < 830; bx += 18) { const k = wild.length ? wild[(wi + bi) % wild.length] : null; add(k, bx, 1, acts[bi % acts.length], bi % 2 ? 1 : -1); bi++; }
     return C;
   }
+  // true ending: mouth position per sprite (x, y in the 32x32 frame, facing right; mirrored for left). unmapped sprites put the carrot on the ground
+  const END_MOUTH = { oguriking: [27, 15], oguri_evo_crown: [28, 20], oguri_crown: [29, 19], oguri_evo_gold: [28, 20], oguriking_gold: [27, 15],
+    usagin: [28, 22], usagin_evo: [20, 15], kuuko: [17, 11], goririn: [18, 18], risurin: [28, 16], kitsunen: [28, 21], tsumaguro_evo: [28, 18],
+    pengiin: [29, 17], ressan: [29, 19], haririn: [29, 20], hakuchon: [23, 12], lioneru: [18, 14], tanukin: [27, 18], nyankon: [28, 18], wankon: [29, 17] };
+  const sideCarrots = {};
+  function sideCarrot(face) {   // the 16x16 carrot turned on its side: tip toward the mouth
+    const k = face > 0 ? 'r' : 'l'; if (sideCarrots[k]) return sideCarrots[k];
+    const im = PROPS.item_carrot, [c, x] = mk(16, 16);
+    x.translate(8, 8); x.rotate(face > 0 ? Math.PI / 2 : -Math.PI / 2); x.drawImage(im, -8, -8, 16, 16);
+    return (sideCarrots[k] = c);
+  }
   function drawCrowd(E, D) {
     const cam = Math.round(E.cam || 0), t = G.t, im = endImg(D.img);
     if (im) { g.drawImage(im, -cam, 0); if (im.width < D.panW) for (let x = im.width; x - cam < 160; x += im.width) g.drawImage(im, x - cam, 0); }
@@ -3382,9 +3393,15 @@
       if (row === 0) { g.globalAlpha = 0.25; rect(sx - 7, gy - 1, 14, 2, '#204010'); g.globalAlpha = 1; }
       if (a.act === 'sit' && a.pair === 'h') rect(sx - 6, gy - 1, 36, 3, '#e8605a');   // a little blanket they share
       g.drawImage(img, sx - sz / 2, gy - sz + 1 + yo, sz, sz);
-      const C2 = PROPS.item_carrot;
-      if (C2 && a.act === 'eat') g.drawImage(C2, sx + face * 7 * sc - 4 * sc, gy - 18 * sc + yo, 8 * sc, 8 * sc);
-      if (C2 && a.act === 'share' && a.pair === 'h') { const k = (Math.sin(ph) + 1) / 2; g.drawImage(C2, sx + 6 + k * 6, gy - 16, 8, 8); }
+      const C2 = PROPS.item_carrot, left = sx - sz / 2, top = gy - sz + 1 + yo;
+      if (C2 && a.act === 'eat') {
+        const M = END_MOUTH[a.k];
+        if (M) {   // carrot held sideways in the mouth: tip in the mouth, leaves outward, on the side the plush faces, moving with its bob
+          const mx = left + (face > 0 ? M[0] : 31 - M[0]) * sc, my = top + M[1] * sc, cw = 8 * sc, nib = Math.floor(ph * 3) % 2 * sc;
+          g.drawImage(sideCarrot(face), face > 0 ? mx - sc - nib : mx - cw + sc + nib, my - cw / 2, cw, cw);
+        } else g.drawImage(C2, sx + face * 9 * sc - 4 * sc, gy - 8 * sc, 8 * sc, 8 * sc);   // mouth not mapped: the carrot sits on the ground beside it
+      }
+      if (C2 && a.act === 'share' && a.pair === 'h') { const k = (Math.sin(ph) + 1) / 2; g.drawImage(C2, left + 21 + k * 4, top + 14, 8, 8); }   // offered from the hand toward the plush
       if (a.pair === 'p' && (a.act === 'pat' || a.act === 'share' || a.act === 'sit') && Math.floor(ph * 1.5) % 3 === 0) drawPattern(['.#.#.', '#####', '.###.', '..#..'], sx - 2, gy - sz - 4, { '#': '#ff6a9a' });   // heart
     }
   }
