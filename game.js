@@ -57,6 +57,8 @@
       if (a.length === 8) [sx, sy, sw, sh, dx, dy, dw, dh] = a; else if (a.length === 4) { [dx, dy, dw, dh] = a; sw = img.width; sh = img.height; } else return raw(img, ...a);
       const tw = Math.round(dw), th = Math.round(dh);
       if (img !== low && tw > 0 && th > 0 && (tw < sw || th < sh) && sw <= 256 && sh <= 256) {
+        const mi = tw === 16 && th === 16 && sx === 0 && sy === 0 && sw === img.width && sh === img.height && MINI.get(img);
+        if (mi) return raw(mi, Math.round(dx), Math.round(dy));   // hand-drawn 16px mini
         const d = downscaled(img, sx, sy, sw, sh, tw, th); if (d) return raw(d, Math.round(dx), Math.round(dy));
       }
       return raw(img, ...a);
@@ -4154,7 +4156,9 @@
       rect(b.x + 2, b.y - bob + 2, b.w - 4, 2, b.col);
       const cx = b.x + b.w / 2, iy = b.y - bob + 5;
       const ic = k => { const s = SPR[k]; if (s) g.drawImage(s.native === 1 ? s.n : s.f, Math.round(cx - 8), iy, 16, 16); };
-      if (b.id === 'quest') { const m = PROPS.wmap; if (m) { g.drawImage(m, 0, 0, m.width, m.height, b.x + 4, iy, 30, 17); } ic(player.key || 'player'); const s = SPR.oguri_evo_crown || SPR.oguri; if (s) g.drawImage(s.n, b.x + b.w - 22, iy, 16, 16); }
+      const IC = ICON16[{ quest: 'menu_quest', event: 'menu_event', zukan: 'menu_zukan', vs: 'menu_taisen', train: 'menu_training', gacha: 'menu_gacha', items: 'menu_item' }[b.id]];
+      if (IC) g.drawImage(IC, Math.round(cx - 8), iy);   // hand-drawn 16x16 at 1x
+      else if (b.id === 'quest') { const m = PROPS.wmap; if (m) { g.drawImage(m, 0, 0, m.width, m.height, b.x + 4, iy, 30, 17); } ic(player.key || 'player'); const s = SPR.oguri_evo_crown || SPR.oguri; if (s) g.drawImage(s.n, b.x + b.w - 22, iy, 16, 16); }
       else if (b.id === 'event') { const c = PROPS.gold_carrot || PROPS.item_carrot; if (c) g.drawImage(c, cx - 8, iy, 16, 16); }
       else if (b.id === 'zukan') { rect(cx - 7, iy + 1, 14, 15, '#3a7a2a'); rect(cx - 6, iy + 2, 12, 13, '#f0f8e0'); rect(cx - 1, iy + 2, 1, 13, '#3a7a2a'); for (let l = 0; l < 4; l++) { rect(cx - 5, iy + 4 + l * 3, 3, 1, '#a8c890'); rect(cx + 1, iy + 4 + l * 3, 4, 1, '#a8c890'); } rect(cx + 3, iy, 2, 5, '#e84a4a'); }
       else if (b.id === 'vs') { const a = SPR.goririn, o = SPR.kuuko; if (a) g.drawImage(a.n, cx - 15, iy, 16, 16); if (o) g.drawImage(o.f, cx - 1, iy, 16, 16); }
@@ -4162,7 +4166,7 @@
       else if (b.id === 'gacha') { rect(cx - 6, iy + 1, 12, 7, '#f96ab4'); rect(cx - 6, iy + 8, 12, 7, '#fff6f0'); rect(cx - 6, iy + 8, 12, 1, '#5a3418'); rect(cx - 1, iy + 7, 3, 3, '#5a3418'); }
       else if (b.id === 'items') { const c = PROPS.item_carrot; if (c) g.drawImage(c, cx - 12, iy + 1, 14, 14); rect(cx + 2, iy + 5, 8, 10, '#9af07a'); rect(cx + 4, iy + 3, 4, 2, '#5a3418'); }
       T(b.name, cx, b.y - bob + b.h - 9, { al: 'center', c: '#4a2c12' });
-      if (b.soon) { rect(b.x + 2, b.y - bob + 5, 19, 7, '#8a8a8a'); T('じゅんび', b.x + 11.5, b.y - bob + 6, { al: 'center', c: '#ffffff' }); }
+      if (b.soon) { rect(b.x + b.w - 21, b.y - bob - 2, 19, 7, '#8a8a8a'); T('じゅんび', b.x + b.w - 11.5, b.y - bob - 1, { al: 'center', c: '#ffffff' }); }   // tag on the top edge, clear of the icon
     });
     const L = G.flags.lb; if (!H.lb) T(`ログインボーナス ${L ? ((L.n - 1) % 7) + 1 : 0}/7 にちめ`, 80, 81, { al: 'center', c: '#3a5a20' });
     if (H.lb) drawLoginBonus(H.lb);
@@ -4429,6 +4433,23 @@
     update(DT); render(); syncControls();
     requestAnimationFrame(frame);
   }
+  // hand-drawn 16x16 art (assets/icons16): hub menu icons, and optional mini_<sprite id> plush minis. Only embedded files
+  // are loaded (no 404s). A mini replaces any 16px draw of that plush's 32px frame; without one the downscaler is used.
+  const ICON16 = {}, MINI = new WeakMap();
+  async function loadIcons16() {
+    if (typeof ASSET_DATA === 'undefined') return;
+    const keys = Object.keys(ASSET_DATA).filter(k => k.indexOf('assets/icons16/') === 0);
+    await Promise.all(keys.map(k => loadImg(k).then(img => {
+      const id = k.slice(15, -4);
+      if (img.width !== 16 || img.height !== 16) return;
+      if (id.indexOf('mini_') === 0) {
+        const s = SPR[id.slice(5)]; if (!s) return;
+        const [n, nx] = mk(16, 16); nx.drawImage(img, 0, 0);
+        const [f, fx] = mk(16, 16); fx.translate(16, 0); fx.scale(-1, 1); fx.drawImage(img, 0, 0);
+        MINI.set(s.n, n); MINI.set(s.f, f);
+      } else ICON16[id] = img;
+    }).catch(() => {})));
+  }
   async function boot() {
     resize();
     if (typeof SPRITES_PENDING !== 'undefined') for (const [k, s] of Object.entries(SPRITES_PENDING)) if (artReady(s.src)) SPRITES[k] = s;
@@ -4436,6 +4457,7 @@
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.walk).map(([k, s]) => loadImg(s.walk.src).then(img => prepWalk(k, img, s.walk)).catch(() => {})));
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.attack).map(([k, s]) => loadImg(s.attack.src).then(img => { SPR[k].attack = sheetFrames(img, s.attack.frames); }).catch(() => {})));
     makeCrownSprites();
+    await loadIcons16();
     if (typeof FX_ART !== 'undefined') await Promise.all(Object.keys(FX_ART).map(sp => Promise.all([loadImg('assets/fx/' + sp + '_shot.png'), loadImg('assets/fx/' + sp + '_hit.png')])
       .then(([a, b]) => { FXIMG[sp] = { shot: sheetFrames(a, 4), hit: sheetFrames(b, FX_ART[sp].hit.n || 4, FX_ART[sp].hit.size || 32) }; }).catch(() => {})));
     // optional 'super' fx art (e.g. 超はかいおぐり波): only when embedded in ASSET_DATA, so no 404s; else the normal fx is drawn scaled up
@@ -4463,6 +4485,6 @@
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { SPR, openHub, hubKey, hubTap, jstDay, SFX, playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
+  window.NM = { SPR, hasMini: k => !!(SPR[k] && MINI.get(SPR[k].n)), openHub, hubKey, hubTap, jstDay, SFX, playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();
