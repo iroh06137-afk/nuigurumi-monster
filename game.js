@@ -17,33 +17,38 @@
   const [low, g] = mk(W, H);
   // Clean downscaling: nearest-neighbour shrinking drops pixel rows/columns (jaggies). Any draw onto the game canvas whose
   // destination is smaller than its source is redirected to a cached copy resampled once at the exact target size by area
-  // coverage (alpha-thresholded so edges stay crisp; colour = area-weighted dominant palette colour, dark detail favoured),
-  // with a 1px outline pass that keeps the dark outline.
+  // coverage (alpha-thresholded so edges stay crisp; colour = area-weighted majority palette colour, ties to the lighter),
+  // and a 1px outline is restored only just outside the silhouette - faces and interiors are never darkened.
   const DS = new WeakMap();
+  const lumOf = ck => (ck >> 16) * 0.3 + ((ck >> 8) & 255) * 0.59 + (ck & 255) * 0.11;
   function downscaled(img, sx, sy, sw, sh, dw, dh) {
     let m = DS.get(img); if (!m) DS.set(img, (m = new Map()));
     const key = sx + ',' + sy + ',' + sw + ',' + sh + ',' + dw + ',' + dh; let c = m.get(key); if (c) return c;
     const [sc, sx2] = mk(sw, sh); sx2.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
     let src; try { src = sx2.getImageData(0, 0, sw, sh).data; } catch (e) { return null; }
     const [dc, dx2] = mk(dw, dh), out = dx2.createImageData(dw, dh), o = out.data, fx = sw / dw, fy = sh / dh;
-    const dark = new Float32Array(dw * dh * 4), op = new Uint8Array(dw * dh), vote = new Map();
+    const dark = new Float32Array(dw * dh * 4), op = new Uint8Array(dw * dh), hasDark = new Uint8Array(dw * dh), vote = new Map();
     for (let y = 0; y < dh; y++) for (let x = 0; x < dw; x++) {
       const x0 = x * fx, x1 = x0 + fx, y0 = y * fy, y1 = y0 + fy; let r = 0, gg = 0, b = 0, a = 0, ar = 0, best = 1e9, di = -1;
       for (let yy = Math.floor(y0); yy < Math.ceil(y1); yy++) { const wy = Math.min(y1, yy + 1) - Math.max(y0, yy); if (wy <= 0) continue;
         for (let xx = Math.floor(x0); xx < Math.ceil(x1); xx++) { const wx = Math.min(x1, xx + 1) - Math.max(x0, xx); if (wx <= 0) continue;
           const i = (yy * sw + xx) * 4, w = wx * wy, al = src[i + 3] / 255; ar += w; a += al * w;
           if (al > 0.5) { const lum = src[i] * 0.3 + src[i + 1] * 0.59 + src[i + 2] * 0.11, ck = (src[i] << 16) | (src[i + 1] << 8) | src[i + 2];
-            vote.set(ck, (vote.get(ck) || 0) + w * (lum < 80 ? 3.2 : 1)); if (lum < best) { best = lum; di = i; } } } }
+            vote.set(ck, (vote.get(ck) || 0) + w); if (lum < 80) { const T0 = (X, Y) => X < 0 || Y < 0 || X >= sw || Y >= sh || src[(Y * sw + X) * 4 + 3] < 128;
+              if ((T0(xx - 1, yy) || T0(xx + 1, yy) || T0(xx, yy - 1) || T0(xx, yy + 1)) && lum < best) { best = lum; di = i; } } } } }   // only the source's OUTER outline counts
       const j = (y * dw + x) * 4, cov = a / ar;
-      if (cov >= 0.45 && vote.size) { let bc = 0, bw = -1; for (const [ck, w] of vote) if (w > bw) { bw = w; bc = ck; }   // palette-preserving: the dominant colour of the footprint
+      if (cov >= 0.45 && vote.size) { let bc = 0, bw = -1; let dw2 = 0, tw2 = 0; for (const [ck, w] of vote) { tw2 += w; if (lumOf(ck) < 80) dw2 += w; }
+        const lightOnly = dw2 < tw2 * 0.7;   // dark wins a pixel only when it fills most of it: faces keep their light fill
+        for (const [ck, w] of vote) { const l = lumOf(ck); if (lightOnly && l < 80) continue; if (w + l / 2550 > bw) { bw = w + l / 2550; bc = ck; } }   // majority; ties go to the lighter colour   // palette-preserving: the dominant colour of the footprint
         o[j] = bc >> 16; o[j + 1] = (bc >> 8) & 255; o[j + 2] = bc & 255; o[j + 3] = 255; op[y * dw + x] = 1; }
       vote.clear();
-      if (di >= 0) { dark[j] = src[di]; dark[j + 1] = src[di + 1]; dark[j + 2] = src[di + 2]; dark[j + 3] = best; }
+      if (di >= 0) { hasDark[y * dw + x] = 1; dark[j] = src[di]; dark[j + 1] = src[di + 1]; dark[j + 2] = src[di + 2]; dark[j + 3] = best; }
     }
-    // outline cleanup: an opaque pixel on the silhouette edge takes the darkest colour it covered (the source outline)
-    for (let y = 0; y < dh; y++) for (let x = 0; x < dw; x++) { const k = y * dw + x; if (!op[k]) continue;
+    // outer outline only: a pixel on the silhouette edge (touching transparency) whose footprint held the source's outer
+    // outline takes that outline colour - 1px, outside edge only. Interior body/face pixels are never darkened.
+    for (let y = 0; y < dh; y++) for (let x = 0; x < dw; x++) { const k = y * dw + x; if (!op[k] || !hasDark[k]) continue;
       const edge = x === 0 || y === 0 || x === dw - 1 || y === dh - 1 || !op[k - 1] || !op[k + 1] || !op[k - dw] || !op[k + dw];
-      if (edge && dark[k * 4 + 3] < 90) { o[k * 4] = dark[k * 4]; o[k * 4 + 1] = dark[k * 4 + 1]; o[k * 4 + 2] = dark[k * 4 + 2]; } }
+      if (edge) { o[k * 4] = dark[k * 4]; o[k * 4 + 1] = dark[k * 4 + 1]; o[k * 4 + 2] = dark[k * 4 + 2]; } }
     dx2.putImageData(out, 0, 0); m.set(key, dc); return dc;
   }
   { const raw = g.drawImage.bind(g);
@@ -4081,7 +4086,7 @@
     const s = SPR[k]; if (!s) return null; const [c, x] = mk(32, 32); x.drawImage(s.native === 1 ? s.n : s.f, 0, 0);
     x.globalCompositeOperation = 'source-in'; x.fillStyle = '#3a3048'; x.fillRect(0, 0, 32, 32); return (blackCache[k] = c);
   }
-  const DEX_COLS = 9, DEX_ROWS = 3, DEX_PAGE = DEX_COLS * DEX_ROWS;
+  const DEX_COLS = 4, DEX_ROWS = 2, DEX_PAGE = DEX_COLS * DEX_ROWS;
   const hubItems = () => Object.keys(ITEMS);
   function hubAct(id) {
     const H = G.hub; SFX.blip();
@@ -4113,9 +4118,9 @@
     if (H.view !== 'home') {
       if (y < 11 && x < 30) { H.view = 'home'; SFX.blip(); return; }   // もどる
       if (H.view === 'zukan') {
-        if (y >= 66 && x < 20) { H.dsel = Math.max(0, (H.dsel | 0) - DEX_PAGE); return; }
-        if (y >= 66 && x > 140) { H.dsel = Math.min(DEX().length - 1, (H.dsel | 0) + DEX_PAGE); return; }
-        const c = Math.floor((x - 3) / 17), r = Math.floor((y - 12) / 18);
+        if (x >= 142 && y >= 12 && y < 46) { H.dsel = Math.max(0, (H.dsel | 0) - DEX_PAGE); return; }
+        if (x >= 142 && y >= 46 && y < 80) { H.dsel = Math.min(DEX().length - 1, (H.dsel | 0) + DEX_PAGE); return; }
+        const c = Math.floor((x - 2) / 35), r = Math.floor((y - 12) / 34);
         if (c >= 0 && c < DEX_COLS && r >= 0 && r < DEX_ROWS) { const i = Math.floor((H.dsel | 0) / DEX_PAGE) * DEX_PAGE + r * DEX_COLS + c; if (i < DEX().length) H.dsel = i; }
       }
       if (H.view === 'items') { const i = Math.floor((y - 13) / 9); if (i >= 0 && i < hubItems().length) H.isel = i; }
@@ -4151,7 +4156,7 @@
       const ic = k => { const s = SPR[k]; if (s) g.drawImage(s.native === 1 ? s.n : s.f, Math.round(cx - 8), iy, 16, 16); };
       if (b.id === 'quest') { const m = PROPS.wmap; if (m) { g.drawImage(m, 0, 0, m.width, m.height, b.x + 4, iy, 30, 17); } ic(player.key || 'player'); const s = SPR.oguri_evo_crown || SPR.oguri; if (s) g.drawImage(s.n, b.x + b.w - 22, iy, 16, 16); }
       else if (b.id === 'event') { const c = PROPS.gold_carrot || PROPS.item_carrot; if (c) g.drawImage(c, cx - 8, iy, 16, 16); }
-      else if (b.id === 'zukan') { rect(cx - 7, iy + 1, 14, 15, '#3a7a2a'); rect(cx - 6, iy + 2, 12, 13, '#f0f8e0'); rect(cx - 1, iy + 2, 1, 13, '#3a7a2a'); const s = SPR.goririn; if (s) g.drawImage(s.n, cx - 6, iy + 4, 5, 5); }
+      else if (b.id === 'zukan') { rect(cx - 7, iy + 1, 14, 15, '#3a7a2a'); rect(cx - 6, iy + 2, 12, 13, '#f0f8e0'); rect(cx - 1, iy + 2, 1, 13, '#3a7a2a'); for (let l = 0; l < 4; l++) { rect(cx - 5, iy + 4 + l * 3, 3, 1, '#a8c890'); rect(cx + 1, iy + 4 + l * 3, 4, 1, '#a8c890'); } rect(cx + 3, iy, 2, 5, '#e84a4a'); }
       else if (b.id === 'vs') { const a = SPR.goririn, o = SPR.kuuko; if (a) g.drawImage(a.n, cx - 15, iy, 16, 16); if (o) g.drawImage(o.f, cx - 1, iy, 16, 16); }
       else if (b.id === 'train') ic('kangarun');
       else if (b.id === 'gacha') { rect(cx - 6, iy + 1, 12, 7, '#f96ab4'); rect(cx - 6, iy + 8, 12, 7, '#fff6f0'); rect(cx - 6, iy + 8, 12, 1, '#5a3418'); rect(cx - 1, iy + 7, 3, 3, '#5a3418'); }
@@ -4185,24 +4190,23 @@
   }
   function drawZukan(H) {
     const list = DEX(), own = ownedSp(), seen = list.filter(k => dexSeen(k, own)).length, got = list.filter(k => dexCaught(k, own)).length;
-    hubTop('ずかん', true);
     const page = Math.floor((H.dsel | 0) / DEX_PAGE), pages = Math.ceil(list.length / DEX_PAGE);
+    hubTop(`ずかん  ${page + 1}/${pages}`, true);
     for (let j = 0; j < DEX_PAGE; j++) {
       const i = page * DEX_PAGE + j, k = list[i]; if (!k) break;
-      const x = 3 + (j % DEX_COLS) * 17, y = 13 + Math.floor(j / DEX_COLS) * 18, sel = i === H.dsel;
-      hubFrame(x, y, 16, 17, sel ? '#ffe98a' : '#fff8e0');
+      const x = 2 + (j % DEX_COLS) * 35, y = 12 + Math.floor(j / DEX_COLS) * 34, sel = i === H.dsel;   // 34x33 cells: the 32px art at 1x, never shrunk
+      hubFrame(x, y, 34, 33, sel ? '#ffe98a' : '#fff8e0');
       const sp = SPECIES[k].sprite, s = SPR[sp];
-      if (dexCaught(k, own)) g.drawImage(s.native === 1 ? s.n : s.f, x, y + 1, 16, 16);
-      else if (dexSeen(k, own)) { const b = blackOf(sp); if (b) g.drawImage(b, x, y + 1, 16, 16); }
-      else T('?', x + 8, y + 6, { al: 'center', c: '#b0a080' });
+      if (dexCaught(k, own)) g.drawImage(s.native === 1 ? s.n : s.f, x + 1, y);
+      else if (dexSeen(k, own)) { const b = blackOf(sp); if (b) g.drawImage(b, x + 1, y); }
+      else T('?', x + 17, y + 13, { al: 'center', c: '#b0a080' });
     }
-    hubFrame(2, 66, 156, 22, '#fff8e0');
+    hubFrame(142, 12, 16, 33, '#fff8e0'); hubFrame(142, 46, 16, 33, '#fff8e0');
+    T('◀', 150, 25, { al: 'center', c: page > 0 ? '#c0502a' : '#d8c8a8' }); T('▶', 150, 59, { al: 'center', c: page < pages - 1 ? '#c0502a' : '#d8c8a8' });
     const k = list[H.dsel | 0], c = k && dexCaught(k, own), sn = k && dexSeen(k, own);
-    T(k ? `No.${String((H.dsel | 0) + 1).padStart(3, '0')}  ${sn ? SPECIES[k].name : '？？？'}` : '', 24, 69, { c: '#4a2c12' });
-    T(c ? 'なかま' : sn ? 'みつけた' : 'まだ みていない', 24, 77, { c: c ? '#2a7a1a' : sn ? '#3c6ad8' : '#9a8a70' });
-    T(`みつけた ${seen}  なかま ${got} / ${list.length}`, 136, 77, { al: 'right', c: '#7a5a30' });
-    T('◀', 9, 72, { al: 'center', c: page > 0 ? '#c0502a' : '#d8c8a8' }); T('▶', 151, 72, { al: 'center', c: page < pages - 1 ? '#c0502a' : '#d8c8a8' });
-    T(`${page + 1}/${pages}`, 136, 69, { al: 'right', c: '#9a8a70' });
+    T(k ? `No.${String((H.dsel | 0) + 1).padStart(3, '0')} ${sn ? SPECIES[k].name : '？？？'}` : '', 3, 81, { c: '#4a2c12' });
+    T(c ? 'なかま' : sn ? 'みつけた' : '', 72, 81, { c: c ? '#2a7a1a' : '#3c6ad8' });
+    T(`みつけた${seen} なかま${got}/${list.length}`, 158, 81, { al: 'right', c: '#7a5a30' });
   }
   function drawHubItems(H) {
     hubTop('アイテム', true);
@@ -4459,6 +4463,6 @@
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { openHub, hubKey, hubTap, jstDay, SFX, playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
+  window.NM = { SPR, openHub, hubKey, hubTap, jstDay, SFX, playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();
