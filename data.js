@@ -54,6 +54,12 @@ const SPRITES = {
   tsumaguro_evo: { src: 'assets/evo/tsumaguro.png', native: 1, attack: { src: 'assets/evo/tsumaguro_attack.png', frames: 4 }, walk: { src: 'assets/evo/tsumaguro_walk.png', frames: 4, ms: 150 } },
   oguri_evo: { src: 'assets/evo/oguri.png', native: 1, attack: { src: 'assets/evo/oguri_attack.png', frames: 4 }, walk: { src: 'assets/evo/oguri_walk.png', frames: 4, ms: 150 } },
   kitsunen_evo: { src: 'assets/evo/kitsunen.png', native: 1, attack: { src: 'assets/evo/kitsunen_attack.png', frames: 4 }, walk: { src: 'assets/evo/kitsunen_walk.png', frames: 4, ms: 150 } },
+  // gold forms (でんせつの にんじん): gold mid-bosses on return visits, gold オグリおやこ in the final うさひめ fight
+  paoon_gold: { src: 'assets/w4mons/paoon_gold_right.png', native: 1, walk: { src: 'assets/w4mons/paoon_gold_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/paoon_gold_attack_right.png', frames: 4 } },
+  kametank_gold: { src: 'assets/w4mons/kametank_gold_right.png', native: 1, walk: { src: 'assets/w4mons/kametank_gold_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/kametank_gold_attack_right.png', frames: 4 } },
+  usaknight_gold: { src: 'assets/w4mons/usaknight_gold_right.png', native: 1, walk: { src: 'assets/w4mons/usaknight_gold_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/usaknight_gold_attack_right.png', frames: 4 } },
+  oguri_evo_gold: { src: 'assets/evo/oguri_evo_gold_right.png', native: 1, walk: { src: 'assets/evo/oguri_evo_gold_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/evo/oguri_evo_gold_attack_right.png', frames: 4 } },
+  oguriking_gold: { src: 'assets/evo/oguriking_gold_right.png', native: 1, walk: { src: 'assets/evo/oguriking_gold_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/evo/oguriking_gold_attack_right.png', frames: 4 } },
   usahime: { src: 'assets/usahime.png', native: 1, walk: { src: 'assets/usahime_walk.png', frames: 4, ms: 150 }, attack: { src: 'assets/usahime_attack.png', frames: 4 } },   // world-4 boss (4-legged, tiara)
   usagin_evo: { src: 'assets/evo/usagin.png', native: 1, attack: { src: 'assets/evo/usagin_attack.png', frames: 4 }, walk: { src: 'assets/evo/usagin_walk.png', frames: 4, ms: 150 } },
   kangarun_evo: { src: 'assets/evo/kangarun.png', native: 1, attack: { src: 'assets/evo/kangarun_attack.png', frames: 4 }, walk: { src: 'assets/evo/kangarun_walk.png', frames: 4, ms: 150 } },
@@ -458,7 +464,7 @@ const SPECIES = {
       strong: { name: 'いわの ボディプレス', power: 32, acc: 0.83 },
     },
   },
-  usahime: {  // world 4 boss: green rabbit princess, leader of せいぎぐん. not recruitable (for now)
+  usahime: {  // world 4 boss: green rabbit princess, leader of せいぎぐん. never recruitable, never reforms
     name: 'うさひめ', sprite: 'usahime', boss: true, noEvo: true,
     hp: 220, atk: 22, def: 16, spd: 15, recruitBase: 0,
     moves: {
@@ -656,6 +662,14 @@ const FX_ART = {
 // ---------- stages ----------
 // width = logical px. theme = background style in bg.js. spawns = wild plush (x = px from the left).
 // exit = sign text at the right end (walk past it to clear the stage). bench = full-heal spot. ★ = provisional
+for (const k of ['paoon', 'kametank', 'usaknight', 'oguri', 'oguriking']) FX_ART[k + '_gold'] = FX_ART[k];   // assets/fx/<k>_gold_shot.png / _hit.png (+ oguriking_gold_*_super)
+// gold mid-bosses (return visits after the first うさひめ loss): same moves with the gold fx, gold talk; never recruitable
+for (const k of ['paoon', 'kametank', 'usaknight']) {
+  const b = SPECIES[k], mv = {};
+  for (const m in b.moves) mv[m] = Object.assign({}, b.moves[m], b.moves[m].fxFrom ? { fxFrom: k + '_gold' } : {});
+  SPECIES[k + '_gold'] = Object.assign({}, b, { sprite: k + '_gold', moves: mv, gate: b.gateGold, gateLose: b.gateGoldLose, recruitBase: 0, boss: true, gold: k });
+  EVO_MOVES[k + '_gold'] = EVO_MOVES[k];
+}
 const STAGES = [
   {
     id: 'oka', name: 'はじまりの丘', width: 1000, theme: 'day',
@@ -835,15 +849,43 @@ const STAGES = [
 // after おやこエンド: hint that something is happening in しろの なか (where the invasion starts)
 const OYAKO_HINT = [['…とおもった', 'そのとき'], ['オグリキング「…むっ？', 'しろの ほうが さわがしい」'], ['オグリキャップ「だれか きたみたい！', 'しろの なかへ いこう！」']];
 const INVASION = {
-  talk: [['？？？「そこまでよ！ あくの しろの', 'オグリたち！」'], ['うさひめ「わたしは うさひめ！', 'せいぎぐんの リーダーよ！」'],
-         ['オグリキング「せいぎぐん だと…？', 'なにを しに きた」'], ['うさひめ「この しろの にんじん', 'ぜんぶ いただいて いくわ！」'],
+  talk: [['？？？「そこまでよ！ あくの しろの', 'オグリたち！」'], ['うさひめ「うーしっしっ！ わたしは うさひめ！', 'せいぎぐんの リーダーよ！」'],
+         ['オグリキング「せいぎぐん だと…？', 'なにを しに きた」'], ['うさひめ「この しろの にんじん', 'ぜんぶ いただいて いくわ！ うーしっしっ」'],
          ['オグリキャップ「にんじんは みんなの', 'ものだよ！ わたさない！」'], ['うさひめ「せいぎの ために', 'じゃまする ものは ゆるさない！」'], ['うさひめ「せいぎは', 'かつ！」'], ['うさひめ「これが せいぎぐんの ひみつ…', 'でんせつの にんじんよ！」'], ['もぐもぐ… うさひめの からだが', 'きんいろに かがやいた！'], ['オグリキング「なんだ', 'この ちからは…！」'], ['オグリキング「…さがっていろ', 'ここは わしらが でる」'], ['オグリキング「ゆくぞ', 'わが子よ」'], ['オグリキャップ「うん！', 'とうさん！」']],
   turns: 3,
-  stop: 'うさひめ「ふふん これが せいぎの ちからよ！',
+  stop: 'うさひめ「うーしっしっ！ これが せいぎの ちからよ！',
   nodmg: 'きいて いない…！',
-  outro: [['うさひめ「きょうは このくらいに', 'しておいて あげる！」'], ['うさひめ「あくを たいじした ほうしゅうは', 'もらって いくわ！」'], ['うさひめ「せいぎぐん にんじんを', 'もって ひきあげよ！」'],
+  outro: [['うさひめ「きょうは このくらいに', 'しておいて あげる！」'], ['うさひめ「あくを たいじした ほうしゅうは', 'もらって いくわ！」'], ['うさひめ「せいぎぐん にんじんを', 'もって ひきあげよ！ うーしっしっ！」'],
           ['せいぎぐんは にんじんを かかえて', 'にげていった…'], ['オグリキング「…にんじんが', 'ほとんど なくなった」'],['オグリキング「あの きんいろの にんじん…', 'ただものでは ないな」'], 
           ['オグリキャップ「とりかえしに いこう！', 'せいぎぐんの くにへ！」']],
+};
+// うさひめ arc in せいぎぐんの しろ (flags: usaLoss = first loss, gate_gold_<stage> = carrot n taken back, w4clear)
+const USAHIME = {
+  // 1. first fight: she eats a でんせつの にんじん (invincible), blows the party away after a few turns -> world map
+  meet: [['うさひめ「うーしっしっ！ よく きたわね', 'あくの てさきども！」'], ['うさひめ「わたしは いつだって ただしいの', 'だって せいぎだもの！」'],
+         ['{ALLY}「にんじんを かえして！', 'みんなの ものだよ！」'], ['うさひめ「わるものの いうことなんか', 'きこえませーん！ うーしっしっ」'],
+         ['うさひめ「みなさい！ これが せいぎの ひみつ', 'でんせつの にんじんよ！」'], ['もぐもぐ… うさひめの からだが', 'きんいろに かがやいた！']],
+  again: [['うさひめ「うーしっしっ！ また きたの？', 'こりない わるものね！」'], ['うさひめ「でんせつの にんじん', 'もぐもぐ… うーしっしっ！」']],
+  turns: 4,
+  blow: 'うさひめ「うーしっしっ！ むだむだ～！」',
+  blown: 'ふきとばされて しまった…',
+  // 2. hint on the world map after the first loss
+  hint: [['{ALLY}「いたた… ぜんぜん', 'きかなかったね…」'], ['うさぎへい「うさひめさまは たたかう まえに', 'かならず でんせつの にんじんを たべるのさ！」'],
+         ['うさぎへい「のこりの 3ぼんは たいちょうたちが', 'だいじに もってるもんね！ …あっ」'], ['うさぎへい「い いまのは', 'ないしょ だからな！」'],
+         ['{ALLY}「…ぜんぶ きこえちゃった」', ''], ['{ALLY}「まち・みち・しろの たいちょうから', 'にんじんを とりかえそう！」'], ['マップの ！の ところで', 'きんいろの たいちょうが まっている']],
+  got: 'でんせつの にんじんを とりかえした！',
+  all: 'でんせつの にんじんが 3ぼん そろった！ しろの ！が きんいろに なった',
+  // 5. rematch with all 3: the crowned オグリおやこ eat the carrot and fight as gold
+  rematch: [['うさひめ「うーしっしっ！ また きたの？', 'こりない わるものね！」'], ['うさひめ「いいわ でんせつの にんじんで', 'けちょんけちょんに…」'], ['うさひめ「…ない！？', 'わたしの にんじんが ない！」'],
+            ['{ALLY}「さがしものは', 'これの こと かな？」'], ['オグリキング「その にんじん', 'わしらが いただこう」'], ['オグリキャップ「とうさん！', 'いっしょに たべよう！」'],
+            ['もぐもぐ… オグリおやこの からだが', 'きんいろに かがやいた！'], ['うさひめ「な なによ それ！', 'ずるいわよ！ わたしの にんじんよ！」'],
+            ['オグリキング「ひとの ものを とって', 'なにが せいぎだ」'], ['オグリキング「ゆくぞ', 'わが子よ」'], ['オグリキャップ「うん！', 'とうさん！」']],
+  finish: 'いまだ！ おやこ おぐり波で とどめ！',
+  scream: 'うさひめ「うしやあああ！」',
+  flee: [['うさひめ「うしやあああ！」', ''], ['うさひめ「きょうは ちょうしが わるかった だけよ！', 'おぼえてらっしゃい！ うーしっしっ…」']],
+  wrap: [['うさひめは すたこら', 'にげていった…'], ['せいぎぐんの くらから', 'にんじんが どっさり でてきた！'], ['オグリキング「これで しろの にんじんも', 'みんなの もとへ かえるな」'],
+         ['オグリキャップ「みんなで わけよう！', 'とうさん」'], ['にんじんは ぬいぐるみの くにへ', 'かえっていった']],
+  lose: 'まけちゃった… にんじんは まだ ある！ もういちど いどもう',
 };
 // endings (each plays once; flag G.flags['end_' + id]). art: assets/ending/end_<id>.png (160x90) + assets/ending/staffroll_bg.png,
 // used when embedded in assets-img.js (ASSET_DATA); until then game.js draws a night-sky placeholder.
@@ -855,6 +897,12 @@ const ENDINGS = {
   hitori: { title: 'ひとりのおうエンド', img: 'assets/ending/end_hitori.png', cast: ['kingAlone'],
     talk: [['オグリキング「…わが子は', 'ここにも おらぬか」'], ['オグリキング「ならば この あしで', 'さがしに いくまでだ」'],
            ['オグリキング「どこに いようと', 'かならず みつけてみせる」'], ['…オグリキングは ひとり', 'よるの みちへ きえていった']] },
+  // true ending: once on world-4 clear. still by ドット絵作成くん pending; assets/ending/end_true.png is a placeholder composed from existing art
+  true: { title: 'トゥルーエンド', img: 'assets/ending/end_true.png', cast: ['party', 'king'], low: true,
+    talk: [['ぽかぽか ひだまりの にんじんばたけ', 'きょうは みんなで ピクニック！'], ['オグリキャップ「とうさん この にんじん', 'あまくて おいしいね！」'],
+           ['オグリキング「みんなで わけあう にんじんは', 'いちばんの ごちそうだ」'], ['{NAME}「せいぎぐんの くにの こたちにも', 'おすそわけ しようよ！」'],
+           ['ぬいぐるみたちは わらいながら', 'にんじんを わけあった'], ['ぬいぐるみの くには きょうも', 'へいわで えがおが いっぱい'],
+           ['…とおくの おかの うえで', 'だれかが こっそり みている'], ['うさひめ「うーしっしっ…', 'つぎは まけないわよ」']] },
   tochu: { title: 'とちゅうエンド', img: 'assets/ending/end_tochu.png', cast: ['party', 'king'],
     talk: [['オグリキング「…よし ついていこう', 'だが わすれるな」'], ['オグリキング「わが子は まだ', 'ほんとうの おうでは ない」'],
            ['オグリキング「しろの おく「さいごの はしり」', 'そこで まっている ものが ある」'], ['…ものがたりは まだ', 'おわらない みたいだ']] },

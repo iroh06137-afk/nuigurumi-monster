@@ -918,6 +918,7 @@
   function memberKey(m) {
     const ev = m && m.evo && typeof EVOLVE !== 'undefined' && EVOLVE[m.sp];
     const k = ev && SPR[ev.sprite] ? ev.sprite : SPECIES[m.sp].sprite;
+    if (m && m.gold && SPR[k + '_gold']) return k + '_gold';   // ate a でんせつの にんじん (final うさひめ fight)
     return m && m.crown && SPR[k + '_crown'] ? k + '_crown' : k;   // crowned オグリキャップ
   }
   const compKey = () => memberKey(ally());
@@ -941,6 +942,12 @@
     G.wilds = STAGES[G.stage].spawns.map((s, i) => (Object.assign(newActor(s.x, -1, SPECIES[s.sp].sprite), s.lv ? trainerMember({ sp: s.sp, lv: s.lv, style: s.style, evo: SPECIES[s.sp].evoOnly || (s.evo ? 1 : 0) }) : newMember(s.sp), {
       home: s.x, spawnX: s.x, alive: !(SPECIES[s.sp].recruitAfter && G.flags && G.flags['joined_' + s.sp]) && !(s.gate && G.flags && G.flags['gate_' + s.gate]), gate: s.gate || null, cool: false, wt: 1 + rand() * 2, wdir: 0, toHome: false, idx: i,
     }, platOf(s))));
+    const st = STAGES[G.stage], gs = st.spawns.find(s => s.gate === st.id);
+    if (gs && G.flags.usaLoss && !G.flags.w4clear && !G.flags['gate_gold_' + st.id] && !G.friend && !G.versus) {   // return visit: the gold mid-boss waits near the START
+      const sp = gs.sp + '_gold';
+      G.wilds.push(Object.assign(newActor(150, -1, SPECIES[sp].sprite), trainerMember({ sp, lv: Math.min(30, gs.lv + 3) }), { home: 150, spawnX: 150, alive: true, gate: 'gold_' + st.id, cool: false, wt: 1, wdir: 0, toHome: false, idx: G.wilds.length }));
+    }
+    for (const w of G.wilds) if (w.sp === 'usahime' && G.flags.w4clear) w.alive = false;
     for (const w of G.wilds) w.key = memberKey(w);   // evolved wilds (evo: 1) show their evolved art when it exists
   }
   // spawn entry with plat: <index> stands / patrols on that platform (only reachable by jumping)
@@ -977,13 +984,13 @@
   function oyakoPartner(m) {
     if (typeof CROWN === 'undefined' || !G.battle || m !== ally() || G.friend && G.battle.who === 'opp') return null;
     const want = m.sp === CROWN.sp && m.crown ? (o => o.sp === CROWN.oyako.partner) : m.sp === CROWN.oyako.partner ? (o => o.sp === CROWN.sp && o.crown) : null;
-    return want ? G.party.find(o => o !== m && o.hp >= 1 && want(o)) || null : null;
+    return want ? G.party.find(o => o !== m && (o.hp >= 1 || G.battle.final) && want(o)) || null : null;   // final うさひめ fight: the fallen partner still joins the finisher
   }
   function specialOf(m) {
     const sp0 = specialBase(m);
     if (typeof CROWN === 'undefined' || !m) return sp0;
     const P = oyakoPartner(m);
-    if (P) { const O = CROWN.oyako; return Object.assign({ acc: 1 }, O, { power: Math.round(Math.max(sp0.power, specialBase(P).power) * O.mult), super: true, oyako: P.name }); }
+    if (P) { const O = CROWN.oyako, gold = m.gold && P.gold && FXIMG.oguriking_gold; return Object.assign({ acc: 1 }, O, { power: Math.round(Math.max(sp0.power, specialBase(P).power) * O.mult), super: true, oyako: P.name }, gold ? { fxSp: 'oguriking_gold', col: '#ffe24a', name: 'きんいろの ' + O.name } : {}); }
     if (m.crown && m.sp === CROWN.sp) { const C = CROWN.special; return Object.assign({ acc: 1 }, C, { power: Math.round(sp0.power * C.mult) }); }
     return sp0;
   }   // evolved, or a never-evolving species (own special at base form)
@@ -1591,7 +1598,7 @@
     if (G.state !== 'title' && ally() && ally().sp === sp && vis(comp)) return true;
     if (G.invader && G.invader.alive && G.invader.sp === sp && vis(G.invader)) return true;
     if ((G.talkGuests || []).some(a => a.sp === sp)) return true;
-    return G.wilds.some(w => w.alive && w.sp === sp && (vis(w) || Math.abs(w.x - player.x) < 140)) || (G.npcs || []).some(n => n.def && n.def.sp === sp && vis(n));
+    return G.wilds.some(w => w.alive && (w.sp === sp || w.sp === sp + '_gold') && (vis(w) || Math.abs(w.x - player.x) < 140)) || (G.npcs || []).some(n => n.def && n.def.sp === sp && vis(n));
   }
   function guestKey(sp) {
     const own = G.party.concat(G.box || [], G.solo ? G.solo.party : []).find(m => m.sp === sp && (m.crown || sp !== 'oguri')) || G.party.concat(G.box || [], G.solo ? G.solo.party : []).find(m => m.sp === sp);
@@ -1687,7 +1694,7 @@
     t.i++;
     SFX.blip();
     if (t.i < t.pages.length) return;
-    G.talk = null; G.state = 'field';
+    G.talk = null; G.state = t.onMap ? 'map' : 'field';
     if (t.then) t.then();
   }
   function interact() {
@@ -1774,10 +1781,13 @@
       if (M.pi == null) return G.party.map((m, i) => 'p' + i).concat(G.party.length < TUNING.partyMax && box.length ? ['_take'] : [], ['_close']);
       return (M.pi > 0 ? ['_lead'].concat(M.pi > 1 ? ['_up'] : []) : []).concat(box.map((m, j) => 'b' + j), M.pi >= 0 && G.party.length > 1 ? ['_put'] : [], ['_back']);
     }
-    return M.kind === 'shop' ? SHOP_LIST.concat(['_close']) : bagList().concat(['_hk', '_close']);
+    if (M.kind === 'mapask') return ['_myes', '_mno'];
+    return M.kind === 'shop' ? SHOP_LIST.concat(['_close']) : bagList().concat(canMapBack() ? ['_map'] : [], ['_hk', '_close']);
   }
   // いれかえ list: your party, or (local friend versus) the opponent's team with the active one's live HP
   function swapList(M) { const B = G.battle; return M && M.opp && B && B.oppTeam ? B.oppTeam.map((m, i) => i === B.oppIdx ? B.w : m) : G.party; }
+  // in-stage menu: back to the world map (not in a battle / talk / solo run / story event)
+  const canMapBack = () => G.menu && G.menu.kind === 'bag' && G.state === 'menu' && !G.battle && !G.talk && !G.solo && !G.invader && !G.ending && !G.friend && !G.versus;
   function closeMenu() {
     if (G.menu && G.menu.forced) return;   // a fainted plush must be replaced
     G.menu = null;
@@ -1796,6 +1806,9 @@
     const M = G.menu, rows = menuRows(), k = rows[M.sel];
     if (k === '_close') { closeMenu(); return; }
     if (k === '_hk') { closeMenu(); openHk(); return; }
+    if (k === '_map') { G.menu = { kind: 'mapask', sel: 1 }; SFX.blip(); return; }
+    if (k === '_mno') { closeMenu(); return; }
+    if (k === '_myes') { G.menu = null; persist(); openMap(Math.max(0, MAP_NODES.findIndex(n => n.stage === G.stage))); banner('マップに もどった', 1.4); return; }
     if (M.kind === 'bswap' || M.kind === 'bitem') { battleMenuPick(M, k); return; }
     if (M.kind === 'house') { housePick(M, k); return; }
     if (M.kind === 'ask') {
@@ -2056,7 +2069,7 @@
       }
       const dx = w.x - player.x;
       if (w.cool) { if (Math.abs(dx) > 110) w.cool = false; continue; }
-      if (!w.toHome && Math.abs(dx) < TUNING.encounterDist && (SPECIES[w.sp].boss || (w.pl ? player.plat === w.pl : player.y === 0))) { if (!mindTalk(w)) startBattle(w); return; }
+      if (!w.toHome && Math.abs(dx) < TUNING.encounterDist && (SPECIES[w.sp].boss || (w.pl ? player.plat === w.pl : player.y === 0))) { if (w.sp === 'usahime' && STAGES[G.stage].id === 'seishiro') { usahimeMeet(w); return; } if (!mindTalk(w)) startBattle(w); return; }
     }
     updateNear();
     for (const [i, pk] of (STAGES[G.stage].pickups || []).entries()) {
@@ -2180,7 +2193,12 @@
   }
   // invasion: うさひめ ate the でんせつの にんじん -> takes 1 damage, and the おやこ never drop below 1 HP
   function storyDmg(def, dmg) {
-    const B = G.battle; if (!B || !B.story) return dmg;
+    const B = G.battle; if (!B) return dmg;
+    if (B.final && def === B.w && !B.finMv && oyakoPartner(ally())) {   // the finisher must be the gold おやこ おぐり波
+      if (def.hp - dmg < 1 && !B.finTold) { B.finTold = 1; setTimeout(() => banner(USAHIME.finish, 2.2), 900); }
+      return Math.min(dmg, Math.max(0, def.hp - 1));
+    }
+    if (!B.story) return dmg;
     if (def === B.w) {
       B.story.hits = (B.story.hits | 0) + 1;
       if (B.story.hits % 3 === 1) { banner(INVASION.nodmg, 1.6); burst(def.x, GROUND - 18, 'spark', 10, '#ffe24a'); }
@@ -2191,10 +2209,76 @@
   const allyLines = pages => pages.map(p => p.map(l => l.replace(/\{ALLY\}/g, ally() ? ally().name : pName())));
   function* storyEnd() {
     const B = G.battle; B.story.done = true;
+    if (B.story.kind === 'shiro') {   // うさひめ (invincible) blows the party away -> back to the world map, not a game over
+      const e = B.w; banner(USAHIME.blow, 2.4); usaLaugh(e, 2.0); yield* wait(1.6);
+      SFX.battleStart(); G.shakeT = 0.8; G.flashT = 0.2; burst(e.x, GROUND - 16, 'spark', 24, '#ffe24a');
+      const d = -(B.side || 1), p0 = player.x, c0 = comp.x;
+      yield* tween(v => { player.ox = d * v * 120; comp.ox = d * v * 140; player.y = comp.y = -Math.sin(v * Math.PI * 0.8) * 50; }, 0, 1, 0.9);
+      banner(USAHIME.blown, 1.6); G.fadeSpeed = 1.4; yield* wait(1.0);
+      player.y = comp.y = 0; player.x = p0; comp.x = c0;
+      B.phase = 'end'; B.result = 'story';
+      endBattle(); return;
+    }
     banner(INVASION.stop + ' きょうは ここまでよ！」', 2.2); yield* wait(2.0);
     B.phase = 'end'; B.result = 'story';
     for (const m of G.party) if (m.hp < 1) m.hp = 1;
     endBattle();
+  }
+  // ---------- うさひめ arc (せいぎぐんの しろ) ----------
+  const W4_STAGES = ['seimachi', 'seimichi', 'seishiro'];
+  const carrotsBack = () => W4_STAGES.filter(id => G.flags['gate_gold_' + id]).length;
+  const usaNode = () => Math.max(0, MAP_W4.findIndex(n => STAGES[n.stage].id === 'seishiro'));
+  // laugh motion (art pending: assets/usahime_laugh.png): code hop while 「うーしっしっ」
+  function usaLaugh(a, t) { if (a) a.laughT = t; }
+  function usahimeMeet(w) {
+    w.cool = true; G.camT = clamp((player.x + w.x) / 2 - W / 2, 0, WORLD_W - W);
+    if (carrotsBack() >= 3) {
+      say('', allyLines(USAHIME.rematch), () => {
+        oyakoStash();
+        for (const m of G.party) { m.gold = 1; for (const k of ['maxHp', 'atk', 'def', 'spd']) m[k] = Math.round(m[k] * 1.3); m.hp = m.maxHp; }   // gold power-up (undone by oyakoRestore)
+        comp.key = compKey(); G.flashT = 0.3; burst(comp.x, GROUND - 14, 'spark', 20, '#ffe24a');
+        Object.assign(w, trainerMember({ sp: 'usahime', lv: 30 }), { cool: false });
+        startBattle(w); G.battle.final = true; oyakoBuddy();
+      });
+      return;
+    }
+    say('', allyLines(G.flags.usaLoss ? USAHIME.again : USAHIME.meet), () => {
+      Object.assign(w, trainerMember({ sp: 'usahime', lv: 30 }), { cool: false });
+      startBattle(w); G.battle.story = { turns: 0, kind: 'shiro' };
+    });
+  }
+  function usaBlown() {
+    const first = !G.flags.usaLoss;
+    G.flags.usaLoss = (G.flags.usaLoss | 0) + 1;
+    for (const m of G.party) { m.hp = m.maxHp; m.st = 0; }
+    persist(); openMap(usaNode());
+    if (first) { say('', allyLines(USAHIME.hint), () => {}); G.talk.onMap = true; }
+    else banner('でんせつの にんじんを とりかえさないと かてない…', 2.6);
+  }
+  function carrotBack() {
+    const n = carrotsBack(); SFX.recruit();
+    banner(`${USAHIME.got} (${n}/3)`, 2.8);
+    if (n >= 3) setTimeout(() => { if (G.state === 'field' || G.state === 'map') banner(USAHIME.all, 3); else G.pendBan = [USAHIME.all, 2]; }, 2800);
+    persist();
+  }
+  function usaFinalOutro(u) {
+    u.alive = true; u.alpha = 1; u.oy = 0; u.cool = true; u.hp = 1; u.gold = 0;
+    say('', USAHIME.flee, () => {
+      usaLaugh(u, 1.4);
+      G.fieldCo = (function* () {
+        u.face = 1; u.moving = true;
+        yield* tween(v => { u.x = u.home + v * 260; }, 0, 1, 1.6);
+        u.alive = false;
+        say('', USAHIME.wrap, () => {
+          oyakoRestore(); for (const m of G.party) { delete m.gold; m.hp = m.maxHp; }
+          comp.key = compKey();
+          G.flags.w4clear = 1; if (!G.cleared.includes(G.stage)) G.cleared.push(G.stage);
+          persist();
+          const back = () => { openMap(usaNode()); banner('せいぎぐんの くに クリア！', 3); };
+          if (!playEnding('true', back)) back();
+        });
+      })();
+    });
   }
   function invasionOutro() {
     say('', INVASION.outro, () => {
@@ -2460,9 +2544,11 @@
     while (G.cutin && G.cutin.t < G.cutin.dur) yield;
     G.cutin = null;
     banner(mv.oyako ? `${a.name}と ${mv.oyako}の ${mv.name}！` : `${a.name}の ${mv.name}！`, 1.3);
+    if (B.final && mv.oyako) B.finMv = true;
     const fs = mv.fxSp || a.sp;
     const art = mv.fx && canSp(a) && typeof FX_ART !== 'undefined' && FX_ART[fs] && FXIMG[fs] && SPR[comp.key] && (SPR[comp.key].attack || SPECIES[a.sp].noEvo || mv.fxSp);
     if (art) yield* artStrike(comp, a, e, e, mv, FX_ART[fs], fs); else if (mv.fx) yield* fxStrike(comp, a, e, e, mv); else yield* strike(comp, a, e, e, mv, 'special');
+    B.finMv = false;
     if (e.hp <= 0) yield* enemyFaint();
   }
   function aiChoose(e, a) {
@@ -2685,7 +2771,7 @@
   }
   function* enemyTurn() {
     const B = G.battle, e = B.w, a = ally();
-    if (B.story && !B.story.done && ++B.story.turns > INVASION.turns) { yield* storyEnd(); return; }
+    if (B.story && !B.story.done && ++B.story.turns > (B.story.kind === 'shiro' ? USAHIME.turns : INVASION.turns)) { yield* storyEnd(); return; }
     if (B.story) { e.st = Math.max(e.st, COST.special || COST.strong); yield* enemySpecial(); return; }   // powered up: only せいぎの にんじんシャワー
     const early = e.style === 'trick';
     const ev2 = typeof EVO_MOVES !== 'undefined' && EVO_MOVES[e.sp];
@@ -2735,6 +2821,13 @@
   }
   function* enemyFaint() {
     const B = G.battle, e = B.w;
+    if (B.final) {   // うさひめ beaten for real: scream, then she runs (never reforms)
+      B.phase = 'end'; B.result = 'win'; e.hp = 0; e.gold = 0;
+      SFX.win(); banner(USAHIME.scream, 2.2); G.shakeT = 0.6; burst(e.x, GROUND - 16, 'spark', 20, '#ffffff');
+      for (let i = 0; i < 10; i++) { e.shake = 0.1; yield* wait(0.1); }
+      grantXp(Math.round((e.maxHp + e.atk * 2) * 0.55)); G.coins += 100;
+      yield* wait(0.8); endBattle(); return;
+    }
     if (B.story) { e.hp = 1; yield* storyEnd(); return; }
     if (e.mind && G.mind) { yield* mindWake(e); return; }
     if (G.versus && B.oppTeam) {
@@ -2832,6 +2925,11 @@
       banner(`いけっ ${ally().name}！`, 1.4);
       if (B.phase === 'input') B.phase = 'run';
       yield* wait(0.8);
+    } else if (B.final) {   // lost the final: no game over, back to the map with the carrots kept
+      B.phase = 'end'; B.result = 'lose';
+      banner('めのまえが まっしろに なった…', 2.2); yield* wait(1.4); G.fadeSpeed = 1.4; yield* wait(0.9);
+      G.battle = null; oyakoRestore(); for (const m of G.party) m.hp = m.maxHp;
+      openMap(usaNode()); banner(USAHIME.lose, 3); persist();
     } else {
       B.phase = 'end'; B.result = 'lose';
       banner('めのまえが まっしろに なった…', 2.2);
@@ -2986,8 +3084,10 @@
     }
     G.state = 'field';
     G.battle = null;
+    if (B.story && B.story.kind === 'shiro') { usaBlown(); return; }
     if (B.story) { invasionOutro(); return; }
-    if (B.result === 'win' && B.w.gate && SPECIES[B.w.sp].gateLose && !G.friend && !G.versus) { say('', allyLines(SPECIES[B.w.sp].gateLose), () => {}); return; }   // mid-boss: unrepentant after losing
+    if (B.final) { usaFinalOutro(B.w); return; }
+    if (B.result === 'win' && B.w.gate && SPECIES[B.w.sp].gateLose && !G.friend && !G.versus) { say('', allyLines(SPECIES[B.w.sp].gateLose), () => { if (SPECIES[B.w.sp].gold) carrotBack(); }); return; }   // mid-boss: unrepentant after losing
     const join = () => {
       if (!joinAsk) return;
       const sp = joinAsk.sp, nm = SPECIES[sp].name, lv = joinAsk.lv || 1;
@@ -3055,6 +3155,16 @@
     if (G.battle && G.battle.story && G.battle.w.hp > 0) {   // golden glow while powered up
       const e = G.battle.w; e.gold = (e.gold || 0) + dt;
       if (rand() < dt * 10) burst(e.x + (rand() - 0.5) * 20, GROUND - 4 - rand() * 26, 'spark', 1, rand() < 0.5 ? '#ffe24a' : '#fff6b0');
+    }
+    // うさひめ laugh (art pending: assets/usahime_laugh.png): hop while her line has 「うーしっしっ」 or after usaLaugh()
+    { const pg = G.state === 'talk' && G.talk && G.talk.pages[G.talk.i], laughing = pg && /^うさひめ「/.test(pg[0]) && /うーしっしっ|うしやあ/.test(pg.join(''));
+      for (const a of G.wilds.concat(G.invader ? [G.invader] : [], G.talkGuests || [])) if (a && a.sp === 'usahime') {
+        if (a.laughT > 0) a.laughT -= dt;
+        const on = laughing || a.laughT > 0; if (on) a.oy = -(Math.floor(G.t * 10) % 2) * 2; else if (a.wasLaugh) a.oy = 0; a.wasLaugh = on;
+      } }
+    if (G.battle && G.battle.final && !G.battle.auraBroke) {   // aura break (art pending: assets/fx/usahime_aura_break.png): code burst once
+      G.battle.auraBroke = 1; const e = G.battle.w; G.flashT = 0.25; G.shakeT = 0.4;
+      for (let i = 0; i < 3; i++) burst(e.x, GROUND - 16, 'spark', 12, ['#ffe24a', '#ffffff', '#ffb04a'][i]);
     }
     updateTalkGuests(dt); updateInvFx(dt);
     if (G.buddy) {
@@ -3439,6 +3549,11 @@
         if (PROPS.mark_red) g.drawImage(PROPS.mark_red, n.x - 4, n.y - 19, 16, 16);   // art: 32x32, drawn at half size above the node
         else { rect(n.x + 4, n.y - 12, 5, 8, '#5a1010'); rect(n.x + 5, n.y - 11, 3, 6, '#ff3a3a'); tiny('!', n.x + 5, n.y - 11, '#ffffff'); }
       }
+      if (st && W === 3 && G.flags.usaLoss && !G.flags.w4clear) {   // うさひめ arc: red ！ = a carrot to take back here; gold ！ on しろ once all 3 are back
+        const all = carrotsBack() >= 3;
+        if (all && st.id === 'seishiro') { if (PROPS.mark_gold) g.drawImage(PROPS.mark_gold, n.x - 4, n.y - 19 + (Math.floor(G.t * 3) % 2), 16, 16); }
+        else if (!G.flags['gate_gold_' + st.id] && Math.floor(G.t * 3) % 2 && PROPS.mark_red) g.drawImage(PROPS.mark_red, n.x - 4, n.y - 19, 16, 16);
+      }
       if (sel && Math.floor(G.t * 4) % 2) { g.strokeStyle = '#ffffff'; g.lineWidth = 1; g.strokeRect(n.x - 6.5, n.y - 6.5, 14, 13); }
     });
     // boy on the map (feet on the node)
@@ -3617,7 +3732,7 @@
   const STATUS_W = 48;   // text width of the status box left of the command buttons
   function drawTalk() {
     const t = G.talk; if (G.state !== 'talk' || !t) return;
-    const x = 4, y = G.ending && G.ending.id === 'oyako' ? 64 : 14, w = 152, h = 23;   // top of the screen so the speakers stay visible (ending stills: bottom, so faces aren't covered)
+    const x = 4, y = G.ending && (G.ending.id === 'oyako' || ENDINGS[G.ending.id].low) ? 64 : 14, w = 152, h = 23;   // top of the screen so the speakers stay visible (ending stills: bottom, so faces aren't covered)
     if (t.name) {
       const nw = Math.ceil(measure(t.name)) + 8;
       rect(x + 3, y - 7, nw, 8, '#5a3418'); rect(x + 4, y - 6, nw - 2, 7, '#ffd23a');
@@ -3634,9 +3749,9 @@
     const { x, y, w, h, row0, rh } = MENU;
     rect(x + 1, y, w - 2, h, '#5a3418'); rect(x, y + 1, w, h - 2, '#5a3418');
     rect(x + 1, y + 1, w - 2, h - 2, '#fff8e0');
-    T(M.kind === 'shop' ? 'ぬいショップ' : M.kind === 'bswap' ? 'いれかえ' : M.kind === 'house' ? 'ぬいハウス' : M.kind === 'ask' ? SPECIES[M.sp].name : 'どうぐ', x + 5, y + 4, { c: '#c0502a' });
+    T(M.kind === 'shop' ? 'ぬいショップ' : M.kind === 'bswap' ? 'いれかえ' : M.kind === 'house' ? 'ぬいハウス' : M.kind === 'ask' ? SPECIES[M.sp].name : M.kind === 'mapask' ? 'マップに もどる？' : 'どうぐ', x + 5, y + 4, { c: '#c0502a' });
     if (M.kind === 'house') T(`あずけ ${(G.box || []).length}ひき`, x + w - 5, y + 4, { al: 'right' });
-    else if (M.kind === 'ask') {}
+    else if (M.kind === 'ask' || M.kind === 'mapask') {}
     else if (M.kind !== 'bswap') T(`${G.coins}コイン`, x + w - 5, y + 4, { al: 'right' });
     rect(x + 3, y + 10, w - 6, 1, '#e8d8b0');
     const rows = menuRows();
@@ -3652,6 +3767,9 @@
       if (k === '_close') { T(M.kind === 'shop' || M.kind === 'house' ? 'でる' : M.kind === 'bswap' || M.kind === 'bitem' ? 'やめる' : 'とじる', x + 10, yy); return; }
       if (k === '_back') { T('もどる', x + 10, yy); return; }
       if (k === '_hk') { T('ひきつぎ（ほかの きかいへ）', x + 10, yy, { c: '#3c6ad8' }); return; }
+      if (k === '_map') { T('マップに もどる', x + 10, yy, { c: '#3c6ad8' }); return; }
+      if (k === '_myes') { T('はい（マップに もどる）', x + 10, yy, { c: '#3c6ad8' }); return; }
+      if (k === '_mno') { T('いいえ', x + 10, yy); return; }
       if (k === '_lead') { T('せんとうに する', x + 10, yy, { c: '#3c6ad8' }); return; }
       if (k === '_up') { T('ひとつ まえへ', x + 10, yy, { c: '#3c6ad8' }); return; }
       if (k === '_put') { T('ここに あずける', x + 10, yy, { c: '#3c6ad8' }); return; }
@@ -3809,8 +3927,8 @@
       vctx.drawImage(low, 0, 0, W * S, H * S); flushText();
       return;
     }
-    if (G.state === 'map') {
-      drawMap(); drawBanner();
+    if (G.state === 'map' || (G.state === 'talk' && G.talk && G.talk.onMap)) {
+      drawMap(); drawBanner(); if (G.state === 'talk') drawTalk();
       vctx.drawImage(low, 0, 0, W * S, H * S); flushText();
       if (G.fade > 0) { vctx.globalAlpha = G.fade; vctx.fillStyle = '#ffffff'; vctx.fillRect(0, 0, view.width, view.height); vctx.globalAlpha = 1; }
       return;
@@ -3953,6 +4071,6 @@
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
+  window.NM = { playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();

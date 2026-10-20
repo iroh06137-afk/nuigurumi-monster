@@ -1,0 +1,68 @@
+{
+  "image": "paoon_fx_shot.png",
+  "size": {
+    "w": 128,
+    "h": 32
+  },
+  "frameSize": {
+    "w": 32,
+    "h": 32
+  },
+  "facing": "right",
+  "name": "パオーンファンファーレ",
+  "note": "パオーンファンファーレ projectile (trumpet blast). Moves RIGHT (mirror horizontally when firing left). Anchor: projectile centre = frame (22,16); spawn at the attacker's fxSpawn and move to the target at ~160-200 px/s (logical), looping the 4 frames. Trail extends behind (left).",
+  "frames": [
+    {
+      "index": 0,
+      "name": "shot_0",
+      "desc": "パオーンファンファーレ projectile, phase 0",
+      "x": 0,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 80
+    },
+    {
+      "index": 1,
+      "name": "shot_1",
+      "desc": "パオーンファンファーレ projectile, phase 1",
+      "x": 32,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 80
+    },
+    {
+      "index": 2,
+      "name": "shot_2",
+      "desc": "パオーンファンファーレ projectile, phase 2",
+      "x": 64,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 80
+    },
+    {
+      "index": 3,
+      "name": "shot_3",
+      "desc": "パオーンファンファーレ projectile, phase 3",
+      "x": 96,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 80
+    }
+  ],
+  "frameDurationMs": 80,
+  "loop": true,
+  "order": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "anchor": {
+    "x": 22,
+    "y": 16
+  }
+}
