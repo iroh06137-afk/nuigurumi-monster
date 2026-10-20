@@ -15,6 +15,47 @@
   const view = document.getElementById('view');
   const vctx = view.getContext('2d');
   const [low, g] = mk(W, H);
+  // Clean downscaling: nearest-neighbour shrinking drops pixel rows/columns (jaggies). Any draw onto the game canvas whose
+  // destination is smaller than its source is redirected to a cached copy resampled once at the exact target size by area
+  // coverage (alpha-thresholded so edges stay crisp; colour = area-weighted dominant palette colour, dark detail favoured),
+  // with a 1px outline pass that keeps the dark outline.
+  const DS = new WeakMap();
+  function downscaled(img, sx, sy, sw, sh, dw, dh) {
+    let m = DS.get(img); if (!m) DS.set(img, (m = new Map()));
+    const key = sx + ',' + sy + ',' + sw + ',' + sh + ',' + dw + ',' + dh; let c = m.get(key); if (c) return c;
+    const [sc, sx2] = mk(sw, sh); sx2.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    let src; try { src = sx2.getImageData(0, 0, sw, sh).data; } catch (e) { return null; }
+    const [dc, dx2] = mk(dw, dh), out = dx2.createImageData(dw, dh), o = out.data, fx = sw / dw, fy = sh / dh;
+    const dark = new Float32Array(dw * dh * 4), op = new Uint8Array(dw * dh), vote = new Map();
+    for (let y = 0; y < dh; y++) for (let x = 0; x < dw; x++) {
+      const x0 = x * fx, x1 = x0 + fx, y0 = y * fy, y1 = y0 + fy; let r = 0, gg = 0, b = 0, a = 0, ar = 0, best = 1e9, di = -1;
+      for (let yy = Math.floor(y0); yy < Math.ceil(y1); yy++) { const wy = Math.min(y1, yy + 1) - Math.max(y0, yy); if (wy <= 0) continue;
+        for (let xx = Math.floor(x0); xx < Math.ceil(x1); xx++) { const wx = Math.min(x1, xx + 1) - Math.max(x0, xx); if (wx <= 0) continue;
+          const i = (yy * sw + xx) * 4, w = wx * wy, al = src[i + 3] / 255; ar += w; a += al * w;
+          if (al > 0.5) { const lum = src[i] * 0.3 + src[i + 1] * 0.59 + src[i + 2] * 0.11, ck = (src[i] << 16) | (src[i + 1] << 8) | src[i + 2];
+            vote.set(ck, (vote.get(ck) || 0) + w * (lum < 80 ? 3.2 : 1)); if (lum < best) { best = lum; di = i; } } } }
+      const j = (y * dw + x) * 4, cov = a / ar;
+      if (cov >= 0.45 && vote.size) { let bc = 0, bw = -1; for (const [ck, w] of vote) if (w > bw) { bw = w; bc = ck; }   // palette-preserving: the dominant colour of the footprint
+        o[j] = bc >> 16; o[j + 1] = (bc >> 8) & 255; o[j + 2] = bc & 255; o[j + 3] = 255; op[y * dw + x] = 1; }
+      vote.clear();
+      if (di >= 0) { dark[j] = src[di]; dark[j + 1] = src[di + 1]; dark[j + 2] = src[di + 2]; dark[j + 3] = best; }
+    }
+    // outline cleanup: an opaque pixel on the silhouette edge takes the darkest colour it covered (the source outline)
+    for (let y = 0; y < dh; y++) for (let x = 0; x < dw; x++) { const k = y * dw + x; if (!op[k]) continue;
+      const edge = x === 0 || y === 0 || x === dw - 1 || y === dh - 1 || !op[k - 1] || !op[k + 1] || !op[k - dw] || !op[k + dw];
+      if (edge && dark[k * 4 + 3] < 90) { o[k * 4] = dark[k * 4]; o[k * 4 + 1] = dark[k * 4 + 1]; o[k * 4 + 2] = dark[k * 4 + 2]; } }
+    dx2.putImageData(out, 0, 0); m.set(key, dc); return dc;
+  }
+  { const raw = g.drawImage.bind(g);
+    g.drawImage = function (img, ...a) {
+      let sx = 0, sy = 0, sw, sh, dx, dy, dw, dh;
+      if (a.length === 8) [sx, sy, sw, sh, dx, dy, dw, dh] = a; else if (a.length === 4) { [dx, dy, dw, dh] = a; sw = img.width; sh = img.height; } else return raw(img, ...a);
+      const tw = Math.round(dw), th = Math.round(dh);
+      if (img !== low && tw > 0 && th > 0 && (tw < sw || th < sh) && sw <= 256 && sh <= 256) {
+        const d = downscaled(img, sx, sy, sw, sh, tw, th); if (d) return raw(d, Math.round(dx), Math.round(dy));
+      }
+      return raw(img, ...a);
+    }; }
   const [txt, tctx] = mk(W, H, { willReadFrequently: true });
   let S = 6, textKey = '';
   // touch UI: ?touch=1 forces it on, ?touch=0 off; otherwise coarse pointer / touch points / narrow viewport
@@ -29,12 +70,12 @@
     if (!TOUCH) {
       scale = forced > 0 ? forced : (Math.floor(fit) >= 1 ? Math.floor(fit) : fit);
     } else if (vw >= vh) {
-      scale = forced > 0 ? forced : (Math.floor(fit) >= 3 ? Math.floor(fit) : fit);
+      scale = forced > 0 ? forced : (Math.floor(fit) >= 2 ? Math.floor(fit) : fit);
       mode = (vw - W * scale) / 2 >= 96 ? 'outside' : 'overlay';
     } else {
       mode = 'portrait';
       const pf = Math.min(vw / W, (vh * 0.5) / H);
-      scale = forced > 0 ? forced : (Math.floor(pf) >= 3 ? Math.floor(pf) : pf);
+      scale = forced > 0 ? forced : (Math.floor(pf) >= 2 ? Math.floor(pf) : (Math.floor(fit) >= 2 ? 2 : pf));
     }
     scale = Math.max(0.5, Math.min(scale, fit));
     const cw = Math.round(W * scale), ch = Math.round(H * scale);
