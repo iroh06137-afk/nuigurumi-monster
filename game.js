@@ -108,6 +108,7 @@
     if (G.state === 'field' || G.state === 'map') return 'field';
     if (G.state === 'talk' || G.state === 'ending') return 'talk';
     if (G.state === 'title') return G.nameEdit ? 'off' : 'title';
+    if (G.state === 'hub') return 'title';
     if (G.state === 'menu' || G.state === 'versus' || G.state === 'netroom') return 'back';
     if (G.state === 'battle' && G.battle) {
       const ph = G.battle.phase;
@@ -403,7 +404,7 @@
     if (!G.titleScreen) openSetup(); else titleRowAction(G.titleRow | 0);
   }
   function titleRowAction(row) {
-    if (row === ROW.start) { startGame(G.hasSave); return; }
+    if (row === ROW.start) { startGame(G.hasSave); if (G.state !== 'title') openHub(); return; }
     if (row === ROW.vs) { startVersus(); return; }
     if (row === ROW.gender) { setHero(1, 0); return; }
     if (row === ROW.color) { setHero(0, 1); return; }
@@ -920,7 +921,7 @@
     }
     function sync() {
       let name = 'field';
-      if (G.state === 'title') name = 'title';
+      if (G.state === 'title' || G.state === 'hub') name = 'title';
       else if (G.state === 'map') name = 'map';
       else if (G.ending && G.ending.id === 'true') name = 'true_end';   // true ending pan + staff roll
       else if (G.state === 'battle') {
@@ -1126,6 +1127,7 @@
       if (ok) titleRowAction(G.titleRow | 0);
       return;
     }
+    if (G.state === 'hub') { hubKey(code); return; }
     if (G.state === 'versus') { versusKey(code); return; }
     if (G.state === 'ending') { if (['Enter', 'NumpadEnter', 'Space', 'KeyE', 'KeyX', 'Escape'].includes(code)) endingSkip(); return; }
     if (G.state === 'netroom') { if (['Escape', 'KeyX', 'Backspace'].includes(code)) closeNet(); return; }
@@ -1211,6 +1213,8 @@
     if (G.state === 'title') return;
     e.preventDefault();
     const [x, y] = logicalPos(e);
+    if (G.state === 'hub') { hubTap(x, y); return; }
+    if (G.state === 'map' && x < 26 && y < 11) { openHub(); return; }   // ホーム chip on the map
     if (G.state === 'versus') { versusTap(x, y); return; }
     if (G.state === 'netroom') { if (y > 56) closeNet(); return; }
     if (G.state === 'ending') { endingSkip(); return; }
@@ -1333,7 +1337,7 @@
     const V = G.vs; if (!V) return;
     if (code === 'KeyO') { openNet(true); return; }
     if (code === 'KeyJ') { openNet(false); return; }
-    if (code === 'Escape' || code === 'KeyN') { G.state = 'title'; return; }
+    if (code === 'Escape' || code === 'KeyN') { vsBack(); return; }
     if (code === 'KeyF') { V.friend = !V.friend; return; }
     if (code === 'ArrowDown' || code === 'KeyS') V.focus = 1;
     if (code === 'ArrowUp' || code === 'KeyW') V.focus = 0;
@@ -1351,7 +1355,7 @@
     else if (y < 38) { V.focus = 1; V.opp = (V.opp + 1) % VS_LIST.length; }
     else if (y < 47) V.friend = !V.friend;
     else if (y < 62) { const b = VS_BTNS.find(b => x >= b.x && x < b.x + b.w); if (b) b.act(); }
-    else if (y > 64) G.state = 'title';
+    else if (y > 64) vsBack();
   }
   const VS_BTNS = [
     { x: 12, w: 42, label: 'はじめる', c: '#2a7a1a', act: () => launchVersus() },
@@ -1861,7 +1865,7 @@
       return (M.pi > 0 ? ['_lead'].concat(M.pi > 1 ? ['_up'] : []) : []).concat(box.map((m, j) => 'b' + j), M.pi >= 0 && G.party.length > 1 ? ['_put'] : [], ['_back']);
     }
     if (M.kind === 'mapask') return ['_myes', '_mno'];
-    return M.kind === 'shop' ? SHOP_LIST.concat(['_close']) : bagList().concat(canMapBack() ? ['_map'] : [], ['_hk', '_close']);
+    return M.kind === 'shop' ? SHOP_LIST.concat(['_close']) : bagList().concat(canMapBack() ? ['_map', '_home'] : [], ['_hk', '_close']);
   }
   // いれかえ list: your party, or (local friend versus) the opponent's team with the active one's live HP
   function swapList(M) { const B = G.battle; return M && M.opp && B && B.oppTeam ? B.oppTeam.map((m, i) => i === B.oppIdx ? B.w : m) : G.party; }
@@ -1886,6 +1890,7 @@
     if (k === '_close') { closeMenu(); return; }
     if (k === '_hk') { closeMenu(); openHk(); return; }
     if (k === '_map') { G.menu = { kind: 'mapask', sel: 1 }; SFX.blip(); return; }
+    if (k === '_home') { G.menu = null; persist(); openHub(); return; }
     if (k === '_mno') { closeMenu(); return; }
     if (k === '_myes') { G.menu = null; persist(); openMap(Math.max(0, MAP_NODES.findIndex(n => n.stage === G.stage))); banner('マップに もどった', 1.4); return; }
     if (M.kind === 'bswap' || M.kind === 'bitem') { battleMenuPick(M, k); return; }
@@ -2023,6 +2028,7 @@
     player.moving = false;
   }
   function mapKey(code) {
+    if (['Escape', 'KeyX', 'Backspace', 'KeyH'].includes(code)) { openHub(); return; }
     const max = Math.min(G.unlocked, MAP_NODES.length) - 1;
     const left = code === 'ArrowLeft' || code === 'KeyA', right = code === 'ArrowRight' || code === 'KeyD';
     // walk off either end of a world onto the other one
@@ -2391,6 +2397,7 @@
     comp.key = compKey();
     const side = Math.sign(w.x - player.x) || 1;
     for (const m of G.party.concat([w])) if (m) delete m._buff;
+    if (!G.versus && !G.friend && SPECIES[w.sp]) { G.flags.seen = G.flags.seen || {}; G.flags.seen[w.sp] = 1; }   // ずかん: みつけた
     const B = G.battle = {
       w, side, phase: 'intro', q: [], cur: null, sel: 0, runTries: 0, result: null, msg: '',
       allyTX: player.x + side * 26, enemyTX: clamp(player.x + side * 90, 20, WORLD_W - 20),
@@ -3156,7 +3163,7 @@
       G.friend = false;
       G.wilds.forEach(w => { w.alpha = 1; });
       G.battle = null;
-      G.state = 'title';
+      G.state = 'title'; if (G.hubVs) openHub();
       persist();
       banner(result === 'win' ? 'たいせん かった！ けいけんを セーブした' : result === 'lose' ? 'たいせん まけ… セーブした' : 'たいせん おわり', 2.2);
       return;
@@ -3934,6 +3941,7 @@
       if (k === '_back') { T('もどる', x + 10, yy); return; }
       if (k === '_hk') { T('ひきつぎ（ほかの きかいへ）', x + 10, yy, { c: '#3c6ad8' }); return; }
       if (k === '_map') { T('マップに もどる', x + 10, yy, { c: '#3c6ad8' }); return; }
+      if (k === '_home') { T('ホームに もどる', x + 10, yy, { c: '#3c6ad8' }); return; }
       if (k === '_myes') { T('はい（マップに もどる）', x + 10, yy, { c: '#3c6ad8' }); return; }
       if (k === '_mno') { T('いいえ', x + 10, yy); return; }
       if (k === '_lead') { T('せんとうに する', x + 10, yy, { c: '#3c6ad8' }); return; }
@@ -4002,6 +4010,173 @@
     }
     if (G.flashT > 0) { g.globalAlpha = Math.min(1, G.flashT / 0.08) * 0.8; rect(0, 0, W, H, '#ffffff'); g.globalAlpha = 1; }
   }
+  // ---------- ホーム (app-style hub between the title and the game) ----------
+  const HUB_BTNS = [
+    { id: 'quest',  name: 'クエスト',     x: 4,   y: 13, w: 74, h: 31, col: '#f45a5a' },
+    { id: 'event',  name: 'イベント',     x: 82,  y: 13, w: 36, h: 31, col: '#ff9a2a', soon: 1 },
+    { id: 'zukan',  name: 'ずかん',       x: 121, y: 13, w: 35, h: 31, col: '#47a83a' },
+    { id: 'vs',     name: 'たいせん',     x: 4,   y: 47, w: 36, h: 31, col: '#3c6ad8' },
+    { id: 'train',  name: 'トレーニング', x: 43,  y: 47, w: 36, h: 31, col: '#8656cc', soon: 1 },
+    { id: 'gacha',  name: 'ガチャ',       x: 82,  y: 47, w: 36, h: 31, col: '#f96ab4', soon: 1 },
+    { id: 'items',  name: 'アイテム',     x: 121, y: 47, w: 35, h: 31, col: '#e6b02a' },
+  ];
+  const LB_COINS = [30, 30, 50, 50, 80, 80, 200];   // ログインボーナス: free coins for stamps 1..7 (no purchases anywhere)
+  const jstDay = (ms) => new Date((ms == null ? Date.now() : ms) + 9 * 3600e3).toISOString().slice(0, 10);
+  function openHub() {
+    endSolo(); G.battle = null; G.menu = null; G.talk = null; G.hubVs = false;
+    G.state = 'hub'; G.hub = G.hub && G.hub.view === 'home' ? G.hub : { view: 'home', sel: 0 }; G.hub.view = 'home';
+    G.fade = 1; G.fadeSpeed = -2; player.moving = false;
+    // daily login bonus (once per JST calendar day; stored in the save, so the cloud save carries it too)
+    const L = G.flags.lb = G.flags.lb || { d: '', n: 0 }, today = jstDay();
+    if (L.d !== today) { const day = (L.n % 7) + 1; L.d = today; L.n++; const c = LB_COINS[day - 1]; G.coins += c; G.hub.lb = { day, coins: c, t: 0 }; SFX.recruit(); persist(); }
+  }
+  const DEX = () => Object.keys(SPECIES).filter(k => !SPECIES[k].gold && SPR[SPECIES[k].sprite]);
+  const ownedSp = () => new Set(G.party.concat(G.box || [], G.solo ? G.solo.party : []).map(m => m.sp));
+  const dexCaught = (k, own) => own.has(k) || !!G.flags['joined_' + k];
+  const dexSeen = (k, own) => dexCaught(k, own) || !!(G.flags.seen && G.flags.seen[k]);
+  const blackCache = {};
+  function blackOf(k) {   // ずかん silhouette for みつけた but not yet a なかま
+    if (blackCache[k]) return blackCache[k];
+    const s = SPR[k]; if (!s) return null; const [c, x] = mk(32, 32); x.drawImage(s.native === 1 ? s.n : s.f, 0, 0);
+    x.globalCompositeOperation = 'source-in'; x.fillStyle = '#3a3048'; x.fillRect(0, 0, 32, 32); return (blackCache[k] = c);
+  }
+  const DEX_COLS = 9, DEX_ROWS = 3, DEX_PAGE = DEX_COLS * DEX_ROWS;
+  const hubItems = () => Object.keys(ITEMS);
+  function hubAct(id) {
+    const H = G.hub; SFX.blip();
+    if (id === 'quest') { persist(); if (!G.flags.tut) enterStage(0); else { const w = Math.max(0, worldOf(G.stage)); if (w !== (G.world | 0)) setWorld(w); openMap(Math.max(0, MAP_NODES.findIndex(n => n.stage === G.stage))); } return; }
+    if (id === 'vs') { persist(); G.state = 'title'; startVersus(); G.hubVs = true; return; }
+    if (id === 'zukan') { H.view = 'zukan'; H.dsel = H.dsel | 0; return; }
+    if (id === 'items') { H.view = 'items'; H.isel = 0; return; }
+    banner('じゅんびちゅう… たのしみに まっててね！', 1.8);
+  }
+  function vsBack() { if (G.hubVs) { vsRestore(); G.versus = false; openHub(); } else G.state = 'title'; }
+  function hubKey(code) {
+    const H = G.hub; if (!H) return;
+    const ok = ['Enter', 'Space', 'NumpadEnter', 'KeyE'].includes(code), back = ['Escape', 'KeyX', 'Backspace'].includes(code);
+    if (H.lb) { if (ok || back) { H.lb = null; SFX.blip(); } return; }
+    const dx = (code === 'ArrowRight' || code === 'KeyD') - (code === 'ArrowLeft' || code === 'KeyA'), dy = (code === 'ArrowDown' || code === 'KeyS') - (code === 'ArrowUp' || code === 'KeyW');
+    if (H.view === 'home') {
+      if (dx || dy) { const n = HUB_BTNS.length; H.sel = dy ? (H.sel < 3 ? Math.min(n - 1, H.sel + 3) : Math.max(0, H.sel - 3)) : (H.sel + dx + n) % n; SFX.blip(); }
+      if (ok) hubAct(HUB_BTNS[H.sel].id);
+      if (back) { G.state = 'title'; G.titleScreen = 0; persist(); }
+      return;
+    }
+    if (back) { H.view = 'home'; SFX.blip(); return; }
+    if (H.view === 'zukan') { const n = DEX().length; H.dsel = Math.max(0, Math.min(n - 1, (H.dsel | 0) + dx + dy * DEX_COLS)); }
+    if (H.view === 'items') { const n = hubItems().length; H.isel = Math.max(0, Math.min(n - 1, (H.isel | 0) + dy + dx)); }
+  }
+  function hubTap(x, y) {
+    const H = G.hub; if (!H) return;
+    if (H.lb) { H.lb = null; SFX.blip(); return; }
+    if (H.view !== 'home') {
+      if (y < 11 && x < 30) { H.view = 'home'; SFX.blip(); return; }   // もどる
+      if (H.view === 'zukan') {
+        if (y >= 66 && x < 20) { H.dsel = Math.max(0, (H.dsel | 0) - DEX_PAGE); return; }
+        if (y >= 66 && x > 140) { H.dsel = Math.min(DEX().length - 1, (H.dsel | 0) + DEX_PAGE); return; }
+        const c = Math.floor((x - 3) / 17), r = Math.floor((y - 12) / 18);
+        if (c >= 0 && c < DEX_COLS && r >= 0 && r < DEX_ROWS) { const i = Math.floor((H.dsel | 0) / DEX_PAGE) * DEX_PAGE + r * DEX_COLS + c; if (i < DEX().length) H.dsel = i; }
+      }
+      if (H.view === 'items') { const i = Math.floor((y - 13) / 9); if (i >= 0 && i < hubItems().length) H.isel = i; }
+      return;
+    }
+    const i = HUB_BTNS.findIndex(b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
+    if (i < 0) return;
+    if (i === H.sel || TOUCH || true) { H.sel = i; hubAct(HUB_BTNS[i].id); }
+  }
+  function hubFrame(x, y, w, h, fill) {
+    rect(x + 1, y, w - 2, h, '#5a3418'); rect(x, y + 1, w, h - 2, '#5a3418'); rect(x + 1, y + 1, w - 2, h - 2, fill);
+  }
+  function hubTop(title, back) {
+    rect(0, 0, 160, 11, '#5a3418'); rect(0, 10, 160, 1, '#ffd23a');
+    if (back) { hubFrame(2, 1, 26, 9, '#fff8e0'); T('もどる', 15, 3, { al: 'center', c: '#5a3418' }); }
+    T(title, back ? 31 : 4, 3, { c: '#ffffff' });
+    drawPattern(['.###.', '#yyy#', '#y#y#', '#yyy#', '.###.'], 120, 3, { '#': '#a8740a', y: '#ffd23a' });
+    T(`${G.coins | 0}コイン`, 157, 3, { al: 'right', c: '#ffe98a' });
+  }
+  function drawHub() {
+    const H = G.hub || { view: 'home', sel: 0 };
+    // soft sky + grass backdrop
+    for (let i = 0; i < 9; i++) rect(0, i * 10, 160, 10, ['#bfe6ff', '#c8eaff', '#d2eeff', '#dcf2ff', '#e6f6ff', '#e8f6d8', '#d8f0c0', '#c8e8a8', '#b8e098'][i]);
+    for (let i = 0; i < 6; i++) { const X = Math.round((i * 47 + G.t * 3) % 200) - 20; rect(X, 14 + (i % 3) * 22, 12, 3, '#ffffff'); rect(X + 3, 13 + (i % 3) * 22, 6, 1, '#ffffff'); }
+    if (H.view === 'zukan') return drawZukan(H);
+    if (H.view === 'items') return drawHubItems(H);
+    hubTop(`ホーム  ${pName()}`, false);
+    if (!H.lb) HUB_BTNS.forEach((b, i) => {
+      const sel = i === H.sel, bob = sel ? (Math.floor(G.t * 3) % 2) : 0;
+      hubFrame(b.x, b.y - bob, b.w, b.h, sel ? '#ffe98a' : '#fff8e0');
+      rect(b.x + 2, b.y - bob + 2, b.w - 4, 2, b.col);
+      const cx = b.x + b.w / 2, iy = b.y - bob + 5;
+      const ic = k => { const s = SPR[k]; if (s) g.drawImage(s.native === 1 ? s.n : s.f, Math.round(cx - 8), iy, 16, 16); };
+      if (b.id === 'quest') { const m = PROPS.wmap; if (m) { g.drawImage(m, 0, 0, m.width, m.height, b.x + 4, iy, 30, 17); } ic(player.key || 'player'); const s = SPR.oguri_evo_crown || SPR.oguri; if (s) g.drawImage(s.n, b.x + b.w - 22, iy, 16, 16); }
+      else if (b.id === 'event') { const c = PROPS.gold_carrot || PROPS.item_carrot; if (c) g.drawImage(c, cx - 8, iy, 16, 16); }
+      else if (b.id === 'zukan') { rect(cx - 7, iy + 1, 14, 15, '#3a7a2a'); rect(cx - 6, iy + 2, 12, 13, '#f0f8e0'); rect(cx - 1, iy + 2, 1, 13, '#3a7a2a'); const s = SPR.goririn; if (s) g.drawImage(s.n, cx - 6, iy + 4, 5, 5); }
+      else if (b.id === 'vs') { const a = SPR.goririn, o = SPR.kuuko; if (a) g.drawImage(a.n, cx - 15, iy, 16, 16); if (o) g.drawImage(o.f, cx - 1, iy, 16, 16); }
+      else if (b.id === 'train') ic('kangarun');
+      else if (b.id === 'gacha') { rect(cx - 6, iy + 1, 12, 7, '#f96ab4'); rect(cx - 6, iy + 8, 12, 7, '#fff6f0'); rect(cx - 6, iy + 8, 12, 1, '#5a3418'); rect(cx - 1, iy + 7, 3, 3, '#5a3418'); }
+      else if (b.id === 'items') { const c = PROPS.item_carrot; if (c) g.drawImage(c, cx - 12, iy + 1, 14, 14); rect(cx + 2, iy + 5, 8, 10, '#9af07a'); rect(cx + 4, iy + 3, 4, 2, '#5a3418'); }
+      T(b.name, cx, b.y - bob + b.h - 9, { al: 'center', c: '#4a2c12' });
+      if (b.soon) { rect(b.x + 2, b.y - bob + 5, 19, 7, '#8a8a8a'); T('じゅんび', b.x + 11.5, b.y - bob + 6, { al: 'center', c: '#ffffff' }); }
+    });
+    const L = G.flags.lb; if (!H.lb) T(`ログインボーナス ${L ? ((L.n - 1) % 7) + 1 : 0}/7 にちめ`, 80, 81, { al: 'center', c: '#3a5a20' });
+    if (H.lb) drawLoginBonus(H.lb);
+  }
+  function drawLoginBonus(lb) {
+    lb.t += 1 / 60;
+    g.globalAlpha = 0.55; rect(0, 0, 160, 90, '#000000'); g.globalAlpha = 1;
+    hubFrame(10, 8, 140, 74, '#fff8e0'); rect(12, 10, 136, 11, '#f45a5a');
+    T('ログインボーナス！', 80, 12, { al: 'center', c: '#ffffff', ol: '#7a1a1a' });
+    for (let i = 0; i < 7; i++) {
+      const x = 16 + i * 19, y = 26, got = i < lb.day, today = i === lb.day - 1;
+      hubFrame(x, y, 17, 28, today ? '#ffe98a' : got ? '#ffeedd' : '#f4f0e8');
+      T(`${i + 1}`, x + 8.5, y + 2, { al: 'center', c: '#7a5a30' });
+      if (i === 6) { const c = PROPS.gold_carrot || PROPS.item_carrot; if (c) g.drawImage(c, x + 1, y + 7, 15, 15); }
+      else drawPattern(['.###.', '#yyy#', '#y#y#', '#yyy#', '.###.'], x + 6, y + 10, { '#': '#a8740a', y: '#ffd23a' });
+      T(`${LB_COINS[i]}`, x + 8.5, y + 21, { al: 'center', c: '#4a2c12' });
+      if (got && (!today || lb.t > 0.4)) {   // stamp (today's lands after a moment)
+        const sc = today ? Math.max(1, 2.2 - (lb.t - 0.4) * 4) : 1;
+        g.save(); g.globalAlpha = 0.85; g.strokeStyle = '#e0302a'; g.lineWidth = 1.2; g.beginPath(); g.arc(x + 8.5, y + 14, 6 * sc, 0, Math.PI * 2); g.stroke(); g.restore();
+        if (sc === 1) T('◎', x + 8.5, y + 11, { al: 'center', c: '#e0302a' });
+      }
+    }
+    T(`${lb.day}にちめ！ ${lb.coins}コイン もらった！`, 80, 59, { al: 'center', c: '#c0502a', size: 8 });
+    T(Math.floor(G.t * 2) % 2 ? 'タップで とじる' : '', 80, 72, { al: 'center', c: '#7a5a30' });
+  }
+  function drawZukan(H) {
+    const list = DEX(), own = ownedSp(), seen = list.filter(k => dexSeen(k, own)).length, got = list.filter(k => dexCaught(k, own)).length;
+    hubTop('ずかん', true);
+    const page = Math.floor((H.dsel | 0) / DEX_PAGE), pages = Math.ceil(list.length / DEX_PAGE);
+    for (let j = 0; j < DEX_PAGE; j++) {
+      const i = page * DEX_PAGE + j, k = list[i]; if (!k) break;
+      const x = 3 + (j % DEX_COLS) * 17, y = 13 + Math.floor(j / DEX_COLS) * 18, sel = i === H.dsel;
+      hubFrame(x, y, 16, 17, sel ? '#ffe98a' : '#fff8e0');
+      const sp = SPECIES[k].sprite, s = SPR[sp];
+      if (dexCaught(k, own)) g.drawImage(s.native === 1 ? s.n : s.f, x, y + 1, 16, 16);
+      else if (dexSeen(k, own)) { const b = blackOf(sp); if (b) g.drawImage(b, x, y + 1, 16, 16); }
+      else T('?', x + 8, y + 6, { al: 'center', c: '#b0a080' });
+    }
+    hubFrame(2, 66, 156, 22, '#fff8e0');
+    const k = list[H.dsel | 0], c = k && dexCaught(k, own), sn = k && dexSeen(k, own);
+    T(k ? `No.${String((H.dsel | 0) + 1).padStart(3, '0')}  ${sn ? SPECIES[k].name : '？？？'}` : '', 24, 69, { c: '#4a2c12' });
+    T(c ? 'なかま' : sn ? 'みつけた' : 'まだ みていない', 24, 77, { c: c ? '#2a7a1a' : sn ? '#3c6ad8' : '#9a8a70' });
+    T(`みつけた ${seen}  なかま ${got} / ${list.length}`, 136, 77, { al: 'right', c: '#7a5a30' });
+    T('◀', 9, 72, { al: 'center', c: page > 0 ? '#c0502a' : '#d8c8a8' }); T('▶', 151, 72, { al: 'center', c: page < pages - 1 ? '#c0502a' : '#d8c8a8' });
+    T(`${page + 1}/${pages}`, 136, 69, { al: 'right', c: '#9a8a70' });
+  }
+  function drawHubItems(H) {
+    hubTop('アイテム', true);
+    const ks = hubItems();
+    hubFrame(3, 12, 154, 52, '#fff8e0');
+    ks.forEach((k, i) => {
+      const y = 13 + i * 9, sel = i === (H.isel | 0), n = G.items[k] | 0;
+      if (sel) rect(5, y, 150, 9, '#ffe98a');
+      T(ITEMS[k].name, 10, y + 2, { c: n ? '#4a2c12' : '#b0a080' }); T(`×${n}`, 150, y + 2, { al: 'right', c: n ? '#4a2c12' : '#b0a080' });
+    });
+    hubFrame(3, 66, 154, 22, '#fff8e0');
+    const it = ITEMS[ks[H.isel | 0]];
+    if (it) { T(it.desc, 8, 69, { c: '#4a2c12' }); T(it.price ? `ショップで ${it.price}コイン ／ つかうのは ぼうけんの どうぐから` : 'ぼうけんの とちゅうで ひろえる', 8, 78, { c: '#7a5a30' }); }
+  }
+  function drawMapHomeChip() { hubFrame(2, 1, 23, 9, '#fff8e0'); T('ホーム', 13.5, 3, { al: 'center', c: '#5a3418' }); }
   function drawBanner() {
     if (!G.banner || G.state === 'talk') return;   // the talk box sits where the banner would
     // long text wraps onto more lines (centred) and the box grows to fit, so nothing runs off the 160px screen
@@ -4093,8 +4268,14 @@
       vctx.drawImage(low, 0, 0, W * S, H * S); flushText();
       return;
     }
+    if (G.state === 'hub') {
+      drawHub(); drawBanner();
+      vctx.drawImage(low, 0, 0, W * S, H * S); flushText();
+      if (G.fade > 0) { vctx.globalAlpha = G.fade; vctx.fillStyle = '#ffffff'; vctx.fillRect(0, 0, view.width, view.height); vctx.globalAlpha = 1; }
+      return;
+    }
     if (G.state === 'map' || (G.state === 'talk' && G.talk && G.talk.onMap)) {
-      drawMap(); drawBanner(); if (G.state === 'talk') drawTalk();
+      drawMap(); drawMapHomeChip(); drawBanner(); if (G.state === 'talk') drawTalk();
       vctx.drawImage(low, 0, 0, W * S, H * S); flushText();
       if (G.fade > 0) { vctx.globalAlpha = G.fade; vctx.fillStyle = '#ffffff'; vctx.fillRect(0, 0, view.width, view.height); vctx.globalAlpha = 1; }
       return;
@@ -4237,6 +4418,6 @@
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { SFX, playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
+  window.NM = { openHub, hubKey, hubTap, jstDay, SFX, playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();
