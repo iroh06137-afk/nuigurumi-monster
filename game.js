@@ -4121,6 +4121,7 @@
       if (back) { G.state = 'title'; G.titleScreen = 0; persist(); }
       return;
     }
+    if (H.view === 'tgame') { if (ok || code === 'ArrowUp' || code === 'KeyW') tgTap(H); return; }
     if (H.view === 'gacha' && H.gres) { if (ok || back) gachaNext(H); return; }
     if (H.view === 'gacha' && H.odds) { if (ok || back) H.odds = false; return; }
     if (back) { H.view = 'home'; SFX.blip(); return; }
@@ -4133,6 +4134,7 @@
   function hubTap(x, y) {
     const H = G.hub; if (!H) return;
     if (H.lb) { H.lb = null; SFX.blip(); return; }
+    if (H.view === 'tgame') { tgTap(H); return; }   // tap anywhere = lift
     if (H.view === 'gacha' && H.gres) { gachaNext(H); return; }
     if (H.view === 'gacha' && H.odds) { H.odds = false; return; }
     if (H.view !== 'home') {
@@ -4172,6 +4174,7 @@
     if (H.view === 'zukan') return drawZukan(H);
     if (H.view === 'items') return drawHubItems(H);
     if (H.view === 'train') return drawTrain(H);
+    if (H.view === 'tgame') return drawTGame(H);
     if (H.view === 'gacha') return drawGacha(H);
     if (H.view === 'event') return drawEvent(H);
     hubTop(`ホーム  ${pName()}`, false);
@@ -4253,14 +4256,73 @@
   // ---------- トレーニング: pay coins -> EXP for one party plush (Lv cap respected) ----------
   const TR_TIERS = [{ c: 50, xp: 40, n: 'ちょっと' }, { c: 150, xp: 140, n: 'しっかり' }, { c: 400, xp: 420, n: 'みっちり' }];
   const TR_CARD = i => [3 + i * 39, 13, 37, 42], TR_BTN = i => [3 + i * 52, 58, 50, 22];
-  function trainBuy(H, i) {
+  // tier -> minigame tuning: gauge speed (sweeps of the bar per second), zone half-width, perfect half-width (fractions of the bar)
+  const TG_TUNE = [{ spd: 0.8, zone: 0.16, perf: 0.05 }, { spd: 1.2, zone: 0.11, perf: 0.035 }, { spd: 1.7, zone: 0.075, perf: 0.022 }];
+  const TG_REPS = 10, TG_JUDGE = { p: 1, g: 0.6, m: 0 };
+  function trainBuy(H, i) {   // pay, then play the lifting minigame (EXP is granted at the end)
     const m = G.party[H.tm | 0], T0 = TR_TIERS[i]; if (!m || !T0) return;
     if ((m.lv || 1) >= MAX_LV) { banner(`${m.name}は もう Lv${MAX_LV}！ これいじょう あがらないよ`, 2); SFX.blip(); return; }
     if ((G.coins | 0) < T0.c) { banner('コインが たりないよ…', 1.6); SFX.blip(); return; }
-    G.coins -= T0.c; const lv0 = m.lv || 1, n = grantXp(T0.xp, m);
-    H.tfx = { i: H.tm | 0, t0: G.t, n, xp: T0.xp, lv: m.lv };
-    if (n) { SFX.recruit(); banner(`${m.name}は Lv${lv0} → Lv${m.lv}に なった！`, 2); } else SFX.blip();
+    G.coins -= T0.c; persist(); G.banner = null;
+    H.view = 'tgame'; H.tg = { tier: i, mi: H.tm | 0, rep: 0, res: [], combo: 0, best: 0, t0: G.t, zc: 0.3 + rand() * 0.4, lift: -9, judge: null, done: false };
+    SFX.buy();
+  }
+  const tgPos = tg => { const p = ((G.t - tg.t0) * TG_TUNE[tg.tier].spd * 2) % 2; return p < 1 ? p : 2 - p; };
+  function tgTap(H) {
+    const tg = H.tg; if (!tg) return;
+    if (tg.done) { tgFinish(H); return; }
+    if (G.t - tg.lift < 0.45) return;   // still lifting
+    const U = TG_TUNE[tg.tier], d = Math.abs(tgPos(tg) - tg.zc), j = d <= U.perf ? 'p' : d <= U.zone ? 'g' : 'm';
+    tg.res.push(j); tg.lift = G.t; tg.judge = { j, t: G.t }; tg.combo = j === 'm' ? 0 : tg.combo + 1; tg.best = Math.max(tg.best, tg.combo);
+    if (j === 'p') SFX.buy(); else if (j === 'g') SFX.hit(); else SFX.miss();
+    tg.rep++;
+    if (tg.rep >= TG_REPS) {
+      const m = G.party[tg.mi], base = TR_TIERS[tg.tier].xp, score = tg.res.reduce((a, r) => a + TG_JUDGE[r], 0) / TG_REPS;
+      tg.exp = Math.round(base * score); tg.rate = score >= 0.9 ? 'S' : score >= 0.7 ? 'A' : score >= 0.45 ? 'B' : 'C';
+      tg.done = G.t + 0.5; setTimeout(() => SFX.win(), 500);
+    } else { tg.zc = 0.3 + rand() * 0.4; tg.t0 = G.t - rand() * 0.5; }
+  }
+  function tgFinish(H) {   // close the result: grant the EXP (capped at Lv30 by grantXp), back to the list with the level-up effect
+    const tg = H.tg; if (G.t < tg.done) return;
+    const m = G.party[tg.mi], lv0 = m.lv || 1, n = tg.exp > 0 ? grantXp(tg.exp, m) : 0;
+    H.view = 'train'; H.tg = null; H.tfx = { i: tg.mi, t0: G.t, n, xp: tg.exp, lv: m.lv };
+    if (n) { SFX.level(); banner(`${m.name}は Lv${lv0} → Lv${m.lv}に なった！`, 2); } else SFX.blip();
     persist();
+  }
+  function drawTGame(H) {
+    const tg = H.tg, m = G.party[tg.mi], T0 = TR_TIERS[tg.tier], U = TG_TUNE[tg.tier];
+    rect(0, 11, 160, 79, '#fff0d8'); rect(0, 62, 160, 28, '#e8c890'); rect(0, 62, 160, 1, '#b08a50');
+    hubTop(`トレーニング  ${T0.n}`, false);
+    const s = SPR[memberKey(m)] || SPR[SPECIES[m.sp].sprite], lt = G.t - tg.lift, up = lt < 0.45 ? Math.sin(lt / 0.45 * Math.PI) : 0;
+    const px = 64, py = 30 + Math.round(up * 1);
+    if (s) g.drawImage(s.native === 1 ? s.n : s.f, px, py);
+    const ic = HART['t' + tg.tier]; if (ic) g.drawImage(ic, px + 8, 18 - Math.round(up * 6));   // the dumbbell held above the head
+    const J = tg.judge, jt = J ? G.t - J.t : 9;
+    if (jt < 0.6) {
+      if (J.j === 'p') for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2, r = 8 + jt * 30; rect(Math.round(px + 16 + Math.cos(a) * r), Math.round(py + 14 + Math.sin(a) * r * 0.7), 2, 2, k % 2 ? '#ffe24a' : '#ffffff'); }
+      else for (let k = 0; k < 3; k++) rect(px + 4 + k * 12, py + 4 + Math.round(jt * 20) + k, 1, 2, '#5ab0ff');   // sweat drops
+      T(J.j === 'p' ? 'パーフェクト！' : J.j === 'g' ? 'グッド！' : 'ミス…', 122, 42 - Math.round(jt * 8), { al: 'center', c: J.j === 'p' ? '#ff6a2a' : J.j === 'g' ? '#2a7a1a' : '#7a7a8a', ol: '#ffffff' });
+    }
+    T(`${Math.min(tg.rep + (tg.done ? 0 : 1), TG_REPS)}/${TG_REPS}かいめ`, 6, 15, { c: '#5a3418' });
+    if (tg.combo >= 2) T(`${tg.combo}コンボ！`, 154, 15, { al: 'right', c: '#ff6a2a' });
+    for (let k = 0; k < TG_REPS; k++) { const r = tg.res[k]; rect(6 + k * 5, 23, 4, 4, r === 'p' ? '#ffb020' : r === 'g' ? '#5ac85a' : r === 'm' ? '#9a9aa8' : '#e8d8b8'); }
+    // gauge
+    const gx = 14, gy = 68, gw = 132, gh = 9;
+    hubFrame(gx - 2, gy - 2, gw + 4, gh + 4, '#5a3418'); rect(gx, gy, gw, gh, '#3a2a20');
+    const glow = 0.75 + 0.25 * Math.sin(G.t * 8);
+    g.globalAlpha = glow; rect(Math.round(gx + (tg.zc - U.zone) * gw), gy, Math.round(U.zone * 2 * gw), gh, '#5ac85a'); g.globalAlpha = 1;
+    rect(Math.round(gx + (tg.zc - U.perf) * gw), gy, Math.max(2, Math.round(U.perf * 2 * gw)), gh, '#ffd23a');
+    if (!tg.done) { const mx = Math.round(gx + tgPos(tg) * gw); rect(mx - 1, gy - 3, 3, gh + 6, '#ffffff'); rect(mx, gy - 2, 1, gh + 4, '#c0502a'); }
+    T(tg.done ? '' : 'どこでも タップで もちあげ！', 80, 81, { al: 'center', c: '#5a3418' });
+    if (tg.done) {
+      hubFrame(30, 26, 100, 52, '#fff8e0');
+      T('けっか', 80, 29, { al: 'center', c: '#c0502a' });
+      T(tg.rate, 80, 37, { al: 'center', size: 8, c: { S: '#ff6a2a', A: '#e0a020', B: '#3c6ad8', C: '#7a7a8a' }[tg.rate], ol: '#5a3418' });
+      const np = tg.res.filter(r => r === 'p').length, ng = tg.res.filter(r => r === 'g').length;
+      T(`パーフェクト${np}  グッド${ng}  ミス${TG_REPS - np - ng}`, 80, 53, { al: 'center', c: '#4a2c12' });
+      T(`けいけんち +${tg.exp}EXP`, 80, 61, { al: 'center', c: '#8656cc' });
+      if (G.t >= tg.done) T('タップで つぎへ', 80, 69, { al: 'center', c: '#9a8a70' });
+    }
   }
   function drawTrain(H) {
     hubTop('トレーニング', true);
@@ -4695,6 +4757,6 @@
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { SPR, trainBuy, gachaPull, gachaNext, evStart, evToday, GACHA_POOL: () => gachaPool(), TR_TIERS, EVENTS, USF, get carrots() { return carrotsBack(); }, hasMini: k => !!(SPR[k] && MINI.get(SPR[k].n)), openHub, hubKey, hubTap, jstDay, SFX, playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
+  window.NM = { SPR, trainBuy, tgTap, TG_TUNE, gachaPull, gachaNext, evStart, evToday, GACHA_POOL: () => gachaPool(), TR_TIERS, EVENTS, USF, get carrots() { return carrotsBack(); }, hasMini: k => !!(SPR[k] && MINI.get(SPR[k].n)), openHub, hubKey, hubTap, jstDay, SFX, playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();
