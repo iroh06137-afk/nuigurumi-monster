@@ -1,0 +1,16 @@
+{
+ "image": "gacha_capsule_open.png",
+ "frames": 6,
+ "frameW": 32,
+ "frameH": 32,
+ "durations": [
+  200,
+  90,
+  90,
+  120,
+  100,
+  240
+ ],
+ "loop": false,
+ "note": "gacha capsule opening (red top / white bottom, matches menu_gacha): 0 still, 1 wobble left, 2 wobble right, 3 lid pops up with light leaking, 4 lid flies off with gold burst + sparkles, 5 open bottom half with fading sparkles. Show the prize after frame 5. Capsule bottom rests on row 26."
+}

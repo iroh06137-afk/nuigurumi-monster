@@ -760,8 +760,8 @@
   function xpNeed(lv) { return 14 + (lv || 1) * 12; }
   const MAX_LV = TUNING.maxLv || 30;
   const capLv = v => Math.max(1, Math.min(MAX_LV, (v | 0) || 1));
-  function grantXp(amt) {
-    const m = ally();
+  function grantXp(amt, who) {
+    const m = who || ally();
     if (!m || amt <= 0) return 0;
     if ((m.lv || 1) >= MAX_LV) { m.lv = MAX_LV; m.xp = 0; return 0; }
     m.xp = (m.xp || 0) + amt;
@@ -2040,6 +2040,7 @@
     G.world = w; MAP_NODES = MAP_WORLDS[w]; G.unlocked = Math.max(w ? 0 : 1, G.unl[w] | 0);
   }
   function clearStage() {
+    if (G.ev) { evClear(); return; }   // イベント stage: rewards + back to the hub, no story progress
     const i = G.stage;
     let crownMsg = null;
     if (STAGES[i].soloOguri && G.solo && typeof CROWN !== 'undefined') {
@@ -2069,7 +2070,7 @@
     });
   }
   function openMap(sel) {
-    endSolo();
+    endSolo(); G.ev = null;
     G.state = 'map'; G.mapSel = sel; G.battle = null;
     const n = MAP_NODES[Math.max(0, sel - 1)];
     G.mapPos = { x: n.x, y: n.y }; G.fade = 1; G.fadeSpeed = -2;
@@ -4069,17 +4070,17 @@
   // ---------- ホーム (app-style hub between the title and the game) ----------
   const HUB_BTNS = [
     { id: 'quest',  name: 'クエスト',     x: 4,   y: 13, w: 74, h: 31, col: '#f45a5a' },
-    { id: 'event',  name: 'イベント',     x: 82,  y: 13, w: 36, h: 31, col: '#ff9a2a', soon: 1 },
+    { id: 'event',  name: 'イベント',     x: 82,  y: 13, w: 36, h: 31, col: '#ff9a2a' },
     { id: 'zukan',  name: 'ずかん',       x: 121, y: 13, w: 35, h: 31, col: '#47a83a' },
     { id: 'vs',     name: 'たいせん',     x: 4,   y: 47, w: 36, h: 31, col: '#3c6ad8' },
-    { id: 'train',  name: 'トレーニング', x: 43,  y: 47, w: 36, h: 31, col: '#8656cc', soon: 1 },
-    { id: 'gacha',  name: 'ガチャ',       x: 82,  y: 47, w: 36, h: 31, col: '#f96ab4', soon: 1 },
+    { id: 'train',  name: 'トレーニング', x: 43,  y: 47, w: 36, h: 31, col: '#8656cc' },
+    { id: 'gacha',  name: 'ガチャ',       x: 82,  y: 47, w: 36, h: 31, col: '#f96ab4' },
     { id: 'items',  name: 'アイテム',     x: 121, y: 47, w: 35, h: 31, col: '#e6b02a' },
   ];
   const LB_COINS = [30, 30, 50, 50, 80, 80, 200];   // ログインボーナス: free coins for stamps 1..7 (no purchases anywhere)
   const jstDay = (ms) => new Date((ms == null ? Date.now() : ms) + 9 * 3600e3).toISOString().slice(0, 10);
   function openHub() {
-    endSolo(); G.battle = null; G.menu = null; G.talk = null; G.hubVs = false;
+    endSolo(); G.battle = null; G.menu = null; G.talk = null; G.hubVs = false; G.ev = null;
     G.state = 'hub'; G.hub = G.hub && G.hub.view === 'home' ? G.hub : { view: 'home', sel: 0 }; G.hub.view = 'home';
     G.fade = 1; G.fadeSpeed = -2; player.moving = false;
     // daily login bonus (once per JST calendar day; stored in the save, so the cloud save carries it too)
@@ -4104,7 +4105,9 @@
     if (id === 'vs') { persist(); G.state = 'title'; startVersus(); G.hubVs = true; return; }
     if (id === 'zukan') { H.view = 'zukan'; H.dsel = H.dsel | 0; return; }
     if (id === 'items') { H.view = 'items'; H.isel = 0; return; }
-    banner('じゅんびちゅう… たのしみに まっててね！', 1.8);
+    if (id === 'train') { H.view = 'train'; H.tm = Math.min(H.tm | 0, G.party.length - 1); H.tt = H.tt | 0; H.tfx = null; return; }
+    if (id === 'gacha') { H.view = 'gacha'; H.gn = H.gn | 0; H.odds = false; H.gres = null; return; }
+    if (id === 'event') { H.view = 'event'; return; }
   }
   function vsBack() { if (G.hubVs) { vsRestore(); G.versus = false; openHub(); } else G.state = 'title'; }
   function hubKey(code) {
@@ -4118,15 +4121,26 @@
       if (back) { G.state = 'title'; G.titleScreen = 0; persist(); }
       return;
     }
+    if (H.view === 'gacha' && H.gres) { if (ok || back) gachaNext(H); return; }
+    if (H.view === 'gacha' && H.odds) { if (ok || back) H.odds = false; return; }
     if (back) { H.view = 'home'; SFX.blip(); return; }
+    if (H.view === 'train') { if (dx) H.tm = (H.tm + dx + G.party.length) % G.party.length; if (dy) H.tt = clamp((H.tt | 0) + dy, 0, 2); if (ok) trainBuy(H, H.tt | 0); return; }
+    if (H.view === 'gacha') { if (dx || dy) H.gn = H.gn ? 0 : 1; if (ok) gachaPull(H, H.gn ? 10 : 1); if (code === 'KeyO') H.odds = true; return; }
+    if (H.view === 'event') { if (ok) evStart(); return; }
     if (H.view === 'zukan') { const n = DEX().length; H.dsel = Math.max(0, Math.min(n - 1, (H.dsel | 0) + dx + dy * DEX_COLS)); }
     if (H.view === 'items') { const n = hubItems().length; H.isel = Math.max(0, Math.min(n - 1, (H.isel | 0) + dy + dx)); }
   }
   function hubTap(x, y) {
     const H = G.hub; if (!H) return;
     if (H.lb) { H.lb = null; SFX.blip(); return; }
+    if (H.view === 'gacha' && H.gres) { gachaNext(H); return; }
+    if (H.view === 'gacha' && H.odds) { H.odds = false; return; }
     if (H.view !== 'home') {
       if (y < 11 && x < 30) { H.view = 'home'; SFX.blip(); return; }   // もどる
+      const hit = r => x >= r[0] && x < r[0] + r[2] && y >= r[1] && y < r[1] + r[3];
+      if (H.view === 'train') { G.party.forEach((m, i) => { if (hit(TR_CARD(i))) { H.tm = i; SFX.blip(); } }); TR_TIERS.forEach((t, i) => { if (hit(TR_BTN(i))) { H.tt = i; trainBuy(H, i); } }); return; }
+      if (H.view === 'gacha') { if (hit(GA_BTN[0])) { H.gn = 0; gachaPull(H, 1); } else if (hit(GA_BTN[1])) { H.gn = 1; gachaPull(H, 10); } else if (hit(GA_BTN[2])) { H.odds = true; SFX.blip(); } return; }
+      if (H.view === 'event') { if (hit(EV_BTN)) evStart(); return; }
       if (H.view === 'zukan') {
         if (x >= 142 && y >= 12 && y < 46) { H.dsel = Math.max(0, (H.dsel | 0) - DEX_PAGE); return; }
         if (x >= 142 && y >= 46 && y < 80) { H.dsel = Math.min(DEX().length - 1, (H.dsel | 0) + DEX_PAGE); return; }
@@ -4157,6 +4171,9 @@
     for (let i = 0; i < 6; i++) { const X = Math.round((i * 47 + G.t * 3) % 200) - 20; rect(X, 14 + (i % 3) * 22, 12, 3, '#ffffff'); rect(X + 3, 13 + (i % 3) * 22, 6, 1, '#ffffff'); }
     if (H.view === 'zukan') return drawZukan(H);
     if (H.view === 'items') return drawHubItems(H);
+    if (H.view === 'train') return drawTrain(H);
+    if (H.view === 'gacha') return drawGacha(H);
+    if (H.view === 'event') return drawEvent(H);
     hubTop(`ホーム  ${pName()}`, false);
     if (!H.lb) HUB_BTNS.forEach((b, i) => {
       const sel = i === H.sel, bob = sel ? (Math.floor(G.t * 3) % 2) : 0;
@@ -4232,6 +4249,185 @@
     hubFrame(3, 66, 154, 22, '#fff8e0');
     const it = ITEMS[ks[H.isel | 0]];
     if (it) { T(it.desc, 8, 69, { c: '#4a2c12' }); T(it.price ? `ショップで ${it.price}コイン ／ つかうのは ぼうけんの どうぐから` : 'ぼうけんの とちゅうで ひろえる', 8, 78, { c: '#7a5a30' }); }
+  }
+  // ---------- トレーニング: pay coins -> EXP for one party plush (Lv cap respected) ----------
+  const TR_TIERS = [{ c: 50, xp: 40, n: 'ちょっと' }, { c: 150, xp: 140, n: 'しっかり' }, { c: 400, xp: 420, n: 'みっちり' }];
+  const TR_CARD = i => [3 + i * 39, 13, 37, 42], TR_BTN = i => [3 + i * 52, 58, 50, 22];
+  function trainBuy(H, i) {
+    const m = G.party[H.tm | 0], T0 = TR_TIERS[i]; if (!m || !T0) return;
+    if ((m.lv || 1) >= MAX_LV) { banner(`${m.name}は もう Lv${MAX_LV}！ これいじょう あがらないよ`, 2); SFX.blip(); return; }
+    if ((G.coins | 0) < T0.c) { banner('コインが たりないよ…', 1.6); SFX.blip(); return; }
+    G.coins -= T0.c; const lv0 = m.lv || 1, n = grantXp(T0.xp, m);
+    H.tfx = { i: H.tm | 0, t0: G.t, n, xp: T0.xp, lv: m.lv };
+    if (n) { SFX.recruit(); banner(`${m.name}は Lv${lv0} → Lv${m.lv}に なった！`, 2); } else SFX.blip();
+    persist();
+  }
+  function drawTrain(H) {
+    hubTop('トレーニング', true);
+    G.party.forEach((m, i) => {
+      const [x, y, w, h] = TR_CARD(i), sel = i === (H.tm | 0), s = SPR[memberKey(m)] || SPR[SPECIES[m.sp].sprite];
+      hubFrame(x, y, w, h, sel ? '#ffe98a' : '#fff8e0');
+      const fx = H.tfx && H.tfx.i === i ? G.t - H.tfx.t0 : 9;
+      const hop = fx < 0.6 && H.tfx.n ? -Math.round(Math.sin(fx / 0.6 * Math.PI) * 4) : 0;
+      if (s) g.drawImage(s.native === 1 ? s.n : s.f, x + 2, y + 1 + hop);
+      T(m.name, x + w / 2, y + 33, { al: 'center', c: '#4a2c12' });
+      T(`Lv${m.lv || 1}`, x + 3, y + 2, { c: (m.lv || 1) >= MAX_LV ? '#c0502a' : '#3c6ad8', ol: '#fff8e0' });
+      if (fx < 1.4) {   // level-up effect: sparkles + rising text
+        const k = fx / 1.4;
+        if (H.tfx.n) for (let j = 0; j < 6; j++) { const a = j / 6 * Math.PI * 2 + fx * 4, r = 6 + k * 12; rect(Math.round(x + 18 + Math.cos(a) * r), Math.round(y + 17 + Math.sin(a) * r * 0.8), 2, 2, j % 2 ? '#ffe24a' : '#ffffff'); }
+        g.globalAlpha = Math.max(0, 1 - k * 0.8);
+        T(H.tfx.n ? 'Lvアップ！' : `+${H.tfx.xp}EXP`, x + w / 2, Math.round(y + 14 - k * 10), { al: 'center', c: H.tfx.n ? '#ff6a2a' : '#2a7a1a', ol: '#ffffff' });
+        g.globalAlpha = 1;
+      }
+    });
+    TR_TIERS.forEach((t, i) => {
+      const [x, y, w, h] = TR_BTN(i), sel = i === (H.tt | 0), ic = HART['t' + i];
+      hubFrame(x, y, w, h, sel ? '#e8dcff' : '#fff8e0');
+      if (ic) g.drawImage(ic, x + 2, y + 3);
+      T(`${t.c}コイン`, x + 20, y + 4, { c: (G.coins | 0) >= t.c ? '#4a2c12' : '#b0a080' });
+      T(`+${t.xp}EXP`, x + 20, y + 12, { c: '#8656cc' });
+    });
+    const m = G.party[H.tm | 0];
+    if (m) T((m.lv || 1) >= MAX_LV ? `${m.name}は Lv${MAX_LV}(さいだい)` : `${m.name}  つぎの Lvまで ${xpNeed(m.lv || 1) - (m.xp | 0)}EXP`, 80, 82, { al: 'center', c: '#3a5a20' });
+  }
+  // ---------- ガチャ: in-game coins only; non-boss, non-せいぎぐん plush or items; odds shown ----------
+  const GACHA_SEIGI = new Set(['usagihei', 'hamuranger', 'poppon', 'hotarun', 'hiyokorappa', 'mogurakouhei', 'arupakacook', 'paoon', 'kametank', 'usaknight', 'usahime']);
+  const gachaPool = () => Object.keys(SPECIES).filter(k => { const d = SPECIES[k]; return !d.boss && !d.gate && !d.gold && !d.evoOnly && !d.recruitAfter && !GACHA_SEIGI.has(k) && k !== 'oguri' && k !== 'oguriking' && SPR[d.sprite]; });
+  const GACHA_COST = { 1: 100, 10: 900 }, GACHA_DUP = 40;
+  const GACHA_ODDS = [   // はいしゅつりつ (sums to 100)
+    { p: 25, k: 'plush', label: 'ぬいぐるみ' },
+    { p: 35, k: 'item', id: 'kizu', n: 2, label: 'きずぐすり ×2' },
+    { p: 20, k: 'item', id: 'genki', n: 1, label: 'げんきドリンク' },
+    { p: 15, k: 'item', id: 'cookie', n: 1, label: 'なかよしクッキー' },
+    { p: 5, k: 'coin', n: 50, label: '50コイン' },
+  ];
+  const GA_BTN = [[66, 15, 90, 19], [66, 37, 90, 19], [66, 59, 90, 13]];
+  function gachaRoll() {
+    let r = rand() * 100; const o = GACHA_ODDS.find(o => (r -= o.p) < 0) || GACHA_ODDS[1];
+    if (o.k === 'plush') {
+      const pool = gachaPool(), sp = pool[Math.floor(rand() * pool.length)];
+      if (ownedSp().has(sp)) { G.coins += GACHA_DUP; return { k: 'plush', sp, dup: 1 }; }
+      const m = newMember(sp); (G.flags.seen = G.flags.seen || {})[sp] = 1;
+      if (G.party.length < TUNING.partyMax) { G.party.push(m); return { k: 'plush', sp, to: 'party' }; }
+      (G.box = G.box || []).push(m); return { k: 'plush', sp, to: 'box' };
+    }
+    if (o.k === 'item') { G.items[o.id] = (G.items[o.id] | 0) + o.n; return { k: 'item', id: o.id, n: o.n }; }
+    G.coins += o.n; return { k: 'coin', n: o.n };
+  }
+  function gachaPull(H, n) {
+    const c = GACHA_COST[n]; if (!c) return;
+    if ((G.coins | 0) < c) { banner(`コインが たりないよ… (${c}コイン ひつよう)`, 1.8); SFX.blip(); return; }
+    G.coins -= c; const list = []; for (let i = 0; i < n; i++) list.push(gachaRoll());
+    H.gres = { list, t0: G.t }; G.flags.gachaN = (G.flags.gachaN | 0) + n; SFX.blip(); persist();
+  }
+  const GA_OPEN = [200, 90, 90, 120, 100, 240];   // capsule frames (ms); the prize shows after the last one
+  function gachaNext(H) {
+    const t = (G.t - H.gres.t0) * 1000, total = GA_OPEN.reduce((a, b) => a + b, 0);
+    if (t < total) { H.gres.t0 = G.t - total / 1000; return; }   // tap during the animation: skip to the prize
+    H.gres = null; SFX.blip();
+  }
+  function prizeIcon(r, x, y) {   // 16x16
+    if (r.k === 'plush') { const s = SPR[SPECIES[r.sp].sprite]; if (s) g.drawImage(s.native === 1 ? s.n : s.f, x, y, 16, 16); }
+    else if (r.k === 'item') { const ic = ICON16.menu_item; if (ic) g.drawImage(ic, x, y); else rect(x + 4, y + 4, 8, 10, '#ff9ac0'); }
+    else drawPattern(['..####..', '.#yyyy#.', '#yy##yy#', '#y#yy#y#', '#y#yy#y#', '#yy##yy#', '.#yyyy#.', '..####..'], x + 4, y + 4, { '#': '#a8740a', y: '#ffd23a' });
+  }
+  const prizeText = r => r.k === 'plush' ? (r.dup ? `${SPECIES[r.sp].name}  もう いるので ${GACHA_DUP}コイン` : `${SPECIES[r.sp].name}が ${r.to === 'party' ? 'なかまに なった！' : 'ぬいハウスに きたよ！'}`)
+    : r.k === 'item' ? `${ITEMS[r.id].name} ×${r.n}` : `${r.n}コイン`;
+  function drawGacha(H) {
+    hubTop('ガチャ', true);
+    if (H.odds || H.gres) return drawGachaOver(H);   // text sits on its own layer, so overlays replace the base screen instead of covering it
+    hubFrame(4, 14, 58, 58, '#ffe8f4');
+    if (HART.machine) g.drawImage(HART.machine, 9, 19 + (H.gres ? 0 : (Math.floor(G.t * 2) % 2))); else { rect(17, 22, 32, 30, '#f96ab4'); rect(21, 26, 24, 16, '#bfe6ff'); }
+    const lab = ['1かい まわす', '10かい まわす', 'はいしゅつりつ'];
+    GA_BTN.forEach((b, i) => {
+      const sel = i === (H.gn | 0) && i < 2; hubFrame(b[0], b[1], b[2], b[3], i === 2 ? '#e8f4ff' : sel ? '#ffe98a' : '#fff8e0');
+      if (i < 2) { const c = GACHA_COST[i ? 10 : 1]; T(lab[i], b[0] + 6, b[1] + 3, { c: '#4a2c12' }); T(`${c}コイン`, b[0] + b[2] - 5, b[1] + 11, { al: 'right', c: (G.coins | 0) >= c ? '#c0502a' : '#b0a080' }); }
+      else T(lab[i], b[0] + b[2] / 2, b[1] + 3, { al: 'center', c: '#3c6ad8' });
+    });
+    T('コインは ぼうけんや ログインボーナスで もらえるよ', 80, 79, { al: 'center', c: '#7a5a30' });
+  }
+  function drawGachaOver(H) {
+    if (H.odds) {
+      hubFrame(14, 13, 132, 74, '#fff8e0'); T('はいしゅつりつ', 80, 16, { al: 'center', c: '#c0502a' });
+      GACHA_ODDS.forEach((o, i) => { T(o.label, 22, 26 + i * 8, { c: '#4a2c12' }); T(`${o.p}%`, 138, 26 + i * 8, { al: 'right', c: '#4a2c12' }); });
+      const n = gachaPool().length;
+      T(`ぬいぐるみは ${n}しゅるいから おなじ かくりつ`, 80, 67, { al: 'center', c: '#7a5a30' });
+      T(`もう いる こは ${GACHA_DUP}コインに かわるよ`, 80, 75, { al: 'center', c: '#7a5a30' });
+      return;
+    }
+    if (!H.gres) return;
+    // result: capsule-open animation, then the prize(s)
+    rect(0, 11, 160, 79, '#3a2a48'); for (let i = 0; i < 12; i++) rect((i * 37 + Math.floor(G.t * 8)) % 160, 14 + (i * 23) % 70, 1, 1, '#ffe98a');
+    const t = (G.t - H.gres.t0) * 1000, L = H.gres.list;
+    let acc = 0, fi = GA_OPEN.findIndex(d => (acc += d) > t);
+    if (fi >= 0) {
+      const fr = HART.capsule && HART.capsule[fi];
+      if (fr) g.drawImage(fr.n, 64, 56 - 26 - 4 + (fi === 1 ? -1 : 0)); else { rect(70, 36, 20, 10, '#e84a4a'); rect(70, 46, 20, 10, '#ffffff'); }
+      if (L.length > 1) T(`×${L.length}`, 100, 46, { c: '#ffffff', ol: '#2a1a30' });
+      return;
+    }
+    if (L.length === 1) {
+      const r = L[0]; hubFrame(20, 18, 120, 62, '#fff8e0');
+      if (r.k === 'plush') { const s = SPR[SPECIES[r.sp].sprite]; if (s) g.drawImage(s.native === 1 ? s.n : s.f, 64, 22); if (!r.dup) T('NEW!', 104, 24, { c: '#ff4a6a' }); }
+      else prizeIcon(r, 72, 30);
+      T(prizeText(r), 80, 58, { al: 'center', c: '#4a2c12' });
+      T('タップで とじる', 80, 70, { al: 'center', c: '#9a8a70' });
+      return;
+    }
+    hubFrame(3, 13, 154, 75, '#fff8e0');
+    L.forEach((r, i) => {
+      const x = 6 + (i % 5) * 30, y = 16 + Math.floor(i / 5) * 28; hubFrame(x, y, 28, 26, r.k === 'plush' && !r.dup ? '#ffe98a' : '#fffdf4');
+      prizeIcon(r, x + 6, y + 2);
+      T(r.k === 'plush' ? (r.dup ? `+${GACHA_DUP}` : 'NEW!') : r.k === 'item' ? `×${r.n}` : `+${r.n}`, x + 14, y + 18, { al: 'center', c: r.k === 'plush' && !r.dup ? '#ff4a6a' : '#7a5a30' });
+    });
+    const nw = L.filter(r => r.k === 'plush' && !r.dup).map(r => SPECIES[r.sp].name);
+    T(nw.length ? `あたらしい なかま: ${nw.slice(0, 3).join('・')}${nw.length > 3 ? ' ほか' : ''}` : 'あたらしい なかまは いなかった…', 80, 73, { al: 'center', c: '#4a2c12' });
+    T('タップで とじる', 80, 81, { al: 'center', c: '#9a8a70' });
+  }
+  // ---------- イベント: weekly rotation by JST day of week; existing stage + stronger wilds; coin rewards ----------
+  const EVENTS = [   // index = day of week (0 = にちようび)
+    { stage: 'oka',   name: 'はらっぱ だいさくせん', lv: 6 },
+    { stage: 'kaido', name: 'かいどう ラッシュ',     lv: 9 },
+    { stage: 'mori',  name: 'もりの たんけんたい',   lv: 12 },
+    { stage: 'hoshi', name: 'ほしぞら ナイト',       lv: 15 },
+    { stage: 'kogen', name: 'わたぐも チャレンジ',   lv: 18 },
+    { stage: 'tani',  name: 'あかつち バトル',       lv: 21 },
+    { stage: 'mayoi', name: 'まよいの もり だいぼうけん', lv: 24 },
+  ];
+  const EV_COINS = 120, EV_FIRST = 300, EV_BTN = [48, 71, 64, 15], DOW = ['にち', 'げつ', 'か', 'すい', 'もく', 'きん', 'ど'];
+  const jstDow = () => new Date(Date.now() + 9 * 3600e3).getUTCDay();
+  const evToday = () => Object.assign({ dow: jstDow() }, EVENTS[jstDow()]);
+  const evFirstDone = () => !!(G.flags.evd && G.flags.evd.d === jstDay());
+  function evStart() {
+    if (!G.flags.tut) { banner('まずは クエストで ぼうけんを はじめよう！', 2); return; }
+    const E = evToday(), i = STAGES.findIndex(s => s.id === E.stage); if (i < 0) return;
+    persist(); const ret = G.stage; enterStage(i); G.ev = Object.assign({ ret }, E);
+    for (const w of G.wilds) {
+      const d = SPECIES[w.sp];
+      if (w.gate || d.boss || w.story) { w.alive = false; continue; }   // no bosses / story fights in the event
+      Object.assign(w, trainerMember({ sp: w.sp, lv: E.lv })); w.key = memberKey(w);
+    }
+    banner(`イベント「${E.name}」 スタート！ ゴールを めざそう`, 2.6);
+  }
+  function evClear() {
+    const E = G.ev, ret = E.ret; G.ev = null; G.stage = ret;
+    const F = G.flags.evd = G.flags.evd || { d: '', n: 0 }, today = jstDay(), first = F.d !== today;
+    F.d = today; F.n = first ? 1 : (F.n | 0) + 1; G.flags.evN = (G.flags.evN | 0) + 1;
+    const c = EV_COINS + (first ? EV_FIRST : 0); G.coins += c;
+    persist(); openHub(); SFX.recruit();
+    banner(`イベント クリア！ ${c}コイン ゲット！${first ? ' (きょう はじめての クリア ボーナス +' + EV_FIRST + ')' : ''}`, 3.6);
+  }
+  function drawEvent(H) {
+    hubTop('イベント', true);
+    const E = evToday(), st = STAGES.find(s => s.id === E.stage), nx = EVENTS[(E.dow + 1) % 7];
+    if (HART.banner) g.drawImage(HART.banner, 0, 11); else hubFrame(0, 11, 160, 32, '#ffe8b0');
+    T(E.name, 79.5, 11 + 12, { al: 'center', c: '#c0502a' });
+    hubFrame(3, 44, 154, 26, '#fff8e0');
+    T(`${DOW[E.dow]}ようびの ステージ: ${st ? st.name : ''}  てき Lv${E.lv}`, 7, 47, { c: '#4a2c12' });
+    T(`クリア: ${EV_COINS}コイン`, 7, 55, { c: '#4a2c12' });
+    T(evFirstDone() ? 'きょうの ボーナスは もらったよ' : `きょう はじめて: +${EV_FIRST}コイン！`, 153, 55, { al: 'right', c: evFirstDone() ? '#9a8a70' : '#ff6a2a' });
+    T(`あしたは「${nx.name}」`, 7, 63, { c: '#7a5a30' });
+    const b = EV_BTN, bob = Math.floor(G.t * 3) % 2; hubFrame(b[0], b[1] - bob, b[2], b[3], '#ffd23a'); T('ちょうせん！', b[0] + b[2] / 2, b[1] + 4 - bob, { al: 'center', c: '#5a3418' });
   }
   function drawMapHomeChip() { hubFrame(2, 1, 23, 9, '#fff8e0'); T('ホーム', 13.5, 3, { al: 'center', c: '#5a3418' }); }
   function drawBanner() {
@@ -4443,7 +4639,7 @@
   }
   // hand-drawn 16x16 art (assets/icons16): hub menu icons, and optional mini_<sprite id> plush minis. Only embedded files
   // are loaded (no 404s). A mini replaces any 16px draw of that plush's 32px frame; without one the downscaler is used.
-  const ICON16 = {}, MINI = new WeakMap(), USF = {};
+  const ICON16 = {}, MINI = new WeakMap(), USF = {}, HART = {};
   async function loadIcons16() {
     if (typeof ASSET_DATA === 'undefined') return;
     const keys = Object.keys(ASSET_DATA).filter(k => k.indexOf('assets/icons16/') === 0);
@@ -4467,6 +4663,9 @@
     makeCrownSprites();
     await loadIcons16();
     // うさひめ fx art (only when embedded): laugh 32x32x4 @160ms loop, aura 48x48x4 @120ms loop, aura break 48x48x6 @70ms once
+    if (typeof ASSET_DATA !== 'undefined') await Promise.all([['machine', 'assets/gacha_machine.png'], ['capsule', 'assets/gacha_capsule_open.png', 6, 32], ['t0', 'assets/training_small.png'],
+      ['t1', 'assets/training_medium.png'], ['t2', 'assets/training_large.png'], ['banner', 'assets/event_banner.png']]
+      .filter(([, src]) => ASSET_DATA[src]).map(([k, src, n, S]) => loadImg(src).then(img => { HART[k] = n ? sheetFrames(img, n, S) : img; }).catch(() => {})));
     if (typeof ASSET_DATA !== 'undefined') await Promise.all([['laugh', 'assets/usahime_laugh.png', 4, 32], ['aura', 'assets/usahime_aura.png', 4, 48], ['brk', 'assets/usahime_aura_break.png', 6, 48]]
       .filter(([, src]) => ASSET_DATA[src]).map(([k, src, n, S]) => loadImg(src).then(img => { USF[k] = sheetFrames(img, n, S); }).catch(() => {})));
     if (typeof FX_ART !== 'undefined') await Promise.all(Object.keys(FX_ART).map(sp => Promise.all([loadImg('assets/fx/' + sp + '_shot.png'), loadImg('assets/fx/' + sp + '_hit.png')])
@@ -4496,6 +4695,6 @@
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { SPR, USF, get carrots() { return carrotsBack(); }, hasMini: k => !!(SPR[k] && MINI.get(SPR[k].n)), openHub, hubKey, hubTap, jstDay, SFX, playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
+  window.NM = { SPR, trainBuy, gachaPull, gachaNext, evStart, evToday, GACHA_POOL: () => gachaPool(), TR_TIERS, EVENTS, USF, get carrots() { return carrotsBack(); }, hasMini: k => !!(SPR[k] && MINI.get(SPR[k].n)), openHub, hubKey, hubTap, jstDay, SFX, playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();
