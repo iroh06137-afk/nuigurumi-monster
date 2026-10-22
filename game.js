@@ -4319,7 +4319,7 @@
     rect(hx - 4, hy - 1, 3, 3, '#3a2418'); rect(hx + 1, hy - 1, 3, 3, '#3a2418');   // paws gripping the bar (inside the plates)
     rect(hx - 4, hy - 1, 2, 2, bb.col); rect(hx + 2, hy - 1, 2, 2, bb.col); rect(hx - 4, hy - 1, 2, 1, bb.hi); rect(hx + 2, hy - 1, 2, 1, bb.hi);
     const J = tg.judge, jt = J ? G.t - J.t : 9;
-    if (jt < 0.6) {
+    if (jt < 0.6 && !tg.done) {
       if (J.j === 'p') for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2, r = 8 + jt * 30; rect(Math.round(px + 16 + Math.cos(a) * r), Math.round(py + 14 + Math.sin(a) * r * 0.7), 2, 2, k % 2 ? '#ffe24a' : '#ffffff'); }
       else for (let k = 0; k < 3; k++) rect(px + 4 + k * 12, py + 4 + Math.round(jt * 20) + k, 1, 2, '#5ab0ff');   // sweat drops
       T(J.j === 'p' ? 'パーフェクト！' : J.j === 'g' ? 'グッド！' : 'ミス…', 122, 42 - Math.round(jt * 8), { al: 'center', c: J.j === 'p' ? '#ff6a2a' : J.j === 'g' ? '#2a7a1a' : '#7a7a8a', ol: '#ffffff' });
