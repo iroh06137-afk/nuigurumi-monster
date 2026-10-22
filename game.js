@@ -4289,14 +4289,35 @@
     if (n) { SFX.level(); banner(`${m.name}は Lv${lv0} → Lv${m.lv}に なった！`, 2); } else SFX.blip();
     persist();
   }
+  const HOLD = new WeakMap();
+  function holdBox(img) {   // opaque bounding box + body colour (most common opaque colour) of a 32x32 sprite, cached
+    let b = HOLD.get(img); if (b) return b;
+    const d = img.getContext('2d').getImageData(0, 0, img.width, img.height).data; let x0 = 99, x1 = -1, y0 = 99, y1 = -1; const cnt = new Map();
+    for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) { const i = (y * img.width + x) * 4; if (d[i + 3] < 128) continue;
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+      const lum = d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11; if (lum > 60) { const k = (d[i] << 16) | (d[i + 1] << 8) | d[i + 2]; cnt.set(k, (cnt.get(k) || 0) + 1); } }
+    let bc = 0xc08060, bn = 0; for (const [k, n] of cnt) if (n > bn) { bn = n; bc = k; }
+    const hex = v => '#' + v.toString(16).padStart(6, '0'), hi = ((Math.min(255, (bc >> 16) + 40)) << 16) | ((Math.min(255, ((bc >> 8) & 255) + 40)) << 8) | Math.min(255, (bc & 255) + 40);
+    b = { x0, x1, y0, y1, col: hex(bc), hi: hex(hi) }; HOLD.set(img, b); return b;
+  }
   function drawTGame(H) {
     const tg = H.tg, m = G.party[tg.mi], T0 = TR_TIERS[tg.tier], U = TG_TUNE[tg.tier];
     rect(0, 11, 160, 79, '#fff0d8'); rect(0, 62, 160, 28, '#e8c890'); rect(0, 62, 160, 1, '#b08a50');
     hubTop(`トレーニング  ${T0.n}`, false);
     const s = SPR[memberKey(m)] || SPR[SPECIES[m.sp].sprite], lt = G.t - tg.lift, up = lt < 0.45 ? Math.sin(lt / 0.45 * Math.PI) : 0;
-    const px = 64, py = 30 + Math.round(up * 1);
-    if (s) g.drawImage(s.native === 1 ? s.n : s.f, px, py);
-    const ic = HART['t' + tg.tier]; if (ic) g.drawImage(ic, px + 8, 18 - Math.round(up * 6));   // the dumbbell held above the head
+    const img = s && (s.native === 1 ? s.n : s.f), bb = img ? holdBox(img) : { x0: 8, x1: 24, y0: 4, y1: 31, col: '#c08060' };
+    const px = 64, py = 30, J0 = tg.judge, miss = J0 && J0.j === 'm' && lt < 0.45, k = lt < 0.45 ? lt / 0.45 : 1;
+    // lift: squash (0-25%), stretch up (25-60%), settle; miss: wobble + dip
+    const sq = k < 0.25 ? Math.sin(k / 0.25 * Math.PI) : 0, st = !miss && k >= 0.25 && k < 1 ? Math.sin((k - 0.25) / 0.75 * Math.PI) : 0;
+    const dh = Math.round(-2 * sq + 2 * st), wob = miss ? Math.round(Math.sin(lt * 40) * 1.5) : 0;
+    if (img) g.drawImage(img, px + wob - (sq > 0.3 ? 1 : 0), py - dh, 32 + (sq > 0.3 ? 2 : 0), 32 + dh);   // bottom stays on the floor
+    // hold point from the sprite's opaque box: centred, 55% down; on a lift it rises to head height (box top + 4), stays in the paws
+    const hx = px + Math.round((bb.x0 + bb.x1) / 2) + wob, restY = py + Math.round(bb.y0 + (bb.y1 - bb.y0) * 0.55), headY = py + bb.y0 + 4;
+    const hy = Math.round(miss ? restY + 3 * Math.sin(k * Math.PI) : restY - (restY - headY) * st - dh * 0.5 * (1 - st) + 2 * sq);
+    const ic = HART['t' + tg.tier];
+    if (ic) g.drawImage(ic, hx - 8, hy - 8);
+    rect(hx - 4, hy - 1, 3, 3, '#3a2418'); rect(hx + 1, hy - 1, 3, 3, '#3a2418');   // paws gripping the bar (inside the plates)
+    rect(hx - 4, hy - 1, 2, 2, bb.col); rect(hx + 2, hy - 1, 2, 2, bb.col); rect(hx - 4, hy - 1, 2, 1, bb.hi); rect(hx + 2, hy - 1, 2, 1, bb.hi);
     const J = tg.judge, jt = J ? G.t - J.t : 9;
     if (jt < 0.6) {
       if (J.j === 'p') for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2, r = 8 + jt * 30; rect(Math.round(px + 16 + Math.cos(a) * r), Math.round(py + 14 + Math.sin(a) * r * 0.7), 2, 2, k % 2 ? '#ffe24a' : '#ffffff'); }
