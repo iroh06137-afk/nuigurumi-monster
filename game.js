@@ -1037,7 +1037,7 @@
       else if (G.state === 'battle') {
         const sp = G.battle && G.battle.w && SPECIES[G.battle.w.sp];
         const B = G.battle, tr = B && B.w && B.w.trainer, rv = B && (B.coop || tr === 'rival' || (tr && String(tr).startsWith('rv_')));   // ライバル: town rival, ambushes, co-op
-        name = B && B.w.sp === 'usahime' ? (B.final ? 'usahime2' : 'usahime') : B && B.w.sp === 'oguriking' ? 'oguriking' : rv ? 'rival' : sp && sp.boss && sp.gate ? 'seigi_mid' : sp && sp.boss ? 'boss' : 'battle';
+        name = B && B.final ? 'usahime2' : B && B.w.sp === 'usahime' ? 'usahime' : B && B.w.sp === 'oguriking' ? 'oguriking' : rv ? 'rival' : sp && sp.boss && sp.gate ? 'seigi_mid' : sp && sp.boss ? 'boss' : 'battle';
       }
       else {
         const th = STAGES[G.stage] && STAGES[G.stage].theme;
@@ -2552,7 +2552,7 @@
   // invasion: うさひめ ate the でんせつの にんじん -> takes 1 damage, and the おやこ never drop below 1 HP
   function storyDmg(def, dmg) {
     const B = G.battle; if (!B) return dmg;
-    if (B.final && def === B.w && !B.finMv && oyakoPartner(ally())) {   // the finisher must be the gold おやこ おぐり波
+    if (B.final && def === B.w && !(B.usa && B.usa.sw) && !B.finMv && oyakoPartner(ally())) {   // the finisher must be the gold おやこ おぐり波
       if (def.hp - dmg < 1) { B.bond = 100; if (!B.finTold) { B.finTold = 1; setTimeout(() => banner(USAHIME.finish, 2.2), 900); } }   // at 1 HP: the bond gauge fills so the finisher is ready
       return Math.min(dmg, Math.max(0, def.hp - 1));
     }
@@ -2596,7 +2596,8 @@
         for (const m of G.party) { m.gold = 1; for (const k of ['maxHp', 'atk', 'def', 'spd']) m[k] = Math.round(m[k] * 1.5); m.hp = m.maxHp; }   // gold power-up (undone by oyakoRestore)
         comp.key = compKey(); G.flashT = 0.3; burst(comp.x, GROUND - 14, 'spark', 20, '#ffe24a');
         Object.assign(w, trainerMember({ sp: 'usahime', lv: 30 }), { cool: false });
-        startBattle(w); G.battle.final = true; oyakoBuddy();
+        const UL = USAHIME.last; w.maxHp = Math.round(w.maxHp * UL.hpMul); w.hp = w.maxHp; w.atk = Math.round(w.atk * UL.atkMul);   // true last boss
+        startBattle(w); G.battle.final = true; G.battle.usa = { mad: false, swapped: false, eats: 0, sw: null }; oyakoBuddy();
       });
       return;
     }
@@ -3145,6 +3146,7 @@
     const B = G.battle, e = B.w, a = ally();
     if (B.story && !B.story.done && ++B.story.turns > (B.story.kind === 'shiro' ? USAHIME.turns : INVASION.turns)) { yield* storyEnd(); return; }
     if (B.story) { e.st = Math.max(e.st, COST.special || COST.strong); yield* enemySpecial(); return; }   // powered up: only せいぎの にんじんシャワー
+    if (B.final && B.usa && !B.usa.sw && (yield* usaLastTurn(e))) return;
     const early = e.style === 'trick';
     const ev2 = typeof EVO_MOVES !== 'undefined' && EVO_MOVES[e.sp];
     if (e.evo && ev2 && ev2.super && e.spUsed && !e.spSuper && e.hp > 0 && e.hp <= e.maxHp / 2 && rand() < 0.6) { e.spSuper = true; yield* enemySpecial(); return; }
@@ -3191,8 +3193,76 @@
     if (art) yield* artStrike(e, e, comp, a, mv, FX_ART[fs], fs); else if (mv.fx) yield* fxStrike(e, e, comp, a, mv); else yield* strike(e, e, comp, a, mv, 'special');
     if (a.hp <= 0) yield* allyFaint();
   }
+  // ---------- final うさひめ (B.final): 本気モード, soldier swap, carrot heal. B.usa = { mad, swapped, eats, sw: { boss, q } } ----------
+  function* usaLastTurn(e) {   // true = the turn was used
+    const B = G.battle, U = B.usa, L = USAHIME.last, r = e.hp / e.maxHp, ready = B.finTold || e.hp <= 1;
+    if (!U.swapped && !ready && r <= L.swapAt) { yield* usaSwapOut(e); return true; }
+    if (!U.mad && r < L.madAt) {
+      U.mad = true; banner(L.mad, 2.4); SFX.battleStart(); G.shakeT = 0.5; G.flashT = 0.25;
+      burst(e.x, GROUND - 16, 'spark', 18, '#ff3a5a'); usaLaugh(e, 1.2); yield* wait(1.6);
+    }
+    if (!ready && U.eats < L.eatMax && rand() < (r < 0.3 ? 0.5 : r < 0.7 ? 0.2 : 0)) { yield* usaEat(e); return true; }
+    if (U.mad && rand() < L.madSp) { e.st = Math.max(e.st, COST.special || COST.strong); yield* enemySpecial(); return true; }
+    return false;
+  }
+  function* usaEat(e) {
+    const B = G.battle, L = USAHIME.last;
+    B.usa.eats++; banner(L.eat, 2.0); B.usaEat = { t0: G.t, x: e.x };
+    for (let i = 0; i < 6; i++) { e.oy = i % 2 ? -1 : 0; SFX.blip(); yield* wait(0.18); }
+    e.oy = 0; B.usaEat = null;
+    const amt = Math.round(e.maxHp * L.eatAmt), before = e.hp;
+    e.hp = Math.min(e.maxHp, e.hp + amt);
+    SFX.level(); burst(e.x, GROUND - 16, 'spark', 14, '#9af07a');
+    banner(`うさひめの HPが ${Math.round(e.hp - before)} かいふくした！`, 1.6); yield* wait(1.0);
+  }
+  const usaHop = function* (e, out) {   // hop out (up + fade) or hop in (drop + appear)
+    yield* tween(v => { e.oy = -Math.round(Math.sin(v * Math.PI) * 14) - (out ? Math.round(v * 10) : Math.round((1 - v) * 10)); e.alpha = out ? 1 - v : v; }, 0, 1, 0.45);
+    e.oy = 0; e.alpha = out ? 0 : 1;
+  };
+  function* usaSoldierIn(e, t) {
+    const m = trainerMember(Object.assign({ style: 'power' }, t));
+    Object.assign(e, m, { key: memberKey(m), guard: false, st: 5 + rand() * 25, gold: 0, spUsed: false, spSuper: false, alpha: 0 });
+    banner(`せいぎぐんの ${m.name} Lv${m.lv}が とびだしてきた！`, 1.8); SFX.blip();
+    yield* usaHop(e, false); burst(e.x, GROUND - 12, 'spark', 8, '#ffffff'); yield* wait(0.6);
+  }
+  function* usaSwapOut(e) {
+    const B = G.battle, L = USAHIME.last;
+    B.usa.swapped = true; banner(L.swap, 2.4); usaLaugh(e, 1.0); yield* wait(1.6);
+    const boss = {}; for (const k of ['sp', 'name', 'maxHp', 'hp', 'atk', 'def', 'spd', 'lv', 'evo', 'key', 'style', 'spUsed', 'spSuper']) boss[k] = e[k];
+    B.usa.sw = { boss, q: L.soldiers.slice(1) };
+    yield* usaHop(e, true); yield* wait(0.2);
+    yield* usaSoldierIn(e, L.soldiers[0]);
+  }
+  function* usaSoldierDown(e) {
+    const B = G.battle, S = B.usa.sw, L = USAHIME.last;
+    e.hp = 0; banner(`${e.name}を たおした！`, 1.4);
+    for (let i = 0; i < 8; i++) { e.alpha = i % 2 ? 1 : 0.25; yield* wait(0.08); }
+    yield* tween(v => { e.alpha = v; }, 1, 0, 0.3);
+    if (S.q.length) { banner(L.next, 1.8); yield* wait(1.0); yield* usaSoldierIn(e, S.q.shift()); }
+    else {
+      B.usa.sw = null; Object.assign(e, S.boss, { guard: false, st: 5 + rand() * 25, alpha: 0 });
+      banner(L.back, 2.2); SFX.battleStart();
+      yield* usaHop(e, false); burst(e.x, GROUND - 14, 'spark', 12, '#ff9ac8'); usaLaugh(e, 0.8); yield* wait(0.8);
+    }
+    B.phase = 'run'; B.result = null; B.msg = '';
+  }
+  function drawUsaFx(cam) {
+    const B = G.battle; if (!B || !B.final || !B.usa) return;
+    const e = B.w;
+    if (B.usaEat && PROPS.item_carrot) {   // carrot at her mouth, shrinking bite by bite
+      const k = Math.min(1, (G.t - B.usaEat.t0) / 1.1), f = e.face || -1;
+      g.globalAlpha = 1 - k * 0.6; drawCarrot(PROPS.item_carrot, Math.round(e.x - cam + f * 12), GROUND - 18 + Math.round(e.oy || 0), k < 0.5 ? 1 : 0.5); g.globalAlpha = 1;
+    }
+    if (B.usa.mad && !B.usa.sw && e.hp > 0 && e.alpha > 0) {   // 本気モード: red sparks rising around her
+      for (let i = 0; i < 6; i++) {
+        const q = (G.t * 1.3 + i / 6) % 1, x = Math.round(e.x - cam + Math.sin(i * 2.1 + G.t * 2) * 13), y = Math.round(GROUND - 2 - q * 30);
+        g.globalAlpha = 1 - q; rect(x, y, 1, 2, i % 2 ? '#ff3a5a' : '#ffb0c0'); g.globalAlpha = 1;
+      }
+    }
+  }
   function* enemyFaint() {
     const B = G.battle, e = B.w;
+    if (B.final && B.usa && B.usa.sw) { yield* usaSoldierDown(e); return; }
     if (B.final) {   // うさひめ beaten for real: scream, then she runs (never reforms)
       B.phase = 'end'; B.result = 'win'; e.hp = 0; e.gold = 0;
       SFX.win(); banner(USAHIME.scream, 2.2); G.shakeT = 0.6; burst(e.x, GROUND - 16, 'spark', 20, '#ffffff');
@@ -3300,6 +3370,7 @@
     } else if (B.final) {   // lost the final: no game over, back to the map with the carrots kept
       B.phase = 'end'; B.result = 'lose';
       banner('めのまえが まっしろに なった…', 2.2); yield* wait(1.4); G.fadeSpeed = 1.4; yield* wait(0.9);
+      if (B.usa && B.usa.sw) Object.assign(B.w, B.usa.sw.boss);   // lost during the soldier phase: she is herself again
       G.battle = null; oyakoRestore(); for (const m of G.party) m.hp = m.maxHp;
       openMap(usaNode()); banner(USAHIME.lose, 3); persist();
     } else {
@@ -5057,6 +5128,7 @@
       for (const a of G.npcs) drawActor(a, cam);
       drawCS(cam, true);
       for (const w of G.wilds) if (w.alive && w.alpha > 0) drawActor(w, cam);
+      drawUsaFx(cam);
       if (G.invader && !G.battle && G.invader.alive) drawActor(G.invader, cam);
       if (G.talkGuests && !G.battle) for (const a of G.talkGuests) drawActor(a, cam);
       drawInvFx(cam);
