@@ -22,6 +22,8 @@ const BG = (() => {
       ? ['#2a1a4a', '#4a2468', '#8a3060', '#c44848', '#e87838', '#f0a848', '#f8c870', '#f8d888']
       : theme === 'night'
       ? ['#0a1028', '#101838', '#182048', '#1c2860', '#243070', '#2a3878', '#304080', '#384888']
+      : theme === 'halloween'
+      ? ['#0e0820', '#160c2e', '#1e103c', '#28144a', '#341a56', '#42205e', '#522864', '#623068']
       : theme === 'forest'
       ? ['#1c4a88', '#2860a0', '#3878b8', '#4a90c8', '#68a8d8', '#88c0e4', '#a8d4ee', '#c0e4f4']
       : ['#2a78dc', '#378aea', '#469cf1', '#5aaef5', '#72c0f8', '#92d2fa', '#b4e2fb', '#c8ecfc'];
@@ -55,6 +57,17 @@ const BG = (() => {
     for (const [dx, dy] of rays) {
       const n = (dx && dy) ? 2 : 3;
       for (let k = 0; k < n; k++) { const r = (dx && dy) ? 6 + k : 7 + k; P(x, cx + dx * r, cy + dy * r, k === 0 ? '#ffe24a' : '#ffd23a'); }
+    }
+    return c;
+  }
+
+  // ---- orange halloween moon (24x24) ----
+  function makeMoon() {
+    const [c, x] = mk(24, 24);
+    for (let y = 0; y < 24; y++) for (let X = 0; X < 24; X++) {
+      const d = Math.hypot(X - 11.5, y - 11.5);
+      if (d <= 11.5 && d > 9.5) { if ((X + y) & 1) P(x, X, y, '#8a3a2a'); }
+      else if (d <= 9.5) P(x, X, y, d > 8 ? '#e86a14' : (X - 8) ** 2 + (y - 9) ** 2 < 6 || (X - 14) ** 2 + (y - 14) ** 2 < 4 ? '#f0902a' : '#ffa83a');
     }
     return c;
   }
@@ -175,6 +188,47 @@ const BG = (() => {
     return c;
   }
 
+  // ---- ハロウィン: haunted house + bare trees + gravestones (periodic strip, replaces the tree line) ----
+  function makeSpooky(seed) {
+    const period = 320, [c, x] = mk(period, 60), r = rng(seed);
+    const R = (X, Y, w, h, col) => { x.fillStyle = col; x.fillRect(X, Y, w, h); };
+    // bare twisty trees
+    for (const tx of [20, 92, 150, 268, 300]) {
+      const h = 14 + Math.floor(r() * 8);
+      R(tx, 54 - h, 2, h, '#1a1024');
+      for (let k = 0; k < 3; k++) { const by = 54 - h + 2 + k * 4, d = k % 2 ? 1 : -1; for (let j = 1; j <= 4 - k; j++) P(x, tx + (d > 0 ? 1 : 0) + d * j, by - Math.floor(j / 2), '#1a1024'); }
+    }
+    // haunted house (x 190..240): body, two towers, crooked roofs, glowing windows
+    const hx = 190, base = 54;
+    R(hx, base - 22, 44, 22, '#2a1a3a');
+    R(hx + 4, base - 34, 10, 12, '#2a1a3a'); R(hx + 30, base - 30, 10, 8, '#2a1a3a');
+    for (let i = 0; i < 8; i++) { R(hx + 4 + i * 0.6 | 0, base - 34 - i, 10 - (i * 1.2 | 0), 1, '#1c1028'); }
+    for (let i = 0; i < 6; i++) { R(hx + 30 + (i * 0.8 | 0), base - 30 - i, 10 - (i * 1.6 | 0), 1, '#1c1028'); }
+    for (let i = 0; i < 8; i++) R(hx - 2 + i, base - 22 - i, 48 - i * 2, 1, '#1c1028');
+    R(hx, base - 23, 44, 1, '#3e2a52');
+    const win = (X, Y) => { R(X, Y, 4, 4, '#ffc43a'); P(x, X + 1, Y + 1, '#fff0a0'); R(X, Y + 2, 4, 1, '#c87a1a'); R(X + 1, Y, 1, 4, '#2a1a3a'); };
+    win(hx + 7, base - 30); win(hx + 6, base - 17); win(hx + 34, base - 17); win(hx + 32, base - 27);
+    R(hx + 19, base - 12, 6, 12, '#120a1a'); P(x, hx + 23, base - 6, '#ffc43a');
+    // gravestones
+    for (const gx of [60, 120, 250, 285]) { R(gx, base - 6, 5, 6, '#5a5470'); R(gx + 1, base - 7, 3, 1, '#5a5470'); P(x, gx + 2, base - 4, '#3a3450'); R(gx, base - 1, 5, 1, '#3a3450'); }
+    // bats
+    for (const [bx, by] of [[70, 14], [130, 8], [260, 18]]) { P(x, bx, by, '#120a1a'); P(x, bx - 1, by - 1, '#120a1a'); P(x, bx + 1, by - 1, '#120a1a'); P(x, bx - 2, by, '#120a1a'); P(x, bx + 2, by, '#120a1a'); }
+    return { img: c, period };
+  }
+  // pumpkin field painted onto the meadow strip
+  function addPumpkins(c, seed) {
+    const x = c.getContext('2d'), MW = c.width, r = rng(seed);
+    x.fillStyle = 'rgba(40,10,60,0.45)'; x.fillRect(0, 0, MW, c.height);   // night tint on the grass
+    for (let X = 6; X < MW; X += 9 + Math.floor(r() * 14)) {
+      const y = 2 + Math.floor(r() * 7), big = r() < 0.4, w = big ? 6 : 4, h = big ? 4 : 3;
+      x.fillStyle = '#c85a10'; x.fillRect(X, y, w, h);
+      x.fillStyle = '#ff8a1e'; x.fillRect(X + 1, y, w - 2, h - 1);
+      x.fillStyle = '#ffb04a'; x.fillRect(X + 1, y, 1, 1);
+      x.fillStyle = '#3a7a2a'; x.fillRect(X + (w >> 1), y - 1, 1, 1);
+      if (big && r() < 0.5) { x.fillStyle = '#ffe070'; x.fillRect(X + 1, y + 1, 1, 1); x.fillRect(X + w - 2, y + 1, 1, 1); x.fillRect(X + 2, y + 2, w - 4, 1); }   // jack-o'-lantern face
+    }
+  }
+
   // ---- road overlay for 'road' theme (placeholder until the 32x32 road tiles arrive) ----
   function addRoad(c, seed, imgs) {
     const x = c.getContext('2d'), MW = c.width, r = rng(seed);
@@ -201,11 +255,14 @@ const BG = (() => {
     const roadish = theme === 'road' || theme === 'town';
     const meadow = makeMeadow(worldW, roadish ? 33 : 21);
     if (roadish) addRoad(meadow, 44, imgs);
+    const spooky = theme === 'halloween';
+    if (spooky) addPumpkins(meadow, 31);
     const sky = theme === 'canyon' ? 'dusk' : theme;   // canyon = evening sky with red-earth hills
     const pal = theme === 'canyon' ? { farA: '#b07a5a', farB: '#c8946c', nearA: '#a8683a', nearB: '#c4824a', nearL: '#8a5028' }
       : theme === 'highland' ? { farA: '#9cc0dc', farB: '#b8d4ea', nearA: '#74b864', nearB: '#94d07c', nearL: '#58a048' }
       : theme === 'dusk' ? { farA: '#6a7a6e', farB: '#889888', nearA: '#4a7a38', nearB: '#6a9a4a', nearL: '#3a6828' }
       : theme === 'forest' ? { farA: '#3a6a48', farB: '#4e8060', nearA: '#2e5a32', nearB: '#3e7240', nearL: '#244a28' }
+      : spooky ? { farA: '#2c1e42', farB: '#3a2852', nearA: '#1e1830', nearB: '#2a2240', nearL: '#14101e' }
       : theme === 'night' ? { farA: '#2a3a48', farB: '#3a4c5c', nearA: '#1e3a28', nearB: '#2a4e34', nearL: '#163020' }
       : { farA: '#8ccaa6', farB: '#a8dcbc', nearA: '#63ae4d', nearB: '#82c966', nearL: '#4e9a3e' };
     return {
@@ -215,7 +272,8 @@ const BG = (() => {
       clouds: makeClouds(7),
       hillsFar: makeHills(320, 44, [[1, 4, 0.3], [3, 2.5, 1.7], [7, 1, 0.2]], pal.farA, pal.farB, null, 3),
       hillsNear: makeHills(288, 50, [[1, 3, 2.1], [2, 3, 0.4], [5, 1.5, 1.1]], pal.nearA, pal.nearB, pal.nearL, 5),
-      trees: makeTrees(theme === 'forest' ? 19 : 11),
+      trees: spooky ? makeSpooky(13) : makeTrees(theme === 'forest' ? 19 : 11),
+      full: imgs && imgs.full,   // optional painted panorama (stage width x 90) replaces every layer
       meadow,
       MEADOW_TOP,
     };
@@ -227,8 +285,13 @@ const BG = (() => {
   }
 
   function draw(g, bg, cam, t, W) {
+    if (bg.full) { g.drawImage(bg.full, -Math.floor(cam), 0); return; }
     g.drawImage(bg.sky, 0, 0);
-    if (bg.theme === 'night') {
+    if (bg.theme === 'halloween') {   // stars + big orange moon (top right, slow parallax)
+      const r = BG.rng(5);
+      for (let i = 0; i < 22; i++) { g.fillStyle = r() < 0.3 ? '#ffffff' : '#e0c8ff'; g.fillRect((Math.floor(r() * 160) - Math.floor(cam * 0.04) + 160) % 160, 2 + Math.floor(r() * 34), 1, 1); }
+      g.drawImage(bg.moon || (bg.moon = makeMoon()), 112, 4);
+    } else if (bg.theme === 'night') {
       const r = BG.rng(9);
       for (let i = 0; i < 28; i++) {
         const sx = (Math.floor(r() * 160) - Math.floor(cam * 0.04) + 160) % 160;
@@ -240,7 +303,7 @@ const BG = (() => {
       g.drawImage(bg.sun, bg.theme === 'dusk' ? 118 : 3, bg.theme === 'dusk' ? 18 : 0);
     }
     const cl = bg.clouds;
-    for (const c of cl.list) {
+    if (bg.theme !== 'halloween') for (const c of cl.list) {
       let X = c.x - Math.floor(cam * 0.1 + t * 1.5);
       X = ((X % cl.period) + cl.period) % cl.period - 40;
       if (X < W) g.drawImage(c.img, X, c.y);

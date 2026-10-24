@@ -88,6 +88,13 @@ const SPRITES = {
 
 // sprites listed here are only loaded once their files are embedded in assets-img.js (none pending right now)
 const SPRITES_PENDING = {};
+// ★ event plush whose art isn't in yet: if assets/<id>.png is embedded it is used, otherwise game.js draws a placeholder (coloured shape + eyes).
+// ph = placeholder look: body colour, shape, accent colour
+const SPRITES_PH = {
+  jackun: { src: 'assets/jackun.png', native: 1, ph: { body: '#ff8a1e', shape: 'pumpkin', acc: '#7a3ac8' } },   // pumpkin + purple cape
+  obaken: { src: 'assets/obaken.png', native: 1, ph: { body: '#f4f4fa', shape: 'ghost', acc: '#ff8a1e' } },     // sheet ghost + orange bow tie
+  miiran: { src: 'assets/miiran.png', native: 1, ph: { body: '#e8dcb8', shape: 'mummy', acc: '#b8a880' } },     // mummy, one eye peeking out
+};
 
 const SPECIES = {
   goririn: {
@@ -488,6 +495,41 @@ const SPECIES = {
       strong: { name: 'げっこうアタック', power: 28, acc: 0.80 },
     },
   },
+  // ---- ★ ハロウィン げんてい (limited: only in the event stage, never in gacha, no evolution) ----
+  jackun: {
+    name: 'ジャックん', sprite: 'jackun', noEvo: true, limited: 'halloween', declineLine: 'そっか… また ハロウィンに あおうね',
+    hp: 48, atk: 13, def: 9, spd: 10, recruitBase: 0,
+    moves: {
+      attack: { name: 'かぼちゃタックル', power: 13, acc: 0.95 },
+      strong: { name: 'ランタンボム',     power: 29, acc: 0.82 },
+    },
+  },
+  jackun_boss: {   // the stage boss. win → chance that ジャックん asks to join
+    name: 'ジャックん', sprite: 'jackun', boss: true, limited: 'halloween', dexHide: true,
+    hp: 96, atk: 14, def: 10, spd: 10, recruitBase: 0,
+    joinLines: [['かぼかぼ… まけちゃった！', 'きみたち つよいね'], ['ぼくも いっしょに', 'いたずらしに いきたいな！']],
+    declineLine: 'そっか… また ハロウィンに あおうね',
+    moves: {
+      attack: { name: 'かぼちゃタックル', power: 14, acc: 0.95 },
+      strong: { name: 'ランタンボム',     power: 30, acc: 0.82 },
+    },
+  },
+  obaken: {
+    name: 'オバケン', sprite: 'obaken', noEvo: true, limited: 'halloween',
+    hp: 36, atk: 11, def: 7, spd: 14, recruitBase: 0.12,
+    moves: {
+      attack: { name: 'ひゅーどろタッチ', power: 11, acc: 0.97 },
+      strong: { name: 'おばけの いたずら', power: 25, acc: 0.85 },
+    },
+  },
+  miiran: {
+    name: 'ミイラン', sprite: 'miiran', noEvo: true, limited: 'halloween',
+    hp: 52, atk: 10, def: 12, spd: 7, recruitBase: 0.10,
+    moves: {
+      attack: { name: 'ほうたい ぐるぐる', power: 11, acc: 0.95 },
+      strong: { name: 'ミイラ プレス',     power: 26, acc: 0.83 },
+    },
+  },
   oguri: {
     name: 'オグリキャップ', sprite: 'oguri',
     hp: 34, atk: 8, def: 5, spd: 11, recruitBase: 0.10,
@@ -564,6 +606,9 @@ const EVO_MOVES = {
   kujakun: { special: { name: 'めだまフラッシュ', fx: 'orb', col: '#40c0a0' } },
   koumon: { special: { name: 'ちょうおんぱカッター', fx: 'wave', col: '#a080ff' } },
   naiton: { special: { name: 'ナイトブレイド', fx: 'fire', col: '#ffd040' } },
+  jackun: { special: { name: 'パンプキン フレア', fx: 'fire', col: '#ff8a1e' } },
+  obaken: { special: { name: 'トリック・オア・ゴースト', fx: 'orb', col: '#c8a0ff' } },
+  miiran: { special: { name: 'ミイラの ぐるぐるまき', fx: 'wave', col: '#e8dcb8' } },
   lioneru: { special: { name: 'がおーほうこう', fx: 'wave', col: '#ffd04a' } },
   wolfun: { special: { name: 'やみのきば', fx: 'orb', col: '#8a5cff' } },
   saiguard: { special: { name: 'どすこいとっしん', fx: 'orb', col: '#c0a080' } },
@@ -844,6 +889,12 @@ const STAGES = [
     pickups: [ { x: 544, h: 21, coins: 50 }, { x: 824, h: 35, coins: 50 } ],
     exit: ['このさき', 'じゅんびちゅう'],
   },
+  {
+    // ★ special event stage (SPECIAL_EVENTS). not on the map. bg: assets/bg_halloween.png (1300x90) when embedded, else procedural 'halloween' theme
+    id: 'halloween', name: 'ハロウィンの おばけやしき', width: 1300, theme: 'halloween', event: true, bgImg: 'assets/bg_halloween.png',
+    spawns: [ { sp: 'obaken', x: 250, lv: 15 }, { sp: 'miiran', x: 430, lv: 16 }, { sp: 'obaken', x: 620, lv: 17 }, { sp: 'miiran', x: 800, lv: 18 }, { sp: 'obaken', x: 960, lv: 18 }, { sp: 'jackun_boss', x: 1140, lv: 20 } ],
+    exit: ['このさき', 'おうちへ かえろう'],
+  },
 ];
 // せいぎぐん invasion (story event in しろの なか after おやこエンド): talk -> story battle vs うさひめ (no game over, ends after a few turns) -> outro -> world 4 opens
 // after おやこエンド: hint that something is happening in しろの なか (where the invasion starts)
@@ -925,6 +976,12 @@ const CROWN = {
   oyako: { name: 'おやこ おぐり波', partner: 'oguriking', mult: 1.6, artScale: 1.4, fx: 'fire', col: '#ff9aff', fxSp: 'oguriking' },
 };
 // shop items (price in coins). use: heal = HP of the walking companion, healAll = everyone full, recruit = next なかまにする +
+// ---------- とくべつ イベント (limited-time). shown at the top of the イベント screen while now < until. reuse for later events ----------
+// coins: every clear / daily: first clear each JST day / once: very first clear ever (flag evonce_<id>)
+const SPECIAL_EVENTS = [
+  { id: 'halloween2026', name: 'ハロウィンの よる', stage: 'halloween', until: '2026-10-31T23:59:59+09:00', lv: '15〜20',
+    coins: 150, daily: 300, once: 500, col: '#ff8a1e', banner: 'げんてい！ ハロウィンの よる', tag: 'ジャックんが なかまに なるかも？' },
+];
 const ITEMS = {
   kizu:   { name: 'きずぐすり',       price: 20, desc: 'つれている こ の HPを 25 かいふく', use: 'heal', amt: 25 },
   genki:  { name: 'げんきドリンク',   price: 60, desc: 'なかま みんなの HPを ぜんぶ かいふく', use: 'healAll' },

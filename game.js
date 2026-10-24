@@ -317,7 +317,7 @@
     return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('failed to load ' + src)); i.src = (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src]) ? ASSET_DATA[src] : src; });
   }
   // versus arena backgrounds (160x90, static): day / night picked per match
-  const ARENA = {};
+  const ARENA = {}, EVBG = {};   // EVBG: painted event-stage panoramas (stage.bgImg), only when embedded
   for (const k of ['day', 'night']) loadImg('assets/bg/arena_' + k + '.png').then(i => { ARENA[k] = i; }).catch(() => {});
   function silhouette(src) {
     const [c, x] = mk(32, 32); x.drawImage(src, 0, 0);
@@ -330,6 +330,36 @@
     let top = 31, minX = 31, maxX = 0;
     for (let y = 0; y < 32; y++) for (let X = 0; X < 32; X++) if (d[(y * 32 + X) * 4 + 3] > 0) { top = Math.min(top, y); minX = Math.min(minX, X); maxX = Math.max(maxX, X); }
     SPR[key] = { n, f, wn: silhouette(n), wf: silhouette(f), native: SPRITES[key].native, top, w: maxX - minX + 1 };
+  }
+  // ★ placeholder plush (until assets/<id>.png arrives): simple coloured shape + eyes, 32x32, facing right, 1px dark outline
+  function makePh(ph) {
+    const [c, x] = mk(32, 32), R = (X, Y, w, h, col) => { x.fillStyle = col; x.fillRect(X, Y, w, h); };
+    const blob = (cx, cy, rx, ry, col) => { for (let y = Math.floor(cy - ry); y <= cy + ry; y++) for (let X = Math.floor(cx - rx); X <= cx + rx; X++) if (((X + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2 <= 1) R(X, y, 1, 1, col); };
+    const eye = (X, Y) => { R(X, Y, 2, 3, '#2a1a2a'); R(X, Y, 1, 1, '#ffffff'); };
+    if (ph.shape === 'pumpkin') {
+      R(9, 22, 14, 8, ph.acc); R(8, 24, 16, 6, ph.acc); R(10, 22, 12, 1, '#a060e8');   // purple cape
+      blob(16, 17, 10, 8, ph.body); for (const lx of [11, 16, 21]) R(lx, 11, 1, 12, '#e06a10');
+      R(15, 7, 3, 3, '#3a8a2a'); R(17, 6, 2, 1, '#3a8a2a');
+      R(12, 15, 3, 3, '#3a1a08'); R(19, 15, 3, 3, '#3a1a08'); R(13, 15, 1, 1, '#ffe070'); R(20, 15, 1, 1, '#ffe070');
+      R(13, 20, 8, 1, '#3a1a08'); R(14, 21, 2, 1, '#3a1a08'); R(18, 21, 2, 1, '#3a1a08');
+      R(11, 30, 4, 2, '#5a2a8a'); R(18, 30, 4, 2, '#5a2a8a');
+    } else if (ph.shape === 'ghost') {
+      blob(16, 14, 9, 9, ph.body); R(7, 14, 19, 14, ph.body);
+      for (let X = 7; X < 26; X += 4) R(X, 28, 2, 2, ph.body);
+      eye(13, 12); eye(19, 12); R(15, 17, 3, 2, '#2a1a2a');
+      R(11, 21, 4, 3, ph.acc); R(18, 21, 4, 3, ph.acc); R(15, 22, 3, 2, '#c85a10');   // orange bow tie
+      R(9, 16, 2, 1, '#ffb0c8'); R(23, 16, 2, 1, '#ffb0c8');
+    } else {   // mummy
+      blob(16, 12, 8, 8, ph.body); R(9, 14, 15, 16, ph.body);
+      for (let y = 6; y < 30; y += 3) R(8, y, 17, 1, ph.acc);
+      R(17, 10, 5, 4, '#3a2a20'); eye(19, 10);                      // one eye peeking out of the wraps
+      R(5, 16, 4, 3, ph.body); R(24, 16, 4, 3, ph.body); R(10, 30, 4, 2, ph.acc); R(19, 30, 4, 2, ph.acc);
+    }
+    // outline
+    const d = x.getImageData(0, 0, 32, 32).data, A = (X, Y) => X >= 0 && Y >= 0 && X < 32 && Y < 32 && d[(Y * 32 + X) * 4 + 3] > 0;
+    x.fillStyle = '#2a1a2a';
+    for (let Y = 0; Y < 32; Y++) for (let X = 0; X < 32; X++) if (!A(X, Y) && (A(X + 1, Y) || A(X - 1, Y) || A(X, Y + 1) || A(X, Y - 1))) x.fillRect(X, Y, 1, 1);
+    return c;
   }
   // walk cycle: horizontal sheet of 32x32 frames (right-facing), mirrored for left
   function prepWalk(key, img, def) {
@@ -1345,7 +1375,7 @@
     G.stage = i; WORLD_W = st.width; G.fought = [];
     { const wi = worldOf(i); if (wi >= 0 && wi !== (G.world | 0)) setWorld(wi); }
     if (st.layers) loadLayers(st);
-    G.bg = G.bgCache[st.id] || (G.bgCache[st.id] = BG.build(st.width, st.theme, st.theme === 'town' && PROPS.town_road ? Object.assign({}, PROPS, { road: PROPS.town_road }) : PROPS));
+    G.bg = G.bgCache[st.id] || (G.bgCache[st.id] = BG.build(st.width, st.theme, st.theme === 'town' && PROPS.town_road ? Object.assign({}, PROPS, { road: PROPS.town_road }) : EVBG[st.id] ? Object.assign({}, PROPS, { full: EVBG[st.id] }) : PROPS));
     spawnWilds();
     const oiN = STAGES.findIndex(x => x.id === 'oshiro'), peaceN = oiN >= 0 && G.cleared.includes(oiN);
     G.npcs = (st.npcs || []).filter(n => n.req !== 'peace' || peaceN).map(n => {
@@ -3223,7 +3253,9 @@
     if (B.story) { invasionOutro(); return; }
     if (B.final) { usaFinalOutro(B.w); return; }
     if (B.result === 'win' && B.w.gate && SPECIES[B.w.sp].gateLose && !G.friend && !G.versus) { say('', allyLines(SPECIES[B.w.sp].gateLose), () => { if (SPECIES[B.w.sp].gold) carrotBack(); }); return; }   // mid-boss: unrepentant after losing
+    const jackJoin = B.result === 'win' && !G.friend && !G.versus && B.w.sp === 'jackun_boss' && rand() < JACK_JOIN;
     const join = () => {
+      if (jackJoin) { const d = SPECIES.jackun_boss, lv = B.w.lv || 20; say('ジャックん', d.joinLines, () => { G.menu = { kind: 'ask', sel: 0, sp: 'jackun', lv }; G.state = 'menu'; }); return; }
       if (!joinAsk) return;
       const sp = joinAsk.sp, nm = SPECIES[sp].name, lv = joinAsk.lv || 1;
       say(nm, SPECIES[sp].joinLines || [['…まけたわ。', 'あなたたち つよいのね'], ['わたしも いっしょに', 'つれていって くれる？']], () => { G.menu = { kind: 'ask', sel: 0, sp, lv }; G.state = 'menu'; });
@@ -4087,7 +4119,7 @@
     const L = G.flags.lb = G.flags.lb || { d: '', n: 0 }, today = jstDay();
     if (L.d !== today) { const day = (L.n % 7) + 1; L.d = today; L.n++; const c = LB_COINS[day - 1]; G.coins += c; G.hub.lb = { day, coins: c, t: 0 }; SFX.recruit(); persist(); }
   }
-  const DEX = () => Object.keys(SPECIES).filter(k => !SPECIES[k].gold && SPR[SPECIES[k].sprite]);
+  const DEX = () => Object.keys(SPECIES).filter(k => !SPECIES[k].gold && !SPECIES[k].dexHide && SPR[SPECIES[k].sprite]);
   const ownedSp = () => new Set(G.party.concat(G.box || [], G.solo ? G.solo.party : []).map(m => m.sp));
   const dexCaught = (k, own) => own.has(k) || !!G.flags['joined_' + k];
   const dexSeen = (k, own) => dexCaught(k, own) || !!(G.flags.seen && G.flags.seen[k]);
@@ -4127,7 +4159,7 @@
     if (back) { H.view = 'home'; SFX.blip(); return; }
     if (H.view === 'train') { if (dx) H.tm = (H.tm + dx + G.party.length) % G.party.length; if (dy) H.tt = clamp((H.tt | 0) + dy, 0, 2); if (ok) trainBuy(H, H.tt | 0); return; }
     if (H.view === 'gacha') { if (dx || dy) H.gn = H.gn ? 0 : 1; if (ok) gachaPull(H, H.gn ? 10 : 1); if (code === 'KeyO') H.odds = true; return; }
-    if (H.view === 'event') { if (ok) evStart(); return; }
+    if (H.view === 'event') { if (dx && evSpecial()) { H.evW = !H.evW; SFX.blip(); } if (ok) evStart(H); return; }
     if (H.view === 'zukan') { const n = DEX().length; H.dsel = Math.max(0, Math.min(n - 1, (H.dsel | 0) + dx + dy * DEX_COLS)); }
     if (H.view === 'items') { const n = hubItems().length; H.isel = Math.max(0, Math.min(n - 1, (H.isel | 0) + dy + dx)); }
   }
@@ -4142,7 +4174,7 @@
       const hit = r => x >= r[0] && x < r[0] + r[2] && y >= r[1] && y < r[1] + r[3];
       if (H.view === 'train') { G.party.forEach((m, i) => { if (hit(TR_CARD(i))) { H.tm = i; SFX.blip(); } }); TR_TIERS.forEach((t, i) => { if (hit(TR_BTN(i))) { H.tt = i; trainBuy(H, i); } }); return; }
       if (H.view === 'gacha') { if (hit(GA_BTN[0])) { H.gn = 0; gachaPull(H, 1); } else if (hit(GA_BTN[1])) { H.gn = 1; gachaPull(H, 10); } else if (hit(GA_BTN[2])) { H.odds = true; SFX.blip(); } return; }
-      if (H.view === 'event') { if (hit(EV_BTN)) evStart(); return; }
+      if (H.view === 'event') { if (evTab(H, x, y)) return; if (hit(EV_BTN)) evStart(H); return; }
       if (H.view === 'zukan') {
         if (x >= 142 && y >= 12 && y < 46) { H.dsel = Math.max(0, (H.dsel | 0) - DEX_PAGE); return; }
         if (x >= 142 && y >= 46 && y < 80) { H.dsel = Math.min(DEX().length - 1, (H.dsel | 0) + DEX_PAGE); return; }
@@ -4375,7 +4407,7 @@
   }
   // ---------- ガチャ: in-game coins only; non-boss, non-せいぎぐん plush or items; odds shown ----------
   const GACHA_SEIGI = new Set(['usagihei', 'hamuranger', 'poppon', 'hotarun', 'hiyokorappa', 'mogurakouhei', 'arupakacook', 'paoon', 'kametank', 'usaknight', 'usahime']);
-  const gachaPool = () => Object.keys(SPECIES).filter(k => { const d = SPECIES[k]; return !d.boss && !d.gate && !d.gold && !d.evoOnly && !d.recruitAfter && !GACHA_SEIGI.has(k) && k !== 'oguri' && k !== 'oguriking' && SPR[d.sprite]; });
+  const gachaPool = () => Object.keys(SPECIES).filter(k => { const d = SPECIES[k]; return !d.boss && !d.limited && !d.gate && !d.gold && !d.evoOnly && !d.recruitAfter && !GACHA_SEIGI.has(k) && k !== 'oguri' && k !== 'oguriking' && SPR[d.sprite]; });
   const GACHA_COST = { 1: 100, 10: 900 }, GACHA_DUP = 40;
   const GACHA_ODDS = [   // はいしゅつりつ (sums to 100)
     { p: 25, k: 'plush', label: 'ぬいぐるみ' },
@@ -4481,8 +4513,20 @@
   const jstDow = () => new Date(Date.now() + 9 * 3600e3).getUTCDay();
   const evToday = () => Object.assign({ dow: jstDow() }, EVENTS[jstDow()]);
   const evFirstDone = () => !!(G.flags.evd && G.flags.evd.d === jstDay());
-  function evStart() {
+  // ★ limited-time events (data.js SPECIAL_EVENTS): featured at the top of the イベント screen until `until`
+  const JACK_JOIN = 0.4;   // chance that ジャックん asks to join after beating the boss
+  const evSpecial = () => (typeof SPECIAL_EVENTS === 'undefined' ? [] : SPECIAL_EVENTS).find(e => Date.now() <= Date.parse(e.until) && STAGES.some(s => s.id === e.stage)) || null;
+  const evSpDaily = S => !!(G.flags['evs_' + S.id] === jstDay());
+  const evPick = H => { const S = evSpecial(); return S && !H.evW ? S : null; };   // H.evW = weekly tab chosen
+  const EV_TABS = [[3, 44, 76, 9], [81, 44, 76, 9]];
+  function evStart(H) {
     if (!G.flags.tut) { banner('まずは クエストで ぼうけんを はじめよう！', 2); return; }
+    const S = H ? evPick(H) : null;
+    if (S) {   // special: the stage's own spawns / levels / boss stay as designed
+      const i = STAGES.findIndex(s => s.id === S.stage); if (i < 0) return;
+      persist(); const ret = G.stage; enterStage(i); G.ev = Object.assign({ ret, special: true }, S);
+      banner(`「${S.name}」 スタート！ おくの ボスを たおそう`, 2.6); return;
+    }
     const E = evToday(), i = STAGES.findIndex(s => s.id === E.stage); if (i < 0) return;
     persist(); const ret = G.stage; enterStage(i); G.ev = Object.assign({ ret }, E);
     for (const w of G.wilds) {
@@ -4494,23 +4538,64 @@
   }
   function evClear() {
     const E = G.ev, ret = E.ret; G.ev = null; G.stage = ret;
+    if (E.special) {
+      const today = jstDay(), first = G.flags['evs_' + E.id] !== today, once = !G.flags['evonce_' + E.id];
+      G.flags['evs_' + E.id] = today; G.flags['evonce_' + E.id] = 1; G.flags.evN = (G.flags.evN | 0) + 1;
+      const c = E.coins + (first ? E.daily : 0) + (once ? E.once : 0); G.coins += c;
+      persist(); openHub(); SFX.recruit();
+      banner(`「${E.name}」 クリア！ ${c}コイン ゲット！${once ? ' (はじめての クリア +' + E.once + ')' : ''}${first ? ' (きょう はじめて +' + E.daily + ')' : ''}`, 4);
+      return;
+    }
     const F = G.flags.evd = G.flags.evd || { d: '', n: 0 }, today = jstDay(), first = F.d !== today;
     F.d = today; F.n = first ? 1 : (F.n | 0) + 1; G.flags.evN = (G.flags.evN | 0) + 1;
     const c = EV_COINS + (first ? EV_FIRST : 0); G.coins += c;
     persist(); openHub(); SFX.recruit();
     banner(`イベント クリア！ ${c}コイン ゲット！${first ? ' (きょう はじめての クリア ボーナス +' + EV_FIRST + ')' : ''}`, 3.6);
   }
+  function evTab(H, x, y) {   // returns true when a tab was hit
+    if (!evSpecial()) return false;
+    const hit = r => x >= r[0] && x < r[0] + r[2] && y >= r[1] && y < r[1] + r[3];
+    if (hit(EV_TABS[0])) { H.evW = false; SFX.blip(); return true; }
+    if (hit(EV_TABS[1])) { H.evW = true; SFX.blip(); return true; }
+    return false;
+  }
   function drawEvent(H) {
     hubTop('イベント', true);
-    const E = evToday(), st = STAGES.find(s => s.id === E.stage), nx = EVENTS[(E.dow + 1) % 7];
-    if (HART.banner) g.drawImage(HART.banner, 0, 11); else hubFrame(0, 11, 160, 32, '#ffe8b0');
-    T(E.name, 79.5, 11 + 12, { al: 'center', c: '#c0502a' });
-    hubFrame(3, 44, 154, 26, '#fff8e0');
-    T(`${DOW[E.dow]}ようびの ステージ: ${st ? st.name : ''}  てき Lv${E.lv}`, 7, 47, { c: '#4a2c12' });
-    T(`クリア: ${EV_COINS}コイン`, 7, 55, { c: '#4a2c12' });
-    T(evFirstDone() ? 'きょうの ボーナスは もらったよ' : `きょう はじめて: +${EV_FIRST}コイン！`, 153, 55, { al: 'right', c: evFirstDone() ? '#9a8a70' : '#ff6a2a' });
-    T(`あしたは「${nx.name}」`, 7, 63, { c: '#7a5a30' });
-    const b = EV_BTN, bob = Math.floor(G.t * 3) % 2; hubFrame(b[0], b[1] - bob, b[2], b[3], '#ffd23a'); T('ちょうせん！', b[0] + b[2] / 2, b[1] + 4 - bob, { al: 'center', c: '#5a3418' });
+    const SP = evSpecial(), S = evPick(H);
+    const E = evToday(), st = STAGES.find(s => s.id === (S ? S.stage : E.stage)), nx = EVENTS[(E.dow + 1) % 7];
+    if (S) {   // featured special banner: night sky + moon + pumpkins (until event art arrives)
+      hubFrame(0, 11, 160, 32, '#2a1640'); rect(1, 12, 158, 30, '#241238');
+      for (let i = 0; i < 14; i++) rect((i * 37 + 11) % 156 + 2, 13 + (i * 13) % 16, 1, 1, '#e0c8ff');
+      rect(132, 15, 14, 14, '#ff9a2a'); rect(131, 17, 16, 10, '#ff9a2a'); rect(134, 14, 10, 16, '#ff9a2a'); rect(135, 17, 3, 3, '#f08020');
+      for (const px of [8, 22, 112]) { rect(px, 34, 8, 6, '#ff8a1e'); rect(px + 3, 33, 2, 1, '#3a8a2a'); rect(px + 2, 36, 1, 1, '#ffe070'); rect(px + 5, 36, 1, 1, '#ffe070'); }
+      T(S.banner, 79.5, 11 + 6, { al: 'center', c: '#ffb04a' });
+      T(S.tag, 79.5, 11 + 16, { al: 'center', c: '#e0c8ff' });
+      const left = Math.max(0, Math.ceil((Date.parse(S.until) - Date.now()) / 86400e3));
+      T(`あと ${left}にち`, 79.5, 11 + 24, { al: 'center', c: '#ffffff' });
+    } else {
+      if (HART.banner) g.drawImage(HART.banner, 0, 11); else hubFrame(0, 11, 160, 32, '#ffe8b0');
+      T(E.name, 79.5, 11 + 12, { al: 'center', c: '#c0502a' });
+    }
+    let iy = 44;
+    if (SP) {   // tabs: とくべつ / まいにち
+      EV_TABS.forEach((r, i) => { const on = (i === 0) === !!S; hubFrame(r[0], r[1], r[2], r[3], on ? (i ? '#ffd23a' : '#ffa84a') : '#e8dcc0'); T(i ? 'まいにちの イベント' : '★ げんてい', r[0] + r[2] / 2, r[1] + 2, { al: 'center', c: on ? '#5a3418' : '#9a8a70' }); });
+      iy = 54;
+    }
+    hubFrame(3, iy, 154, 70 - iy, '#fff8e0');
+    const L = SP ? [iy + 2, iy + 9] : [47, 55, 63];
+    if (S) {
+      T(`ステージ: ${st.name}  てき Lv${S.lv}`, 7, L[0], { c: '#4a2c12' });
+      const once = !G.flags['evonce_' + S.id], day = evSpDaily(S);
+      T(`クリア ${S.coins}`, 7, L[1], { c: '#4a2c12' });
+      T(once ? `はじめて +${S.once}！` : 'はじめて: もらったよ', 79, L[1], { al: 'center', c: once ? '#ff6a2a' : '#9a8a70' });
+      T(day ? 'きょう: もらったよ' : `きょう +${S.daily}`, 153, L[1], { al: 'right', c: day ? '#9a8a70' : '#ff6a2a' });
+    } else {
+      T(`${DOW[E.dow]}ようびの ステージ: ${st ? st.name : ''}  てき Lv${E.lv}`, 7, L[0], { c: '#4a2c12' });
+      T(`クリア: ${EV_COINS}コイン`, 7, L[1], { c: '#4a2c12' });
+      T(evFirstDone() ? 'きょうの ボーナスは もらったよ' : `きょう はじめて: +${EV_FIRST}コイン！`, 153, L[1], { al: 'right', c: evFirstDone() ? '#9a8a70' : '#ff6a2a' });
+      if (!SP) T(`あしたは「${nx.name}」`, 7, L[2], { c: '#7a5a30' });
+    }
+    const b = EV_BTN, bob = Math.floor(G.t * 3) % 2; hubFrame(b[0], b[1] - bob, b[2], b[3], S ? '#ffa84a' : '#ffd23a'); T('ちょうせん！', b[0] + b[2] / 2, b[1] + 4 - bob, { al: 'center', c: '#5a3418' });
   }
   function drawMapHomeChip() { hubFrame(2, 1, 23, 9, '#fff8e0'); T('ホーム', 13.5, 3, { al: 'center', c: '#5a3418' }); }
   function drawBanner() {
@@ -4740,7 +4825,10 @@
   async function boot() {
     resize();
     if (typeof SPRITES_PENDING !== 'undefined') for (const [k, s] of Object.entries(SPRITES_PENDING)) if (artReady(s.src)) SPRITES[k] = s;
+    if (typeof SPRITES_PH !== 'undefined') for (const [k, s] of Object.entries(SPRITES_PH)) if (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[s.src]) SPRITES[k] = s;
     await Promise.all(Object.entries(SPRITES).map(([k, s]) => loadImg(s.src).then(img => prepSprite(k, img))));
+    if (typeof SPRITES_PH !== 'undefined') for (const [k, s] of Object.entries(SPRITES_PH)) if (!SPR[k]) { SPRITES[k] = { native: 1 }; prepSprite(k, makePh(s.ph)); }
+    if (typeof ASSET_DATA !== 'undefined') await Promise.all(STAGES.filter(st => st.bgImg && ASSET_DATA[st.bgImg]).map(st => loadImg(st.bgImg).then(img => { EVBG[st.id] = img; }).catch(() => {})));
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.walk).map(([k, s]) => loadImg(s.walk.src).then(img => prepWalk(k, img, s.walk)).catch(() => {})));
     await Promise.all(Object.entries(SPRITES).filter(([, s]) => s.attack).map(([k, s]) => loadImg(s.attack.src).then(img => { SPR[k].attack = sheetFrames(img, s.attack.frames); }).catch(() => {})));
     makeCrownSprites();
@@ -4778,6 +4866,6 @@
     requestAnimationFrame(frame);
   }
   // debug / test hooks
-  window.NM = { SPR, trainBuy, tgTap, TG_TUNE, gachaPull, gachaNext, evStart, evToday, GACHA_POOL: () => gachaPool(), TR_TIERS, EVENTS, USF, get carrots() { return carrotsBack(); }, hasMini: k => !!(SPR[k] && MINI.get(SPR[k].n)), openHub, hubKey, hubTap, jstDay, SFX, playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
+  window.NM = { SPR, trainBuy, tgTap, TG_TUNE, gachaPull, gachaNext, evStart, evToday, evSpecial, GACHA_POOL: () => gachaPool(), TR_TIERS, EVENTS, USF, get carrots() { return carrotsBack(); }, hasMini: k => !!(SPR[k] && MINI.get(SPR[k].n)), openHub, hubKey, hubTap, jstDay, SFX, playEnding, startGame, usahimeMeet, carrotsBack, mapKey, menuPick, get menuRows() { return G.menu ? menuRows() : []; }, measure, wrapW, G, openSetup, setHero, openName, closeName, player, comp, interact, openBag, startBattle, choose, enterStage, openMap, clearStage, recruitChance, persist, wipeSave, confirmSwap, startTrainer, grantXp, tryEvolve, startVersus, closeNet, openNet, NET, get ally() { return ally(); }, get layout() { return layout; }, TOUCH, BTN, openHk, closeHk, AUTH, acctCheck, cloudPut, saveObj, get hk() { return G.hk; } };
   boot().catch(e => { $err.textContent += String(e) + '\n'; console.error(e); });
 })();
