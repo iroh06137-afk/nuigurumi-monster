@@ -1,0 +1,64 @@
+{
+  "image": "miiran_walk_right.png",
+  "size": {
+    "w": 128,
+    "h": 32
+  },
+  "frameSize": {
+    "w": 32,
+    "h": 32
+  },
+  "facing": "right",
+  "note": "Right-facing ミイラン waddle, made from the faithful downscale of the source plush; mirror horizontally for left. Baseline row 30 in all frames; Row 31 is empty.",
+  "frames": [
+    {
+      "index": 0,
+      "name": "walk_0",
+      "desc": "waddle A: body leans forward 1px, feet spread 1px; lowest outline row 30",
+      "x": 0,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 150
+    },
+    {
+      "index": 1,
+      "name": "walk_1",
+      "desc": "pass: body bobs up 1px, feet planted",
+      "x": 32,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 150
+    },
+    {
+      "index": 2,
+      "name": "walk_2",
+      "desc": "waddle B: body leans back 1px, feet gathered 1px",
+      "x": 64,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 150
+    },
+    {
+      "index": 3,
+      "name": "walk_3",
+      "desc": "pass: bob up 1px again",
+      "x": 96,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 150
+    }
+  ],
+  "frameDurationMs": 150,
+  "loop": true,
+  "order": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "baselineRow": 30
+}

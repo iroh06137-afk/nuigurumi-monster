@@ -349,6 +349,15 @@
       eye(13, 12); eye(19, 12); R(15, 17, 3, 2, '#2a1a2a');
       R(11, 21, 4, 3, ph.acc); R(18, 21, 4, 3, ph.acc); R(15, 22, 3, 2, '#c85a10');   // orange bow tie
       R(9, 16, 2, 1, '#ffb0c8'); R(23, 16, 2, 1, '#ffb0c8');
+    } else if (ph.shape === 'cat') {   // black cat in a witch hat (evo: taller hat + star)
+      blob(16, 21, 8, 7, ph.body); R(9, 25, 15, 5, ph.body); R(10, 30, 4, 2, ph.body); R(19, 30, 4, 2, ph.body);
+      R(9, 14, 3, 4, ph.body); R(21, 14, 3, 4, ph.body); R(10, 15, 1, 2, '#ff9ac0'); R(22, 15, 1, 2, '#ff9ac0');   // ears
+      R(24, 24, 4, 2, ph.body); R(27, 21, 2, 4, ph.body);   // tail
+      eye(12, 19); eye(19, 19); R(13, 20, 1, 1, '#ffe070'); R(20, 20, 1, 1, '#ffe070'); R(15, 23, 3, 1, '#ff9ac0');
+      R(10, 23, 2, 1, '#ff9ac0'); R(21, 23, 2, 1, '#ff9ac0');
+      const hy = ph.evo ? 1 : 4;
+      R(7, 13, 19, 2, ph.acc); R(11, hy + 6, 11, 7, ph.acc); R(13, hy + 2, 7, 5, ph.acc); R(15, hy, 3, 3, ph.acc); R(11, 12, 11, 1, '#ffd04a');   // witch hat + band
+      if (ph.evo) { R(16, 8, 1, 3, '#ffe070'); R(15, 9, 3, 1, '#ffe070'); }
     } else {   // mummy
       blob(16, 12, 8, 8, ph.body); R(9, 14, 15, 16, ph.body);
       for (let y = 6; y < 30; y += 3) R(8, y, 17, 1, ph.acc);
@@ -2233,6 +2242,10 @@
       a.amTold = 1; a.face = Math.sign(player.x - a.x) || -1; G.camT = clamp((player.x + a.x) / 2 - W / 2, 0, WORLD_W - W);
       say(a.def.name, a.def.lines, () => startTrainer(a)); return;
     }
+    for (const w of G.wilds) if (w.alive && w.rare) {   // rare wild (SPECIAL_EVENTS spawn table): sparkles + 「レアだ！」 once in view
+      if ((w.spT = (w.spT || 0) - dt) <= 0) { w.spT = 0.45; burst(w.x + (rand() - 0.5) * 16, GROUND - 10 - rand() * 18, 'spark', 2, '#ffe070'); }
+      if (!w.rareTold && Math.abs(w.x - player.x) < 100) { w.rareTold = 1; G.pops.push({ x: w.x, y: GROUND - 38, text: 'レアだ！', col: '#ffe070', life: 1.6, kana: true }); SFX.blip(); }
+    }
     for (const w of G.wilds) if (w.alive && w.gate && player.x > w.x - 18) { player.x = w.x - 18; if (comp.x > w.x - 20) comp.x = w.x - 20; }   // mid-boss gate: can't pass until beaten
     for (const w of G.wilds) {
       if (!w.alive) continue;
@@ -3281,10 +3294,10 @@
     if (B.result === 'win' && B.w.gate && SPECIES[B.w.sp].gateLose && !G.friend && !G.versus) { say('', allyLines(SPECIES[B.w.sp].gateLose), () => { if (SPECIES[B.w.sp].gold) carrotBack(); if (coopWin) say('', RIVAL_STORY.coop.win, () => {}); }); return; }   // mid-boss: unrepentant after losing
     const rvWin = B.result === 'win' && !G.friend && !G.versus && B.trainerActor && /^rv_/.test(B.trainerActor.def.id || '') ? B.trainerActor : null;
     if (rvWin) { G.flags[rvWin.def.id] = 1; persist(); }
-    const jackJoin = B.result === 'win' && !G.friend && !G.versus && B.w.sp === 'jackun_boss' && rand() < JACK_JOIN;
+    const jackJoin = B.result === 'win' && !G.friend && !G.versus && B.w.sp === 'jackn_boss' && rand() < JACK_JOIN;
     const join = () => {
       if (rvWin) { say(rvWin.def.name, rvWin.def.after); return; }
-      if (jackJoin) { const d = SPECIES.jackun_boss, lv = B.w.lv || 20; say('ジャックん', d.joinLines, () => { G.menu = { kind: 'ask', sel: 0, sp: 'jackun', lv }; G.state = 'menu'; }); return; }
+      if (jackJoin) { const d = SPECIES.jackn_boss, lv = 1; /* recruits start at Lv1 */ say('ジャックン', d.joinLines, () => { G.menu = { kind: 'ask', sel: 0, sp: 'jackn', lv }; G.state = 'menu'; }); return; }
       if (!joinAsk) return;
       const sp = joinAsk.sp, nm = SPECIES[sp].name, lv = joinAsk.lv || 1;
       say(nm, SPECIES[sp].joinLines || [['…まけたわ。', 'あなたたち つよいのね'], ['わたしも いっしょに', 'つれていって くれる？']], () => { G.menu = { kind: 'ask', sel: 0, sp, lv }; G.state = 'menu'; });
@@ -3914,6 +3927,7 @@
     }
     for (const p of G.pops) {
       const s = String(p.text), x = Math.round(p.x - cam - tinyW(s) / 2), y = Math.round(p.y);
+      if (p.kana) { if (p.life > 0.15 || Math.floor(p.life * 30) % 2) T(s, Math.round(p.x - cam), y, { al: 'center', c: p.col }); continue; }   // kana text (「レアだ！」) needs the T() font
       if (p.life > 0.15 || Math.floor(p.life * 30) % 2) tiny(s, x, y, p.col, '#2a1a10');
     }
   }
@@ -4546,8 +4560,9 @@
   const evToday = () => Object.assign({ dow: jstDow() }, EVENTS[jstDow()]);
   const evFirstDone = () => !!(G.flags.evd && G.flags.evd.d === jstDay());
   // ★ limited-time events (data.js SPECIAL_EVENTS): featured at the top of the イベント screen until `until`
-  const JACK_JOIN = 0.4;   // chance that ジャックん asks to join after beating the boss
+  const JACK_JOIN = 0.4;   // chance that ジャックン asks to join after beating the boss
   const evSpecial = () => (typeof SPECIAL_EVENTS === 'undefined' ? [] : SPECIAL_EVENTS).find(e => Date.now() <= Date.parse(e.until) && STAGES.some(s => s.id === e.stage)) || null;
+  const evRoll = T => { let r = rand() * T.reduce((a, s) => a + s.w, 0); for (const s of T) if ((r -= s.w) < 0) return s; return T[T.length - 1]; };
   const evSpDaily = S => !!(G.flags['evs_' + S.id] === jstDay());
   const evPick = H => { const S = evSpecial(); return S && !H.evW ? S : null; };   // H.evW = weekly tab chosen
   const EV_TABS = [[3, 44, 76, 9], [81, 44, 76, 9]];
@@ -4557,6 +4572,10 @@
     if (S) {   // special: the stage's own spawns / levels / boss stay as designed
       const i = STAGES.findIndex(s => s.id === S.stage); if (i < 0) return;
       persist(); const ret = G.stage; enterStage(i); G.ev = Object.assign({ ret, special: true }, S);
+      if (S.spawn) for (const w of G.wilds) {   // weighted random wild slots (the boss stays)
+        if (w.gate || w.story || SPECIES[w.sp].boss) continue;
+        const r = evRoll(S.spawn); Object.assign(w, trainerMember({ sp: r.sp, lv: w.lv })); w.key = memberKey(w); w.rare = !!r.rare;
+      }
       banner(`「${S.name}」 スタート！ おくの ボスを たおそう`, 2.6); return;
     }
     const E = evToday(), i = STAGES.findIndex(s => s.id === E.stage); if (i < 0) return;
@@ -4599,11 +4618,16 @@
       hubFrame(0, 11, 160, 32, '#2a1640'); rect(1, 12, 158, 30, '#241238');
       for (let i = 0; i < 14; i++) rect((i * 37 + 11) % 156 + 2, 13 + (i * 13) % 16, 1, 1, '#e0c8ff');
       rect(132, 15, 14, 14, '#ff9a2a'); rect(131, 17, 16, 10, '#ff9a2a'); rect(134, 14, 10, 16, '#ff9a2a'); rect(135, 17, 3, 3, '#f08020');
-      for (const px of [8, 22, 112]) { rect(px, 34, 8, 6, '#ff8a1e'); rect(px + 3, 33, 2, 1, '#3a8a2a'); rect(px + 2, 36, 1, 1, '#ffe070'); rect(px + 5, 36, 1, 1, '#ffe070'); }
+      for (const px of [4, 148]) { rect(px, 34, 8, 6, '#ff8a1e'); rect(px + 3, 33, 2, 1, '#3a8a2a'); rect(px + 2, 36, 1, 1, '#ffe070'); rect(px + 5, 36, 1, 1, '#ffe070'); }
       T(S.banner, 79.5, 11 + 6, { al: 'center', c: '#ffb04a' });
       T(S.tag, 79.5, 11 + 16, { al: 'center', c: '#e0c8ff' });
       const left = Math.max(0, Math.ceil((Date.parse(S.until) - Date.now()) / 86400e3));
-      T(`あと ${left}にち`, 79.5, 11 + 24, { al: 'center', c: '#ffffff' });
+      T(`あと ${left}にち`, 4, 13, { c: '#ffffff' });
+      if (S.spawn) {   // spawn rates: equal weights are grouped (「…32%ずつ」), rare ones get a ★
+        const by = {}; for (const s of S.spawn) if (!s.rare) (by[s.w] = by[s.w] || []).push(SPECIES[s.sp].name);
+        const txt = Object.entries(by).map(([w, n]) => n.join('・') + ' ' + w + (n.length > 1 ? '%ずつ' : '%')).concat(S.spawn.filter(s => s.rare).map(s => '★' + SPECIES[s.sp].name + ' ' + s.w + '%')).join('  ');
+        T(txt, 79.5, 11 + 24, { al: 'center', c: '#ffe070' });
+      }
     } else {
       if (HART.banner) g.drawImage(HART.banner, 0, 11); else hubFrame(0, 11, 160, 32, '#ffe8b0');
       T(E.name, 79.5, 11 + 12, { al: 'center', c: '#c0502a' });

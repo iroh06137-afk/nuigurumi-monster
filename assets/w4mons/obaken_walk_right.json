@@ -1,0 +1,64 @@
+{
+  "image": "obaken_walk_right.png",
+  "size": {
+    "w": 128,
+    "h": 32
+  },
+  "frameSize": {
+    "w": 32,
+    "h": 32
+  },
+  "facing": "right",
+  "note": "Right-facing オバケン floating glide, made from the faithful downscale of the source plush; mirror horizontally for left. Lowest outline row 30 on frame 0; frames 1-3 float 1-2px up with a 1px hem wave. Row 31 is empty.",
+  "frames": [
+    {
+      "index": 0,
+      "name": "walk_0",
+      "desc": "hover low: hem at rest; lowest outline row 30",
+      "x": 0,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 150
+    },
+    {
+      "index": 1,
+      "name": "walk_1",
+      "desc": "rise: up 1px, hem rows ripple +-1px",
+      "x": 32,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 150
+    },
+    {
+      "index": 2,
+      "name": "walk_2",
+      "desc": "hover high: up 2px, hem at rest",
+      "x": 64,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 150
+    },
+    {
+      "index": 3,
+      "name": "walk_3",
+      "desc": "sink: up 1px, hem ripples the other way",
+      "x": 96,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 150
+    }
+  ],
+  "frameDurationMs": 150,
+  "loop": true,
+  "order": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "baselineRow": 30
+}
