@@ -201,7 +201,8 @@
   window.addEventListener('pointerup', padEnd);
   window.addEventListener('pointercancel', padEnd);
   for (const [el, code] of [[$jump, 'Space'], [$swap, 'KeyC']]) {
-    el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('on'); const m = ctlMode(); if (m === 'title') { if (el === $swap) onKey('ArrowDown'); } else if (m === 'cmd' || m === 'back') onKey(ctlKey(el === $jump ? 'A' : 'B')); else if (m === 'talk') onKey('Enter'); else if (m === 'near' && el === $jump) onKey('Enter'); else onKey(code); });
+    el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('on'); const m = ctlMode(); if (G.state === 'hub') onKey(el === $jump ? 'Enter' : 'ArrowRight');   // menu: けってい opens the picked item, つぎ steps to the next
+      else if (m === 'title') { if (el === $swap) onKey('ArrowDown'); } else if (m === 'cmd' || m === 'back') onKey(ctlKey(el === $jump ? 'A' : 'B')); else if (m === 'talk') onKey('Enter'); else if (m === 'near' && el === $jump) onKey('Enter'); else onKey(code); });
     // title けってい fires on release: opening the name box needs a finished tap for the phone keyboard
     el.addEventListener('pointerup', () => { if (G.state === 'title' && el === $jump && el.classList.contains('on')) titleConfirm(); });
     const up = () => el.classList.remove('on');
