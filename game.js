@@ -349,15 +349,6 @@
       eye(13, 12); eye(19, 12); R(15, 17, 3, 2, '#2a1a2a');
       R(11, 21, 4, 3, ph.acc); R(18, 21, 4, 3, ph.acc); R(15, 22, 3, 2, '#c85a10');   // orange bow tie
       R(9, 16, 2, 1, '#ffb0c8'); R(23, 16, 2, 1, '#ffb0c8');
-    } else if (ph.shape === 'cat') {   // black cat in a witch hat (evo: taller hat + star)
-      blob(16, 21, 8, 7, ph.body); R(9, 25, 15, 5, ph.body); R(10, 30, 4, 2, ph.body); R(19, 30, 4, 2, ph.body);
-      R(9, 14, 3, 4, ph.body); R(21, 14, 3, 4, ph.body); R(10, 15, 1, 2, '#ff9ac0'); R(22, 15, 1, 2, '#ff9ac0');   // ears
-      R(24, 24, 4, 2, ph.body); R(27, 21, 2, 4, ph.body);   // tail
-      eye(12, 19); eye(19, 19); R(13, 20, 1, 1, '#ffe070'); R(20, 20, 1, 1, '#ffe070'); R(15, 23, 3, 1, '#ff9ac0');
-      R(10, 23, 2, 1, '#ff9ac0'); R(21, 23, 2, 1, '#ff9ac0');
-      const hy = ph.evo ? 1 : 4;
-      R(7, 13, 19, 2, ph.acc); R(11, hy + 6, 11, 7, ph.acc); R(13, hy + 2, 7, 5, ph.acc); R(15, hy, 3, 3, ph.acc); R(11, 12, 11, 1, '#ffd04a');   // witch hat + band
-      if (ph.evo) { R(16, 8, 1, 3, '#ffe070'); R(15, 9, 3, 1, '#ffe070'); }
     } else {   // mummy
       blob(16, 12, 8, 8, ph.body); R(9, 14, 15, 16, ph.body);
       for (let y = 6; y < 30; y += 3) R(8, y, 17, 1, ph.acc);

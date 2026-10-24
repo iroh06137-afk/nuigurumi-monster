@@ -1,0 +1,87 @@
+{
+  "image": "majoneko_attack_right.png",
+  "size": {
+    "w": 128,
+    "h": 32
+  },
+  "frameSize": {
+    "w": 32,
+    "h": 32
+  },
+  "facing": "right",
+  "name": "まじょのほしくず",
+  "note": "まじょのほしくず cast (まじょネコ), facing RIGHT (mirror for left). Play 0->1->2, hold 2 while the shot flies, then 3, then return to majoneko_right.png. Spawn the majoneko_fx_shot anchor (22,16) at fxSpawn of the firing frame. fxSpawn = sprite-local pixel (frame coords, x right / y down, same space as the 32x32 frame) where the fx anchor goes; mirror x (31-x) when the attacker faces left.",
+  "frames": [
+    {
+      "index": 0,
+      "name": "attack_0",
+      "desc": "brace: upper body pulled back 1px and raised 1px (the rest follows smoothly)",
+      "x": 0,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 200,
+      "fxSpawn": {
+        "x": 26,
+        "y": 15
+      },
+      "firesFx": false
+    },
+    {
+      "index": 1,
+      "name": "attack_1",
+      "desc": "strike: upper body thrusts forward 1px - FIRE the shot here",
+      "x": 32,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 90,
+      "fxSpawn": {
+        "x": 28,
+        "y": 16
+      },
+      "firesFx": true
+    },
+    {
+      "index": 2,
+      "name": "attack_2",
+      "desc": "hold: forward 1px and down 1px; hold while the shot flies",
+      "x": 64,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 360,
+      "fxSpawn": {
+        "x": 28,
+        "y": 17
+      },
+      "firesFx": false
+    },
+    {
+      "index": 3,
+      "name": "attack_3",
+      "desc": "return: back in place (next: standing sprite)",
+      "x": 96,
+      "y": 0,
+      "w": 32,
+      "h": 32,
+      "duration": 180,
+      "fxSpawn": {
+        "x": 27,
+        "y": 16
+      },
+      "firesFx": false
+    }
+  ],
+  "frameDurationMs": 100,
+  "loop": false,
+  "order": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "baselineRow": 30,
+  "fxFireFrame": 1,
+  "holdFrame": 2
+}

@@ -60,6 +60,8 @@ const SPRITES = {
   jackn: { src: 'assets/w4mons/jackn_right.png', native: 1, walk: { src: 'assets/w4mons/jackn_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/jackn_attack_right.png', frames: 4 } },
   obaken: { src: 'assets/w4mons/obaken_right.png', native: 1, walk: { src: 'assets/w4mons/obaken_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/obaken_attack_right.png', frames: 4 } },
   miiran: { src: 'assets/w4mons/miiran_right.png', native: 1, walk: { src: 'assets/w4mons/miiran_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/miiran_attack_right.png', frames: 4 } },
+  majoneko: { src: 'assets/w4mons/majoneko_right.png', native: 1, walk: { src: 'assets/w4mons/majoneko_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/majoneko_attack_right.png', frames: 4 } },
+  majoneko_evo: { src: 'assets/w4mons/majoneko_evo_right.png', native: 1, walk: { src: 'assets/w4mons/majoneko_evo_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/majoneko_evo_attack_right.png', frames: 4 } },
   kametank_gold: { src: 'assets/w4mons/kametank_gold_right.png', native: 1, walk: { src: 'assets/w4mons/kametank_gold_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/kametank_gold_attack_right.png', frames: 4 } },
   usaknight_gold: { src: 'assets/w4mons/usaknight_gold_right.png', native: 1, walk: { src: 'assets/w4mons/usaknight_gold_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/w4mons/usaknight_gold_attack_right.png', frames: 4 } },
   oguri_evo_gold: { src: 'assets/evo/oguri_evo_gold_right.png', native: 1, walk: { src: 'assets/evo/oguri_evo_gold_walk_right.png', frames: 4, ms: 150 }, attack: { src: 'assets/evo/oguri_evo_gold_attack_right.png', frames: 4 } },
@@ -95,8 +97,6 @@ const SPRITES_PENDING = {};
 // ★ event plush whose art isn't in yet: if assets/<id>.png is embedded it is used, otherwise game.js draws a placeholder (coloured shape + eyes).
 // ph = placeholder look: body colour, shape, accent colour
 const SPRITES_PH = {
-  majoneko: { src: 'assets/w4mons/majoneko_right.png', native: 1, ph: { body: '#3a3050', shape: 'cat', acc: '#7a3ac8' } },       // ★ rare: black cat in a witch hat (placeholder until art)
-  majoneko_evo: { src: 'assets/w4mons/majoneko_evo_right.png', native: 1, ph: { body: '#3a3050', shape: 'cat', acc: '#c83a8a', evo: 1 } },   // evolved look (placeholder: bigger hat + star)
 };
 
 const SPECIES = {
@@ -538,7 +538,7 @@ const SPECIES = {
     hp: 50, atk: 15, def: 10, spd: 15, recruitBase: 0.10,
     moves: {
       attack: { name: 'ねこパンチ',       power: 13, acc: 0.96 },
-      strong: { name: 'まほうの ほうき', power: 29, acc: 0.85 },
+      strong: { name: 'まほうの ほうき', power: 29, acc: 0.85, fxFrom: 'majoneko' },   // まじょのほしくず star art
     },
   },
   oguri: {
@@ -622,7 +622,7 @@ const EVO_MOVES = {
   jackn_boss: { special: { name: 'かぼちゃボム', fx: 'wave', col: '#ff8a1e', fxSp: 'jackn' } },
   obaken: { special: { name: 'いたずらバー', fx: 'wave', col: '#f4f4fa' } },
   miiran: { special: { name: 'ほうたいぐるぐる', fx: 'wave', col: '#e8dcb8' } },
-  majoneko: { special: { name: 'にゃんにゃん マジックスター', fx: 'multi', hits: 3, shape: 'orb', col: '#c8a0ff' } },
+  majoneko: { special: { name: 'にゃんにゃん マジックスター', fx: 'wave', col: '#c8a0ff', fxSp: 'majoneko_evo' } },   // special = evolved only → evolved star art
   lioneru: { special: { name: 'がおーほうこう', fx: 'wave', col: '#ffd04a' } },
   wolfun: { special: { name: 'やみのきば', fx: 'orb', col: '#8a5cff' } },
   saiguard: { special: { name: 'どすこいとっしん', fx: 'orb', col: '#c0a080' } },
@@ -682,6 +682,8 @@ const FX_ART = {
   jackn: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[26, 19], [28, 20], [28, 20], [27, 20]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   obaken: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[26, 19], [28, 19], [28, 20], [27, 19]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   miiran: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[27, 21], [28, 21], [28, 22], [28, 21]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  majoneko: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[26, 15], [28, 16], [28, 17], [27, 16]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  majoneko_evo: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[27, 14], [29, 13], [29, 14], [28, 13]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   kametank: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[28, 11], [29, 12], [29, 13], [29, 12]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   usaknight: {"cast": {"order": [0, 1, 2, 1, 2, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[28, 12], [30, 11], [30, 12], [29, 11]], "fire": [1, 3, 5], "hold": 6}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   lioneru: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[26, 14], [28, 15], [28, 15], [27, 15]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
