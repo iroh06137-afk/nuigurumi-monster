@@ -1824,9 +1824,16 @@
     g.globalAlpha = 1;
     rect(x + 13, y + 12, 2, 2, '#ffe24a'); rect(x + 17, y + 12, 2, 2, '#ffe24a');   // glowing eyes (no mouth: spooky, not scary)
   }
-  function drawCsPlush(x, y) {   // ミナ's small pink bunny plush (procedural, 9x10)
+  function drawCsPlush(x, y, right) {   // ミナ's plush = ウサギン, real sprite at native size (32x32, feet on row 30); procedural bunny if the art is missing
+    const s = SPR.usagin;
+    if (s) { g.drawImage(right ? s.n : s.f, x, y); return; }
+    x += 11; y += 20;
     rect(x + 2, y, 2, 4, '#ff9ac0'); rect(x + 5, y, 2, 4, '#ff9ac0'); rect(x + 1, y + 3, 7, 6, '#ff9ac0'); rect(x + 2, y + 9, 5, 1, '#ff9ac0');
     rect(x + 3, y + 1, 1, 2, '#ffd8e8'); rect(x + 3, y + 5, 1, 1, '#3a1a2a'); rect(x + 6, y + 5, 1, 1, '#3a1a2a'); rect(x + 4, y + 7, 2, 1, '#ff5a8a');
+  }
+  function drawCandy(x, y) {   // ふわふわキャンディ: 8x7 wrapped pink candy (procedural placeholder icon)
+    rect(x, y + 2, 2, 3, '#ffd0e4'); rect(x + 6, y + 2, 2, 3, '#ffd0e4'); rect(x + 1, y + 1, 1, 1, '#ffd0e4'); rect(x + 6, y + 5, 1, 1, '#ffd0e4');
+    rect(x + 2, y + 1, 4, 5, '#ff6aa8'); rect(x + 3, y, 2, 7, '#ff6aa8'); rect(x + 3, y + 2, 1, 2, '#fff'); rect(x + 4, y + 4, 1, 1, '#c8387a');
   }
   const JAIL_W = 40, JAIL_H = 40;
   function drawJail(cam, front) {   // しろの なか cell around コウタ: back wall behind him, bars in front (bars slide up when opened)
@@ -1843,10 +1850,11 @@
   }
   function drawCS(cam, front) {
     drawJail(cam, front);
+    if (front) { const m = G.npcs.find(a => a.def && a.def.id === 'mina'); if (m) drawCsPlush(Math.round(m.x - cam) - 16 + (m.face > 0 ? 20 : -20), GROUND - 30 + Math.round(m.y), m.face > 0); }   // town: ウサギン back beside ミナ
     const c = G.cs; if (!front || !c || c.k !== 'snatch') return;
     const p = c.plush;
-    if (p.held === 'kid') drawCsPlush(Math.round(c.kid.x - cam) - 12, GROUND + Math.round(c.kid.y + c.kid.bob) - 16);
-    else if (p.held === 'sh') drawCsPlush(Math.round(p.x - cam) + 12, GROUND + Math.round(p.y) + 4);
+    if (p.held === 'kid') drawCsPlush(Math.round(c.kid.x - cam) - 16 + (c.kid.face > 0 ? 20 : -20), GROUND - 30 + Math.round(c.kid.y), c.kid.face > 0);   // standing at ミナ's feet
+    else if (p.held === 'sh') drawCsPlush(Math.round(c.sh.x - cam) - 16, GROUND - 30 + Math.round(c.sh.y) + 4, true);   // dangling under the かげ (ears at its claws)
     if (c.sh.vis) drawKage(Math.round(c.sh.x - cam) - 16, GROUND - 30 + Math.round(c.sh.y), c.plush.held === 'sh');
   }
   // ---------- town: people, buildings, shop, items ----------
@@ -1997,6 +2005,7 @@
       const cl = id => { const k = STAGES.findIndex(st => st.id === id); return k >= 0 && G.cleared.includes(k); };
       const mood = cl('shironaka') ? 'peace' : cl('oshiro') ? 'fear' : null;
       const lines = (d.home && G.flags.cs_kota && d.home) || (mood && d[mood]) || (mood && d.fear) || d.lines;   // コウタの おかあさん stays worried until he's home
+      if (d.giftItem && d.home && G.flags.cs_kota && !G.flags.candyGift) { say(d.name, d.home.concat(d.gift), () => { G.flags.candyGift = 1; G.items[d.giftItem] = (G.items[d.giftItem] | 0) + 1; SFX.recruit(); banner(`${ITEMS[d.giftItem].name}を もらった！`, 2.0); persist(); }); return; }
       if (d.battle && !G.fought.includes(d.id)) say(d.name, G.beaten.includes(d.id) ? [['また しょうぶだ！']].concat(lines.slice(-1)) : lines, () => startTrainer(n.a));
       else say(d.name, (d.battle && d.after) || lines);
       return;
@@ -2138,10 +2147,10 @@
       if (G.cookie) { banner('もう たべさせてある', 1.2); return; }
       G.cookie = true; banner('つぎの なかまにする が せいこう しやすい！', 1.8);
     } else if (it.use === 'lvup') {
-      if (!it.sps.includes(a.sp)) { SFX.miss(); banner(`${a.name}は たべられない… (${it.sps.map(s => SPECIES[s].name).join(' か ')} だけ)`, 2.0); return; }
+      if (it.sps && !it.sps.includes(a.sp)) { SFX.miss(); banner(`${a.name}は たべられない… (${it.sps.map(s => SPECIES[s].name).join(' か ')} だけ)`, 2.0); return; }
       if ((a.lv || 1) >= MAX_LV) { banner(`${a.name}は もう これいじょう Lvが あがらない`, 1.6); return; }
       a.lv = (a.lv || 1) + 1; a.xp = 0; a.maxHp += 4; a.hp = Math.min(a.maxHp, a.hp + 4); a.atk += 1; a.def += 1; if (a.lv % 2 === 0) a.spd += 1;
-      burst(comp.x, GROUND - 14, 'spark', 12, '#ff9a2a'); banner(`${a.name}は にんじんを たべた！ レベル ${a.lv} に あがった！`, 2.0);
+      burst(comp.x, GROUND - 14, 'spark', 12, '#ff9a2a'); banner(`${a.name}は ${it.eat || 'にんじんを たべた'}！ レベル ${a.lv} に あがった！`, 2.0);
       G.items[k]--; if (G.items[k] <= 0) delete G.items[k];
       persist(); closeMenu(); SFX.level();
       G.fieldCo = (function* () { yield* wait(1.4); yield* tryEvolve(); persist(); })();   // normal Lv10 evolution
@@ -4227,6 +4236,7 @@
         return;
       }
       const it = ITEMS[k], have = G.items[k] | 0;
+      if (k === 'candy') drawCandy(x + 2, yy + 1);
       T(it.name, x + 10, yy);
       if (M.kind === 'shop') { T(`${it.price}`, x + 86, yy, { al: 'right', c: G.coins >= it.price ? '#4a2c12' : '#b0a080' }); T(`もち${have}`, x + w - 5, yy, { al: 'right', c: '#7a5a30' }); }
       else T(`x${have}`, x + w - 5, yy, { al: 'right' });

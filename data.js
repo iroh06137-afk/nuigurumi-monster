@@ -809,11 +809,12 @@ const STAGES = [
         after: [['ちぇっ… おまえ つよいな', 'さきへ いっていいぞ']] },
       // あくのしろ story: ミナ (plush taken by the くろい かげ in おしろの にわ) and コウタ's family. show = when the person is in town
       { id: 'mina', x: 400, name: 'ミナ', look: 'child', show: 'minaHome',
-        lines: [['くろい かげが もっていった', 'わたしの ぬいぐるみ…'], ['おしろから かえってきたの！', '{NAME} ありがとう！']] },
+        lines: [['くろい かげが もっていった', 'わたしの ウサギン…'], ['おしろから かえってきたの！', '{NAME} ありがとう！']] },
       { id: 'mama', x: 760, name: 'コウタの おかあさん', look: 'mama', show: 'mama',
         lines: [['こんにちは', 'きょうも いい てんきね']],
         fear: [['むすこの コウタが', 'あくの しろの ほうへ いったきり…'], ['ずっと かえって こないの', 'どうか みつけて あげて…']],
-        home: [['コウタが かえってきたの！', '{NAME} ほんとうに ありがとう'], ['もう ひとりで とおくへ', 'いっちゃ だめって いったわ']] },
+        home: [['コウタが かえってきたの！', '{NAME} ほんとうに ありがとう'], ['もう ひとりで とおくへ', 'いっちゃ だめって いったわ']],
+        gift: [['そうだ {NAME}に おれいを', 'させてちょうだい'], ['ふわふわキャンディよ', 'ぬいぐるみに あげてね']], giftItem: 'candy' },
       { id: 'kota', x: 784, name: 'コウタ', look: 'kota', show: 'kotaHome',
         lines: [['おしろの ろうやは', 'くらくて こわかった…'], ['{NAME} たすけてくれて', 'ありがとう！']],
         peace: [['もう くろい かげは いないね', 'また いっしょに あそぼう！']] },
@@ -1047,6 +1048,8 @@ const ITEMS = {
   cookie: { name: 'なかよしクッキー', price: 40, desc: 'つぎの なかまにする が +20%', use: 'recruit', amt: 0.2 },
   // world-3 pickups only (not sold). field bag only; +1 Lv for the walking companion if it is one of sps
   carrot: { name: 'にんじん', price: 0, desc: 'オグリキャップ か ウサギンの Lvが 1 あがる', use: 'lvup', sps: ['oguri', 'usagin'] },
+  // コウタの おかあさん's thank-you (one-time, flag candyGift; not sold). any plush: +1 Lv
+  candy: { name: 'ふわふわキャンディ', price: 0, desc: 'つれている こ の Lvが 1 あがる', use: 'lvup', eat: 'ふわふわキャンディを なめた' },
 };
 const SHOP_LIST = ['kizu', 'genki', 'cookie'];
 // road props by ドット絵作成くん (32x32, bottom outline on row 30; road = 32x8 tile for screen rows 64..71)
@@ -1114,9 +1117,9 @@ const HERO_COLORS = [
 // ---- あくのしろ story scenes (play once each; flags cs_snatch / cs_merchant / cs_kota). no せいぎぐん here ----
 const CASTLE_STORY = {
   snatch: { stage: 'niwa', at: 220, flag: 'cs_snatch',   // おしろの にわ: a くろい かげ takes ミナ's plush toward あくの しろ
-    hello: [['みて！ わたしの ぬいぐるみ', 'ふわふわで かわいいでしょ？']],
-    cry: [['あっ！ くろい かげが…！', ''], ['かえして〜！', '']],
-    after: [['くろい かげは あくの しろの', 'ほうへ とんでいった…'], ['{NAME}は ぬいぐるみを', 'とりかえすと ちかった']] },
+    hello: [['みて！ わたしの ウサギン', 'ふわふわで かわいいでしょ？']],
+    cry: [['あっ！ くろい かげが…！', ''], ['ウサギンを かえして〜！', '']],
+    after: [['くろい かげは あくの しろの', 'ほうへ とんでいった…'], ['{NAME}は ウサギンを', 'とりかえすと ちかった']] },
   merchant: { stage: 'joumon', at: 130, flag: 'cs_merchant',   // じょうもん (moat bridge): merchant chased off by ワニガード
     lines: [['ひぃ〜っ！ ワニガードに', 'おいかけられた〜！'], ['にもつを ぜんぶ とられた〜！', ''], ['この さきの はしは あぶないよ', 'きを つけてね〜！']] },
   jail: { stage: 'shironaka', x: 470, flag: 'cs_kota',   // しろの なか: コウタ in a cell
