@@ -93,7 +93,13 @@ const SPRITES = {
 };
 
 // sprites listed here are only loaded once their files are embedded in assets-img.js (none pending right now)
-const SPRITES_PENDING = {};
+const SPRITES_PENDING = {
+  // あくのしろ story scenes (ドット絵作成くん, 32x32 facing right, feet on row 30). until then: recolors of the boy (NPC_LOOKS in game.js)
+  npc_child: { src: 'assets/story/child.png', native: 1 },        // ミナ (girl who loses her plush)
+  npc_merchant: { src: 'assets/story/merchant.png', native: 1 },  // たびの しょうにん (big backpack)
+  npc_mama: { src: 'assets/story/mama.png', native: 1 },          // コウタの おかあさん
+  npc_kota: { src: 'assets/story/kota.png', native: 1 },          // コウタ (missing boy)
+};
 // ★ event plush whose art isn't in yet: if assets/<id>.png is embedded it is used, otherwise game.js draws a placeholder (coloured shape + eyes).
 // ph = placeholder look: body colour, shape, accent colour
 const SPRITES_PH = {
@@ -801,6 +807,16 @@ const STAGES = [
       { id: 'daichi', x: 980, name: 'ガキだいしょう ダイチ', look: 'gaki', fear: [['お おれは こわくなんか ないぞ！', 'あくの しろなんて…'], ['…でも ちかよるのは', 'やめとけ ほんとに'], ['こわくない ところ みせてやる！', 'しょうぶ しろ！']], peace: [['おまえ あの おしろに', 'ほんとに いったのか…！'], ['ちぇっ かっこいいじゃねえか', 'おれさまとも しょうぶしろ！']],  battle: { style: 'trick', extra: [{ sp: 'naiton', lv: 13 }], team: [{ sp: 'kitsunen', lv: 9 }, { sp: 'fukuron', lv: 10 }, { sp: 'tanukin', lv: 12, evo: 1 }], reward: 160 },
         lines: [['この まちで いちばん つよいのは', 'おれさまの タヌキンだ！'], ['まちを でる まえに', 'おれと しょうぶ しろ！']],
         after: [['ちぇっ… おまえ つよいな', 'さきへ いっていいぞ']] },
+      // あくのしろ story: ミナ (plush taken by the くろい かげ in おしろの にわ) and コウタ's family. show = when the person is in town
+      { id: 'mina', x: 400, name: 'ミナ', look: 'child', show: 'minaHome',
+        lines: [['くろい かげが もっていった', 'わたしの ぬいぐるみ…'], ['おしろから かえってきたの！', '{NAME} ありがとう！']] },
+      { id: 'mama', x: 760, name: 'コウタの おかあさん', look: 'mama', show: 'mama',
+        lines: [['こんにちは', 'きょうも いい てんきね']],
+        fear: [['むすこの コウタが', 'あくの しろの ほうへ いったきり…'], ['ずっと かえって こないの', 'どうか みつけて あげて…']],
+        home: [['コウタが かえってきたの！', '{NAME} ほんとうに ありがとう'], ['もう ひとりで とおくへ', 'いっちゃ だめって いったわ']] },
+      { id: 'kota', x: 784, name: 'コウタ', look: 'kota', show: 'kotaHome',
+        lines: [['おしろの ろうやは', 'くらくて こわかった…'], ['{NAME} たすけてくれて', 'ありがとう！']],
+        peace: [['もう くろい かげは いないね', 'また いっしょに あそぼう！']] },
       // town boss: shows up only after しょうこ is beaten (req: 'peace'). ★ team/lines provisional; sprite by ドット絵作成くん (placeholder look)
       { id: 'akira', x: 1100, req: 'peace', name: 'まちの ボス アキラ', look: 'akira', battle: { style: 'trick', team: [{ sp: 'kujakun', lv: 27, evo: 1 }, { sp: 'ressan', lv: 27, evo: 1 }, { sp: 'tsumaguro', lv: 28, evo: 1 }, { sp: 'naiton', lv: 30, evo: 1 }], reward: 600, noBoost: true },
         lines: [['きみが しょうこを たおした', 'うわさの トレーナーか'], ['おしろが しずかに なって', 'ようやく ほんきが だせる'], ['この まちの ボスは おれだ', 'しょうぶ してもらうぞ！']],
@@ -1094,3 +1110,16 @@ const HERO_COLORS = [
   { name: 'あお', c: '#4d72d0' }, { name: 'あか', c: '#d8473a' }, { name: 'みどり', c: '#47a83a' }, { name: 'きいろ', c: '#e6b02a' },
   { name: 'むらさき', c: '#8656cc' }, { name: 'ピンク', c: '#f96ab4' }, { name: 'オレンジ', c: '#ec7f2c' }, { name: 'くろ', c: '#4a4a5a' },
 ];
+
+// ---- あくのしろ story scenes (play once each; flags cs_snatch / cs_merchant / cs_kota). no せいぎぐん here ----
+const CASTLE_STORY = {
+  snatch: { stage: 'niwa', at: 220, flag: 'cs_snatch',   // おしろの にわ: a くろい かげ takes ミナ's plush toward あくの しろ
+    hello: [['みて！ わたしの ぬいぐるみ', 'ふわふわで かわいいでしょ？']],
+    cry: [['あっ！ くろい かげが…！', ''], ['かえして〜！', '']],
+    after: [['くろい かげは あくの しろの', 'ほうへ とんでいった…'], ['{NAME}は ぬいぐるみを', 'とりかえすと ちかった']] },
+  merchant: { stage: 'joumon', at: 130, flag: 'cs_merchant',   // じょうもん (moat bridge): merchant chased off by ワニガード
+    lines: [['ひぃ〜っ！ ワニガードに', 'おいかけられた〜！'], ['にもつを ぜんぶ とられた〜！', ''], ['この さきの はしは あぶないよ', 'きを つけてね〜！']] },
+  jail: { stage: 'shironaka', x: 470, flag: 'cs_kota',   // しろの なか: コウタ in a cell
+    help: [['だれか〜！ ここから だして〜！', ''], ['え？ {NAME}… たすけに', 'きてくれたの！？']],
+    free: [['ありがとう！', 'くろい かげに つれてこられたんだ'], ['ぼく いそいで まちに かえるね！', 'おかあさんが まってるんだ']] },
+};

@@ -312,7 +312,7 @@
   // ---------- sprites ----------
   const SPR = {};
   // art that isn't drawn yet (world 4, うさひめ, endings): only loaded once embedded in assets-img.js, so no 404s
-  const artReady = src => (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src]) || !/(\/w4\/|worldmap4|usahime|\/ending\/|\/opening\/)/.test(src);
+  const artReady = src => (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src]) || !/(\/w4\/|worldmap4|usahime|\/ending\/|\/opening\/|\/story\/)/.test(src);
   function loadImg(src) {
     return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('failed to load ' + src)); i.src = (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src]) ? ASSET_DATA[src] : src; });
   }
@@ -1218,6 +1218,7 @@
     if (G.state === 'map') { mapKey(code); return; }
     if (G.state === 'talk') { if (['Enter', 'NumpadEnter', 'Space', 'KeyE', 'KeyX', 'Escape', 'ArrowDown', 'KeyS'].includes(code)) talkNext(); return; }
     if (G.state === 'menu') { menuKey(code); return; }
+    if (G.state === 'field' && G.cs) { if (['Enter', 'NumpadEnter', 'Space', 'KeyE', 'KeyX', 'Escape', 'ArrowDown', 'KeyS'].includes(code)) csSkip(); return; }   // story scene: fast-forward
     if (G.state === 'field') {
       if (['Space', 'ArrowUp', 'KeyW'].includes(code)) jump(player, true);
       if (code === 'KeyC' || code === 'Tab') swapActive();
@@ -1292,6 +1293,7 @@
   view.addEventListener('pointerdown', e => {
     if (G.state === 'title') return;
     e.preventDefault();
+    if (G.state === 'field' && G.cs) { csSkip(); return; }
     const [x, y] = logicalPos(e);
     if (G.state === 'hub') { hubTap(x, y); return; }
     if (G.state === 'map' && x < 26 && y < 11) { openHub(); return; }   // ホーム chip on the map
@@ -1381,13 +1383,16 @@
     G.bg = G.bgCache[st.id] || (G.bgCache[st.id] = BG.build(st.width, st.theme, st.theme === 'town' && PROPS.town_road ? Object.assign({}, PROPS, { road: PROPS.town_road }) : EVBG[st.id] ? Object.assign({}, PROPS, { full: EVBG[st.id] }) : PROPS));
     spawnWilds();
     const oiN = STAGES.findIndex(x => x.id === 'oshiro'), peaceN = oiN >= 0 && G.cleared.includes(oiN);
-    G.npcs = (st.npcs || []).filter(n => n.req !== 'peace' || peaceN).map(n => {
+    const shN = STAGES.findIndex(x => x.id === 'shironaka'), calm = shN >= 0 && G.cleared.includes(shN);
+    const SHOW = { minaHome: () => G.flags.cs_snatch && calm, mama: () => true, kotaHome: () => G.flags.cs_kota };
+    G.npcs = (st.npcs || []).filter(n => (n.req !== 'peace' || peaceN) && (!n.show || SHOW[n.show]())).map(n => {
       const d = n.rival ? Object.assign({}, n, n.rival[(G.gender | 0) === 1 ? 'boy' : 'girl'], { name: 'ライバルの ' + rName() }) : n;
       return Object.assign(newActor(n.x, -1, d.look === 'player' ? 'player' : 'npc_' + d.look), { def: d });
     });
     const AM = typeof RIVAL_STORY !== 'undefined' && RIVAL_STORY.ambush[st.id];
     if (AM && !G.flags['rv_' + st.id] && !G.ev && !G.friend && !G.versus)   // ライバル ambush (one-time): waits near the stage start
       G.npcs.push(rivalActor(AM.x, { id: 'rv_' + st.id, ambush: true, battle: { style: 'fast', team: AM.team, reward: AM.reward, noBoost: true }, lines: AM.before, after: AM.after }));
+    csSetup(st);
     G.near = null; G.talk = null; G.menu = null;
     if (heal) for (const m of G.party) { m.hp = m.maxHp; m.st = 0; }
     else for (const m of G.party) m.st = 0;
@@ -1731,11 +1736,124 @@
     G.state = 'netroom';
   }
 
+  // ---------- あくのしろ story scenes (CASTLE_STORY in data.js): one-time, tap / Enter fast-forwards the animated parts ----------
+  // optional art (ドット絵作成くん), only loaded when embedded: kage.png 128x32 (4 flap frames, faces left), jail.png 96x48 (closed / open)
+  const CS_ART = {};
+  for (const [k, n, S] of [['kage', 4, 32], ['jail', 2, 48]]) if (typeof ASSET_DATA !== 'undefined' && ASSET_DATA['assets/story/' + k + '.png']) loadImg('assets/story/' + k + '.png').then(i => { CS_ART[k] = sheetFrames(i, n, S); }).catch(() => {});
+  const CSD = () => typeof CASTLE_STORY !== 'undefined' ? CASTLE_STORY : {};
+  const csTxt = p => p.map(pg => pg.map(l => l));
+  function csSetup(st) {   // called from enterStage
+    G.cs = null; G.csJail = null;
+    if (G.ev || G.friend || G.versus || G.solo) return;
+    const J = CSD().jail;
+    if (J && st.id === J.stage && !G.flags[J.flag]) {
+      const a = Object.assign(newActor(J.x, -1, 'npc_kota'), { def: { id: 'kota_cell', name: 'コウタ', talkable: true, onTalk: csJailTalk } });
+      G.npcs.push(a); G.csJail = { a, open: 0 };
+    }
+  }
+  function csTrigger() {
+    if (G.cs || G.battle || G.talk) return false;
+    const st = STAGES[G.stage], D = CSD();
+    for (const k of ['snatch', 'merchant']) {
+      const c = D[k]; if (!c || st.id !== c.stage || G.flags[c.flag] || player.x < c.at || G.ev || G.friend || G.versus || G.solo) continue;
+      player.moving = false; comp.moving = false;
+      if (k === 'snatch') {
+        const X = Math.min(WORLD_W - 40, player.x + 56);
+        const kid = Object.assign(newActor(X, -1, 'npc_child'), { def: { id: 'cs_mina', name: 'ミナ' } }); G.npcs.push(kid);
+        G.cs = { k, ph: 0, t: 0, kid, sh: { x: X + 100, y: -60, vis: 0 }, plush: { x: X - 7, y: -14, held: 'kid' } };
+      } else {
+        const X = Math.min(WORLD_W - 20, player.x + 110);
+        const m = Object.assign(newActor(X, -1, 'npc_merchant'), { def: { id: 'cs_merchant', name: 'たびの しょうにん' } }); G.npcs.push(m);
+        G.cs = { k, ph: 0, t: 0, m };
+      }
+      G.camT = clamp(player.x + 30 - W / 2, 0, Math.max(0, WORLD_W - W));
+      return true;
+    }
+    return false;
+  }
+  const csDone = c => { G.flags[CSD()[c.k].flag] = 1; persist(); };
+  function csSkip() { const c = G.cs; if (c && c.dur) c.t = Math.max(c.t, c.dur); }   // jump to the end of the animated beat
+  function csNext(c, ph, dur) { c.ph = ph; c.t = 0; c.dur = dur || 0; }
+  function updateCS(dt) {
+    const c = G.cs; c.t += dt; player.moving = false; comp.moving = false;
+    const D = CSD()[c.k], bob = a => { a.bob = a.moving ? -Math.round(Math.abs(Math.sin(G.t * 14))) : 0; };
+    if (c.k === 'snatch') {
+      const kid = c.kid, sh = c.sh, p = c.plush;
+      if (c.ph === 0) { if (!c.dur) c.dur = 0.8; kid.bob = -Math.round(Math.abs(Math.sin(c.t * 8)) * 2); if (c.t >= c.dur) { kid.bob = 0; csNext(c, 1); say('ミナ', D.hello, () => csNext(c, 2, 1.7)); } }
+      else if (c.ph === 2) {   // swoop in (0–0.9 s), grab, fly off toward あくの しろ (right, 0.9–1.7 s)
+        sh.vis = 1; const X = kid.x;
+        if (c.t < 0.9) { const q = c.t / 0.9; sh.x = X + 100 - q * 104; sh.y = -60 + Math.sin(q * Math.PI / 2) * 44; }
+        else { if (p.held !== 'sh') { p.held = 'sh'; kid.shake = 0.3; SFX.blip(); } const q = Math.min(1, (c.t - 0.9) / 0.8); sh.x = X - 4 + q * 140; sh.y = -16 - q * 56; }
+        if (p.held === 'sh') { p.x = sh.x - 4; p.y = sh.y + 10; }
+        if (c.t >= c.dur) { sh.vis = 0; p.held = null; kid.shake = 0; csNext(c, 3); say('ミナ', D.cry, () => say('', D.after, () => csNext(c, 4, 1.4))); }
+      } else if (c.ph === 4) {   // ミナ runs home (left) crying
+        kid.face = -1; kid.moving = true; kid.x -= 60 * dt; bob(kid); kid.alpha = Math.max(0, 1 - c.t / c.dur);
+        if (c.t >= c.dur) { G.npcs = G.npcs.filter(a => a !== kid); G.cs = null; csDone(c); }
+      }
+    } else if (c.k === 'merchant') {
+      const m = c.m;
+      if (c.ph === 0) {   // runs in from the right, panting
+        if (!c.dur) c.dur = 3; m.face = -1; m.moving = true; m.x -= 80 * dt; bob(m);
+        if (m.x <= player.x + 26 || c.t >= c.dur) { m.x = Math.min(m.x, player.x + 26); m.moving = false; m.bob = 0; player.face = 1; csNext(c, 1); say('たびの しょうにん', D.lines, () => csNext(c, 2, 1.6)); }
+      } else if (c.ph === 2) {   // and keeps running, back past the player
+        m.face = -1; m.moving = true; m.x -= 95 * dt; bob(m); if (m.x < player.x) player.face = -1;
+        m.alpha = m.x < G.cam - 10 ? 0 : 1;
+        if (c.t >= c.dur || m.x < G.cam - 30) { G.npcs = G.npcs.filter(a => a !== m); G.cs = null; player.face = 1; csDone(c); }
+      }
+    } else if (c.k === 'jail') {   // cell opens, コウタ hops out, thanks, runs home
+      const J = G.csJail, a = J.a;
+      if (c.ph === 0) { if (!c.dur) c.dur = 0.9; J.open = Math.min(1, c.t / 0.6); a.y = c.t > 0.6 ? -Math.round(Math.sin(Math.min(1, (c.t - 0.6) / 0.3) * Math.PI) * 6) : 0;
+        if (c.t >= c.dur) { J.open = 1; a.y = 0; banner('コウタを たすけだした！', 1.8); SFX.recruit(); csNext(c, 1); say('コウタ', D.free, () => csNext(c, 2, 1.5)); } }
+      else if (c.ph === 2) { a.face = -1; a.moving = true; a.x -= 70 * dt; bob(a); a.alpha = Math.max(0, 1 - c.t / c.dur);
+        if (c.t >= c.dur) { G.npcs = G.npcs.filter(x => x !== a); G.cs = null; } }
+    }
+  }
+  function csJailTalk(a) {
+    const D = CSD().jail; a.face = Math.sign(player.x - a.x) || -1;
+    say('コウタ', D.help, () => { G.flags[D.flag] = 1; persist(); a.def.talkable = false; G.near = null; G.cs = { k: 'jail', ph: 0, t: 0 }; });
+  }
+  function drawKage(x, y) {   // くろい かげ: procedural dark cloaked silhouette (or kage.png), screen coords = top-left of 32x32
+    const fl = Math.floor(G.t * 8) % 4;
+    if (CS_ART.kage) { g.drawImage(CS_ART.kage[fl].n, x, y); return; }
+    const up = fl % 2 === 0, C = '#1a1024', E = '#3a2450';
+    g.globalAlpha = 0.85;
+    rect(x + 11, y + 8, 10, 14, C); rect(x + 10, y + 11, 12, 10, C); rect(x + 12, y + 6, 8, 3, C);   // hooded body
+    rect(x + 12, y + 22, 2, 4, C); rect(x + 16, y + 22, 2, 5, C); rect(x + 19, y + 22, 2, 3, C);   // ragged cloak tail
+    if (up) { rect(x + 2, y + 6, 9, 3, C); rect(x + 21, y + 6, 9, 3, C); rect(x + 4, y + 9, 7, 3, E); rect(x + 21, y + 9, 7, 3, E); rect(x + 1, y + 4, 3, 2, C); rect(x + 28, y + 4, 3, 2, C); }
+    else { rect(x + 3, y + 12, 8, 3, C); rect(x + 21, y + 12, 8, 3, C); rect(x + 2, y + 15, 6, 3, E); rect(x + 24, y + 15, 6, 3, E); }
+    g.globalAlpha = 1;
+    rect(x + 13, y + 12, 2, 2, '#ffe24a'); rect(x + 17, y + 12, 2, 2, '#ffe24a');   // glowing eyes (no mouth: spooky, not scary)
+  }
+  function drawCsPlush(x, y) {   // ミナ's small pink bunny plush (procedural, 9x10)
+    rect(x + 2, y, 2, 4, '#ff9ac0'); rect(x + 5, y, 2, 4, '#ff9ac0'); rect(x + 1, y + 3, 7, 6, '#ff9ac0'); rect(x + 2, y + 9, 5, 1, '#ff9ac0');
+    rect(x + 3, y + 1, 1, 2, '#ffd8e8'); rect(x + 3, y + 5, 1, 1, '#3a1a2a'); rect(x + 6, y + 5, 1, 1, '#3a1a2a'); rect(x + 4, y + 7, 2, 1, '#ff5a8a');
+  }
+  const JAIL_W = 40, JAIL_H = 40;
+  function drawJail(cam, front) {   // しろの なか cell around コウタ: back wall behind him, bars in front (bars slide up when opened)
+    const J = G.csJail; if (!J && !(G.flags.cs_kota && STAGES[G.stage].id === (CSD().jail || {}).stage)) return;
+    const jx = (CSD().jail || {}).x, x = Math.round(jx - cam) - JAIL_W / 2, y = GROUND - JAIL_H + 1, open = J ? J.open : 1;
+    if (x > W || x + JAIL_W < 0) return;
+    if (CS_ART.jail) { if (front) g.drawImage(CS_ART.jail[open >= 1 ? 1 : 0].n, x - 4, GROUND - 47); return; }
+    if (!front) { rect(x, y, JAIL_W, JAIL_H, '#3a3448'); for (let r = 0; r < JAIL_H; r += 6) rect(x, y + r, JAIL_W, 1, '#2a2436'); for (let r = 0; r < JAIL_H; r += 12) for (let q = (r / 6) % 2 ? 6 : 0; q < JAIL_W; q += 12) rect(x + q, y + r, 1, 6, '#2a2436'); return; }
+    rect(x - 2, y - 3, JAIL_W + 4, 3, '#5a5468'); rect(x - 2, y - 3, JAIL_W + 4, 1, '#7a7488');   // lintel
+    const lift = Math.round(open * (JAIL_H - 4));
+    for (let q = 2; q < JAIL_W; q += 5) { rect(x + q, y, 2, JAIL_H - lift, '#8a8498'); rect(x + q, y, 1, JAIL_H - lift, '#b0aac0'); }
+    rect(x, y + JAIL_H - lift - 3, JAIL_W, 2, '#8a8498'); rect(x, y + 10, JAIL_W, 2, lift > 30 ? 'rgba(0,0,0,0)' : '#8a8498');
+    if (!open) { rect(x + JAIL_W - 9, y + 18, 5, 6, '#c8a040'); rect(x + JAIL_W - 8, y + 16, 3, 2, '#c8a040'); rect(x + JAIL_W - 7, y + 20, 1, 2, '#5a3a10'); }   // padlock
+  }
+  function drawCS(cam, front) {
+    drawJail(cam, front);
+    const c = G.cs; if (!front || !c || c.k !== 'snatch') return;
+    const p = c.plush;
+    if (p.held === 'kid') drawCsPlush(Math.round(c.kid.x - cam) - 12, GROUND + Math.round(c.kid.y + c.kid.bob) - 16);
+    else if (p.held === 'sh') drawCsPlush(Math.round(p.x - cam) + 12, GROUND + Math.round(p.y) + 4);
+    if (c.sh.vis) drawKage(Math.round(c.sh.x - cam) - 16, GROUND - 30 + Math.round(c.sh.y));
+  }
   // ---------- town: people, buildings, shop, items ----------
   function updateNear() {
     const st = STAGES[G.stage];
     G.near = null;
-    if (!st.town) return;
+    if (!st.town) { for (const a of G.npcs) if (a.def.talkable && Math.abs(player.x - a.x) < 20) G.near = { type: 'npc', a }; return; }
     let bd = 1e9;
     for (const a of G.npcs) {
       const dx = player.x - a.x;
@@ -1873,11 +1991,12 @@
     const n = G.near; if (!n) return;
     if (n.type === 'npc') {
       const d = n.a.def;
+      if (d.onTalk) { d.onTalk(n.a); return; }
       // town trainers: one battle per visit; leaving and re-entering the stage allows a rematch (half coins)
       // town mood: after しょうこ is beaten everyone fears あくの しろ (world 3); 'peace' lines are for after it is cleared
       const cl = id => { const k = STAGES.findIndex(st => st.id === id); return k >= 0 && G.cleared.includes(k); };
       const mood = cl('shironaka') ? 'peace' : cl('oshiro') ? 'fear' : null;
-      const lines = (mood && d[mood]) || d.lines;
+      const lines = (d.home && G.flags.cs_kota && d.home) || (mood && d[mood]) || (mood && d.fear) || d.lines;   // コウタの おかあさん stays worried until he's home
       if (d.battle && !G.fought.includes(d.id)) say(d.name, G.beaten.includes(d.id) ? [['また しょうぶだ！']].concat(lines.slice(-1)) : lines, () => startTrainer(n.a));
       else say(d.name, (d.battle && d.after) || lines);
       return;
@@ -2223,6 +2342,8 @@
     } else w.moving = false;
   }
   function updateField(dt) {
+    if (G.cs) { updateCS(dt); return; }
+    if (csTrigger()) return;
     const mv = clamp((down('ArrowRight', 'KeyD') ? 1 : 0) - (down('ArrowLeft', 'KeyA') ? 1 : 0) + padDir(), -1, 1);
     player.moving = mv !== 0;
     if (mv) {
@@ -4889,7 +5010,9 @@
       if (!drawLayers(cam)) BG.draw(g, G.bg, cam, G.t, W);
       drawPlats(cam);
       drawRoadProps(cam); drawTown(cam); drawSign(cam); drawBench(cam);
+      drawCS(cam, false);
       for (const a of G.npcs) drawActor(a, cam);
+      drawCS(cam, true);
       for (const w of G.wilds) if (w.alive && w.alpha > 0) drawActor(w, cam);
       if (G.invader && !G.battle && G.invader.alive) drawActor(G.invader, cam);
       if (G.talkGuests && !G.battle) for (const a of G.talkGuests) drawActor(a, cam);
@@ -4941,7 +5064,8 @@
 
 
   // placeholder town people: the boy with his blue clothes recolored (replaced once the human sprites are approved)
-  const NPC_LOOKS = { girl: [255, 111, 168], mushitori: [86, 180, 70], oneesan: [160, 96, 214], karate: [236, 236, 228], gaki: [236, 140, 40] };
+  const NPC_LOOKS = { girl: [255, 111, 168], mushitori: [86, 180, 70], oneesan: [160, 96, 214], karate: [236, 236, 228], gaki: [236, 140, 40],
+    child: [255, 160, 200], merchant: [150, 110, 60], mama: [230, 120, 90], kota: [90, 200, 220] };   // story people: until assets/story/*.png arrive
   function makeNpcSprites() {
     const src = SPR.player; if (!src) return;
     for (const [look, col] of Object.entries(NPC_LOOKS)) {
