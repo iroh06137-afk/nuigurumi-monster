@@ -1137,7 +1137,7 @@
     const base = SPECIES[m.sp].moves, ev = m.evo && typeof EVO_MOVES !== 'undefined' && EVO_MOVES[m.sp];
     return ev ? { attack: base.attack, strong: Object.assign({}, base.strong, ev.strong) } : base;
   }
-  const canSp = m => !!(m && (m.evo || m.crown || (SPECIES[m.sp] && SPECIES[m.sp].noEvo)));
+  const canSp = m => !!(m && (m.evo || m.crown || (SPECIES[m.sp] && (SPECIES[m.sp].noEvo || SPECIES[m.sp].spBase))));   // spBase: base form has its own ひっさつ too
   // おやこ おぐり波: crowned オグリキャップ + オグリキング both in your party (the one fighting + the other still standing)
   function oyakoPartner(m) {
     if (typeof CROWN === 'undefined' || !G.battle || m !== ally() || G.friend && G.battle.who === 'opp') return null;
@@ -1155,7 +1155,7 @@
   function specialBase(m) {
     const st = movesOf(m).strong, ev = canSp(m) && typeof EVO_MOVES !== 'undefined' && EVO_MOVES[m.sp];
     if (ev && ev.special) {
-      const sp = Object.assign({ power: Math.round(st.power * 2), acc: 1 }, ev.special);
+      const sp = Object.assign({ power: Math.round(st.power * 2), acc: 1 }, ev.special, m.evo && ev.special.evo || {}); delete sp.evo;   // special.evo: evolved-form overrides (name / fx art)
       if (ev.super && m.hp > 0 && m.hp <= m.maxHp / 2) return Object.assign(sp, { name: ev.super.name, power: Math.round(sp.power * (ev.super.mult || 1.5)), col: ev.super.col || sp.col, super: true, scale: ev.super.scale || 1.75 });
       return sp;
     }
@@ -2844,7 +2844,7 @@
       const hx = f.mode === 'glove' ? f.x1 + dir * 9 : f.mode === 'beam' ? defA.x - dir * 4 : defA.x - dir * 2;
       const hy = f.mode === 'glove' ? f.y1 : GROUND - 14;
       if (sup) { G.flashT = 0.2; burst(defA.x, GROUND - 16, 'spark', 24, mv.col || '#ff7aff'); }
-      G.fx.push({ type: 'ahit', img: img.hit, sc: scH, ms: A.hit.ms, x: hx, y: hy, t: 0, dur: img.hit.length * A.hit.ms / 1000, hold: 0, loopHit: f.mode === 'beam' ? f : null });
+      if (!f.noHit) G.fx.push({ type: 'ahit', img: img.hit, sc: scH, ms: A.hit.ms, x: hx, y: hy, t: 0, dur: img.hit.length * A.hit.ms / 1000, hold: 0, loopHit: f.mode === 'beam' ? f : null });
       G.hitStop = landed === hits ? (sup ? 0.26 : 0.16) : 0.05; G.flashT = Math.max(G.flashT, 0.08); G.shakeT = sup ? 0.6 : 0.35;
       SFX.hit('strong');
       if (G.battle && def === ally()) addBond(dmg / def.maxHp * 110);
@@ -2859,18 +2859,24 @@
       else { const off = [[-22, -7], [-20, 5], [-14, -1]][k % 3]; f.x1 = defA.x + dir * off[0]; f.y1 = GROUND - 14 + off[1]; f.dur = Math.max(0.08, Math.abs(f.x1 - f.x0) / 260); f.hold = 0.12; }
       shots.push(f); G.fx.push(f); SFX.hit('attack');
     };
+    // target-anchored magic circle (FX_ART[sp].circle, e.g. まじょネコ): fx anchor (ax,ay) on the target's 32x32 frame point (tx,ty); per-frame layer behind / in front of the target
+    const CI = mv.circle && A.circle && img0.circle;
+    const circle = () => {
+      const c = A.circle, f = { type: 'acircle', img: img0.circle, c, t: 0, x: defA.x + (defA.ox || 0) - 16 + c.tx - c.ax, y: GROUND - 30 + c.ty - c.ay, dur: c.dur.slice(0, c.land).reduce((a, b) => a + b, 0) / 1000, total: c.dur.reduce((a, b) => a + b, 0) / 1000, noHit: true };
+      shots.push(f); G.fx.push(f); SFX.hit('attack');
+    };
     const tick = () => { for (const f of shots) if (!f.landed && f.t >= f.dur && def.hp > 0) land(f); };
     const hold = function* (sec) { let t = 0; while (t < sec) { tick(); yield; t += DT; } };
     for (let k = 0; k < C.order.length; k++) {
       const fi = C.order[k];
       attA.pose = frames ? frames[fi] : null;   // no cast art (base-form noEvo plush): fire from the standing sprite
-      if (C.fire.includes(k)) launch(fi, C.fire.indexOf(k));
+      if (CI ? k === A.circle.start : C.fire.includes(k)) CI ? circle() : launch(fi, C.fire.indexOf(k));
       yield* hold(C.dur[fi] / 1000);
       if (k === C.hold) while (shots.some(f => !f.landed) && def.hp > 0) { tick(); yield; }
       if (k === C.hold) for (const f of shots) if (f.mode === 'beam') f.hold = Math.min(f.hold, f.t - f.dur + 0.12);
     }
     attA.pose = null;
-    let t = 0; while ((shots.some(f => !f.landed) && def.hp > 0 && t < 1.5) || G.fx.some(f => f.type === 'ahit')) { tick(); yield; t += DT; }
+    let t = 0; while ((shots.some(f => !f.landed) && def.hp > 0 && t < 1.5) || G.fx.some(f => f.type === 'ahit' || f.type === 'acircle')) { tick(); yield; t += DT; }
     for (const f of shots) { const i = G.fx.indexOf(f); if (i >= 0) G.fx.splice(i, 1); }
     yield* tween(v => attA.ox = v, attA.ox, 0, 0.15);
     yield* wait(0.3);
@@ -2885,6 +2891,13 @@
         else if (fi >= f.img.length) { G.fx.splice(i, 1); continue; }
         const sc = f.sc || 1, iw = f.img[fi].n.width, hw = Math.round(iw * sc / 2);
         g.drawImage(f.img[fi].n, Math.round(f.x - cam) - hw, Math.round(f.y) - hw, Math.round(iw * sc), Math.round(iw * sc));
+        continue;
+      }
+      if (f.type === 'acircle') {
+        let fi = 0, acc = 0; const ms = f.t * 1000; while (fi < f.c.dur.length - 1 && ms >= acc + f.c.dur[fi]) acc += f.c.dur[fi++];
+        if (ms >= f.total * 1000) { if (f.landed) G.fx.splice(i, 1); continue; }
+        if ((f.c.layer[fi] === 'front') !== (layer === 'top')) continue;
+        g.drawImage(f.img[fi], Math.round(f.x - cam), Math.round(f.y));
         continue;
       }
       if (f.type !== 'ashot' || layer !== 'under') continue;
@@ -4889,6 +4902,9 @@
     if (typeof FX_ART !== 'undefined') await Promise.all(Object.keys(FX_ART).map(sp => Promise.all([loadImg('assets/fx/' + sp + '_shot.png'), loadImg('assets/fx/' + sp + '_hit.png')])
       .then(([a, b]) => { FXIMG[sp] = { shot: sheetFrames(a, 4), hit: sheetFrames(b, FX_ART[sp].hit.n || 4, FX_ART[sp].hit.size || 32) }; }).catch(() => {})));
     // optional 'super' fx art (e.g. 超はかいおぐり波): only when embedded in ASSET_DATA, so no 404s; else the normal fx is drawn scaled up
+    if (typeof FX_ART !== 'undefined') await Promise.all(Object.keys(FX_ART).filter(sp => FXIMG[sp] && FX_ART[sp].circle).map(sp => loadImg(FX_ART[sp].circle.src).then(img => {
+      const c = FX_ART[sp].circle; FXIMG[sp].circle = c.dur.map((_, i) => { const [cv, x] = mk(c.fw, c.fh); x.drawImage(img, i * c.fw, 0, c.fw, c.fh, 0, 0, c.fw, c.fh); return cv; });
+    }).catch(() => {})));
     if (typeof FX_ART !== 'undefined' && typeof ASSET_DATA !== 'undefined') await Promise.all(Object.keys(FX_ART).filter(sp => FXIMG[sp]).map(sp => {
       const ks = 'assets/fx/' + sp + '_shot_super.png', kh = 'assets/fx/' + sp + '_hit_super.png', H = FX_ART[sp].hitSuper || FX_ART[sp].hit;
       return Promise.all([ASSET_DATA[ks] ? loadImg(ks).then(i => { FXIMG[sp].shotS = sheetFrames(i, 4, Math.round(i.height)); }) : 0,

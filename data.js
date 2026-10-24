@@ -534,7 +534,7 @@ const SPECIES = {
     },
   },
   majoneko: {   // ★ rare (4%): the only ハロウィン plush that can evolve (EVOLVE.majoneko)
-    name: 'まじょネコ', sprite: 'majoneko', limited: 'halloween', rare: true, declineLine: 'にゃーん… また ハロウィンに あおうね',
+    name: 'まじょネコ', sprite: 'majoneko', limited: 'halloween', rare: true, spBase: true, declineLine: 'にゃーん… また ハロウィンに あおうね',
     hp: 50, atk: 15, def: 10, spd: 15, recruitBase: 0.10,
     moves: {
       attack: { name: 'ねこパンチ',       power: 13, acc: 0.96 },
@@ -622,7 +622,7 @@ const EVO_MOVES = {
   jackn_boss: { special: { name: 'かぼちゃボム', fx: 'wave', col: '#ff8a1e', fxSp: 'jackn' } },
   obaken: { special: { name: 'いたずらバー', fx: 'wave', col: '#f4f4fa' } },
   miiran: { special: { name: 'ほうたいぐるぐる', fx: 'wave', col: '#e8dcb8' } },
-  majoneko: { special: { name: 'にゃんにゃん マジックスター', fx: 'wave', col: '#c8a0ff', fxSp: 'majoneko_evo' } },   // special = evolved only → evolved star art
+  majoneko: { special: { name: 'まじょのまほうじん', fx: 'wave', col: '#c8a0ff', circle: true, evo: { name: 'だいまほうじん', fxSp: 'majoneko_evo' } } },   // magic circle at the target's feet (FX_ART.circle)
   lioneru: { special: { name: 'がおーほうこう', fx: 'wave', col: '#ffd04a' } },
   wolfun: { special: { name: 'やみのきば', fx: 'orb', col: '#8a5cff' } },
   saiguard: { special: { name: 'どすこいとっしん', fx: 'orb', col: '#c0a080' } },
@@ -682,8 +682,8 @@ const FX_ART = {
   jackn: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[26, 19], [28, 20], [28, 20], [27, 20]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   obaken: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[26, 19], [28, 19], [28, 20], [27, 19]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   miiran: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[27, 21], [28, 21], [28, 22], [28, 21]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
-  majoneko: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[26, 15], [28, 16], [28, 17], [27, 16]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
-  majoneko_evo: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[27, 14], [29, 13], [29, 14], [28, 13]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
+  majoneko: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[26, 15], [28, 16], [28, 17], [27, 16]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}, "circle": {"src": "assets/w4mons/majoneko_fx_special.png", "fw": 64, "fh": 32, "dur": [100, 100, 120, 140, 100, 160], "layer": ["behind", "behind", "behind", "front", "front", "front"], "ax": 32, "ay": 25, "tx": 16, "ty": 29, "start": 1, "land": 4}},
+  majoneko_evo: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[27, 14], [29, 13], [29, 14], [28, 13]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}, "circle": {"src": "assets/w4mons/majoneko_evo_fx_special.png", "fw": 64, "fh": 32, "dur": [100, 100, 120, 140, 100, 160], "layer": ["behind", "behind", "behind", "front", "front", "front"], "ax": 32, "ay": 25, "tx": 16, "ty": 29, "start": 1, "land": 4}},
   kametank: {"cast": {"order": [0, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[28, 11], [29, 12], [29, 13], [29, 12]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   usaknight: {"cast": {"order": [0, 1, 2, 1, 2, 1, 2, 3], "dur": [200, 90, 360, 180], "spawn": [[28, 12], [30, 11], [30, 12], [29, 11]], "fire": [1, 3, 5], "hold": 6}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
   lioneru: {"cast": {"order": [0, 1, 2, 3], "dur": [180, 90, 360, 180], "spawn": [[26, 14], [28, 15], [28, 15], [27, 15]], "fire": [1], "hold": 2}, "shot": {"mode": "fly", "ms": 80, "ax": 22, "ay": 16, "spd": 170}, "hit": {"ms": 90, "n": 4, "size": 32}},
