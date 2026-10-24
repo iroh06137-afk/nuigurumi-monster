@@ -1037,7 +1037,7 @@
       else if (G.state === 'battle') {
         const sp = G.battle && G.battle.w && SPECIES[G.battle.w.sp];
         const B = G.battle, tr = B && B.w && B.w.trainer, rv = B && (B.coop || tr === 'rival' || (tr && String(tr).startsWith('rv_')));   // ライバル: town rival, ambushes, co-op
-        name = B && B.w.sp === 'usahime' ? 'usahime' : B && B.w.sp === 'oguriking' ? 'oguriking' : rv ? 'rival' : sp && sp.boss && sp.gate ? 'seigi_mid' : sp && sp.boss ? 'boss' : 'battle';
+        name = B && B.w.sp === 'usahime' ? (B.final ? 'usahime2' : 'usahime') : B && B.w.sp === 'oguriking' ? 'oguriking' : rv ? 'rival' : sp && sp.boss && sp.gate ? 'seigi_mid' : sp && sp.boss ? 'boss' : 'battle';
       }
       else {
         const th = STAGES[G.stage] && STAGES[G.stage].theme;
