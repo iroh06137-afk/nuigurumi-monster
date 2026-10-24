@@ -1812,9 +1812,9 @@
     const D = CSD().jail; a.face = Math.sign(player.x - a.x) || -1;
     say('コウタ', D.help, () => { G.flags[D.flag] = 1; persist(); a.def.talkable = false; G.near = null; G.cs = { k: 'jail', ph: 0, t: 0 }; });
   }
-  function drawKage(x, y) {   // くろい かげ: procedural dark cloaked silhouette (or kage.png), screen coords = top-left of 32x32
+  function drawKage(x, y, right) {   // くろい かげ: procedural dark cloaked silhouette (or kage.png), screen coords = top-left of 32x32
     const fl = Math.floor(G.t * 8) % 4;
-    if (CS_ART.kage) { g.drawImage(CS_ART.kage[fl].n, x, y); return; }
+    if (CS_ART.kage) { g.drawImage(CS_ART.kage[fl][right ? 'f' : 'n'], x, y); return; }   // art faces left
     const up = fl % 2 === 0, C = '#1a1024', E = '#3a2450';
     g.globalAlpha = 0.85;
     rect(x + 11, y + 8, 10, 14, C); rect(x + 10, y + 11, 12, 10, C); rect(x + 12, y + 6, 8, 3, C);   // hooded body
@@ -1833,8 +1833,8 @@
     const J = G.csJail; if (!J && !(G.flags.cs_kota && STAGES[G.stage].id === (CSD().jail || {}).stage)) return;
     const jx = (CSD().jail || {}).x, x = Math.round(jx - cam) - JAIL_W / 2, y = GROUND - JAIL_H + 1, open = J ? J.open : 1;
     if (x > W || x + JAIL_W < 0) return;
-    if (CS_ART.jail) { if (front) g.drawImage(CS_ART.jail[open >= 1 ? 1 : 0].n, x - 4, GROUND - 47); return; }
     if (!front) { rect(x, y, JAIL_W, JAIL_H, '#3a3448'); for (let r = 0; r < JAIL_H; r += 6) rect(x, y + r, JAIL_W, 1, '#2a2436'); for (let r = 0; r < JAIL_H; r += 12) for (let q = (r / 6) % 2 ? 6 : 0; q < JAIL_W; q += 12) rect(x + q, y + r, 1, 6, '#2a2436'); return; }
+    if (CS_ART.jail) { g.drawImage(CS_ART.jail[open >= 1 ? 1 : 0].n, x - 4, GROUND - 47); return; }   // 48x48 closed / open, bottom row on the ground
     rect(x - 2, y - 3, JAIL_W + 4, 3, '#5a5468'); rect(x - 2, y - 3, JAIL_W + 4, 1, '#7a7488');   // lintel
     const lift = Math.round(open * (JAIL_H - 4));
     for (let q = 2; q < JAIL_W; q += 5) { rect(x + q, y, 2, JAIL_H - lift, '#8a8498'); rect(x + q, y, 1, JAIL_H - lift, '#b0aac0'); }
@@ -1847,7 +1847,7 @@
     const p = c.plush;
     if (p.held === 'kid') drawCsPlush(Math.round(c.kid.x - cam) - 12, GROUND + Math.round(c.kid.y + c.kid.bob) - 16);
     else if (p.held === 'sh') drawCsPlush(Math.round(p.x - cam) + 12, GROUND + Math.round(p.y) + 4);
-    if (c.sh.vis) drawKage(Math.round(c.sh.x - cam) - 16, GROUND - 30 + Math.round(c.sh.y));
+    if (c.sh.vis) drawKage(Math.round(c.sh.x - cam) - 16, GROUND - 30 + Math.round(c.sh.y), c.plush.held === 'sh');
   }
   // ---------- town: people, buildings, shop, items ----------
   function updateNear() {
