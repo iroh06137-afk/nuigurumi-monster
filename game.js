@@ -1137,7 +1137,7 @@
     const base = SPECIES[m.sp].moves, ev = m.evo && typeof EVO_MOVES !== 'undefined' && EVO_MOVES[m.sp];
     return ev ? { attack: base.attack, strong: Object.assign({}, base.strong, ev.strong) } : base;
   }
-  const canSp = m => !!(m && (m.evo || m.crown || (SPECIES[m.sp] && (SPECIES[m.sp].noEvo || SPECIES[m.sp].spBase))));   // spBase: base form has its own ひっさつ too
+  const canSp = m => !!(m && (m.evo || m.crown || (SPECIES[m.sp] && SPECIES[m.sp].noEvo)));
   // おやこ おぐり波: crowned オグリキャップ + オグリキング both in your party (the one fighting + the other still standing)
   function oyakoPartner(m) {
     if (typeof CROWN === 'undefined' || !G.battle || m !== ally() || G.friend && G.battle.who === 'opp') return null;
