@@ -1382,6 +1382,9 @@
       const d = n.rival ? Object.assign({}, n, n.rival[(G.gender | 0) === 1 ? 'boy' : 'girl'], { name: 'ライバルの ' + rName() }) : n;
       return Object.assign(newActor(n.x, -1, d.look === 'player' ? 'player' : 'npc_' + d.look), { def: d });
     });
+    const AM = typeof RIVAL_STORY !== 'undefined' && RIVAL_STORY.ambush[st.id];
+    if (AM && !G.flags['rv_' + st.id] && !G.ev && !G.friend && !G.versus)   // ライバル ambush (one-time): waits near the stage start
+      G.npcs.push(rivalActor(AM.x, { id: 'rv_' + st.id, ambush: true, battle: { style: 'fast', team: AM.team, reward: AM.reward, noBoost: true }, lines: AM.before, after: AM.after }));
     G.near = null; G.talk = null; G.menu = null;
     if (heal) for (const m of G.party) { m.hp = m.maxHp; m.st = 0; }
     else for (const m of G.party) m.st = 0;
@@ -1742,8 +1745,13 @@
     }
   }
   const bagWord = () => TOUCH ? 'したの まどタップ' : 'Iキー';
+  // ライバル wording: {RIVAL} = rival name, {g:…|b:…} = ユイ (girl) / ハルト (boy) version
+  const rivalGirl = () => (G.gender | 0) !== 1;
+  const rivalKey = () => rivalGirl() ? 'npc_girl' : 'player';
+  const rvText = l => l.replace(/\{NAME\}/g, pName()).replace(/\{RIVAL\}/g, rName()).replace(/\{g:([^|}]*)\|b:([^}]*)\}/g, (_, a, b) => rivalGirl() ? a : b);
+  function rivalActor(x, def) { return Object.assign(newActor(x, -1, rivalKey()), { def: Object.assign({ name: 'ライバルの ' + rName(), look: rivalGirl() ? 'girl' : 'player' }, def) }); }
   function say(name, pages, then) {
-    G.talk = { name, pages: pages.map(p => p.map(l => l.replace('{BAG}', bagWord()).replace('{NAME}', pName()))), i: 0, then };
+    G.talk = { name, pages: pages.map(p => p.map(l => rvText(l.replace('{BAG}', bagWord())))), i: 0, then };
     G.state = 'talk'; player.moving = false; comp.moving = false;
     SFX.blip();
   }
@@ -2221,6 +2229,10 @@
     physics(player, dt); physics(comp, dt);
     followUpdate(dt);
     for (const m of G.party) m.hp = Math.min(m.maxHp, m.hp + TUNING.regenPerSec * dt);
+    for (const a of G.npcs || []) if (a.def.ambush && !a.amTold && !G.fought.includes(a.def.id) && Math.abs(a.x - player.x) < 40) {   // ライバル ambush: walks up and challenges
+      a.amTold = 1; a.face = Math.sign(player.x - a.x) || -1; G.camT = clamp((player.x + a.x) / 2 - W / 2, 0, WORLD_W - W);
+      say(a.def.name, a.def.lines, () => startTrainer(a)); return;
+    }
     for (const w of G.wilds) if (w.alive && w.gate && player.x > w.x - 18) { player.x = w.x - 18; if (comp.x > w.x - 20) comp.x = w.x - 20; }   // mid-boss gate: can't pass until beaten
     for (const w of G.wilds) {
       if (!w.alive) continue;
@@ -2228,7 +2240,9 @@
       else wildUpdate(w, dt);
       if (w.gate && !w.cool && Math.abs(w.x - player.x) < TUNING.encounterDist + 6) {
         w.cool = true; G.camT = clamp((player.x + w.x) / 2 - W / 2, 0, WORLD_W - W);   // frame both for the line
-        say('', allyLines(SPECIES[w.sp].gate || [[SPECIES[w.sp].name + '「とおさないぞ！」', '']]), () => { w.cool = false; startBattle(w); });
+        const CO = coopFor(w), gl = allyLines(SPECIES[w.sp].gate || [[SPECIES[w.sp].name + '「とおさないぞ！」', '']]);
+        if (CO) { G.npcs.push(rivalActor(clamp(player.x - 30, 12, WORLD_W - 12), { id: 'rv_coop', lines: CO.win })); say('', gl.concat(CO.talk), () => { w.cool = false; coopStash(CO); startBattle(w); G.battle.coop = true; coopBuddy(); }); return; }
+        say('', gl, () => { w.cool = false; startBattle(w); });
         return;
       }
       const dx = w.x - player.x;
@@ -2345,6 +2359,16 @@
     G.solo = { party: G.party, active: G.active, inv: keep };   // saves made meanwhile keep the real party
     G.party = [O, K]; G.active = 0; comp.key = compKey();
   }
+  // ライバル co-op (once): the rival's キツネン joins as the 2nd ally for the gold カメタンク at せいぎぐんの みち (same 2-member team + buddy as the おやこ fight)
+  const coopFor = w => { const C = typeof RIVAL_STORY !== 'undefined' && RIVAL_STORY.coop; return C && !G.flags.rvCoop && !G.solo && !G.friend && !G.versus && STAGES[G.stage].id === C.stage && w.sp === C.sp + '_gold' ? C : null; };
+  function coopStash(C) {
+    const A = G.party[G.active] && G.party[G.active].hp >= 1 ? G.party[G.active] : G.party.find(m => m.hp >= 1) || G.party[0];
+    const R = trainerMember(C.ace); delete R.spUsed; R.name = rName() + 'の ' + R.name; R.rival = 1;
+    G.solo = { party: G.party, active: G.active, inv: [], coop: 1 };   // saves made meanwhile keep the real party
+    G.party = [A, R]; G.active = 0; comp.key = compKey();
+  }
+  function coopBuddy() { const B = G.battle, side = B.side || 1; G.buddy = newActor(clamp(player.x - side * 26, G.camT + 14, G.camT + W - 14), side, memberKey(G.party[1])); }
+  function coopRestore() { if (G.solo && G.solo.coop) oyakoRestore(); }
   function oyakoRestore() {
     if (!G.solo || !G.solo.inv) return;
     for (const [m, snap] of G.solo.inv) { for (const k of Object.keys(m)) if (!(k in snap)) delete m[k]; Object.assign(m, snap); }
@@ -2416,7 +2440,7 @@
     G.flags.usaLoss = (G.flags.usaLoss | 0) + 1;
     for (const m of G.party) { m.hp = m.maxHp; m.st = 0; }
     persist(); openMap(usaNode());
-    if (first) { say('', allyLines(USAHIME.hint), () => {}); G.talk.onMap = true; }
+    if (first) { say('', allyLines(USAHIME.hint), () => {}); G.talk.onMap = true; G.talk.rival = true; }
     else banner('でんせつの にんじんを とりかえさないと かてない…', 2.6);
   }
   function carrotBack() {
@@ -3252,9 +3276,14 @@
     if (B.story && B.story.kind === 'shiro') { usaBlown(); return; }
     if (B.story) { invasionOutro(); return; }
     if (B.final) { usaFinalOutro(B.w); return; }
-    if (B.result === 'win' && B.w.gate && SPECIES[B.w.sp].gateLose && !G.friend && !G.versus) { say('', allyLines(SPECIES[B.w.sp].gateLose), () => { if (SPECIES[B.w.sp].gold) carrotBack(); }); return; }   // mid-boss: unrepentant after losing
+    const coopWin = B.coop && B.result === 'win';
+    if (B.coop) { coopRestore(); if (coopWin) { G.flags.rvCoop = 1; persist(); } }
+    if (B.result === 'win' && B.w.gate && SPECIES[B.w.sp].gateLose && !G.friend && !G.versus) { say('', allyLines(SPECIES[B.w.sp].gateLose), () => { if (SPECIES[B.w.sp].gold) carrotBack(); if (coopWin) say('', RIVAL_STORY.coop.win, () => {}); }); return; }   // mid-boss: unrepentant after losing
+    const rvWin = B.result === 'win' && !G.friend && !G.versus && B.trainerActor && /^rv_/.test(B.trainerActor.def.id || '') ? B.trainerActor : null;
+    if (rvWin) { G.flags[rvWin.def.id] = 1; persist(); }
     const jackJoin = B.result === 'win' && !G.friend && !G.versus && B.w.sp === 'jackun_boss' && rand() < JACK_JOIN;
     const join = () => {
+      if (rvWin) { say(rvWin.def.name, rvWin.def.after); return; }
       if (jackJoin) { const d = SPECIES.jackun_boss, lv = B.w.lv || 20; say('ジャックん', d.joinLines, () => { G.menu = { kind: 'ask', sel: 0, sp: 'jackun', lv }; G.state = 'menu'; }); return; }
       if (!joinAsk) return;
       const sp = joinAsk.sp, nm = SPECIES[sp].name, lv = joinAsk.lv || 1;
@@ -3270,6 +3299,7 @@
     else join();
   }
   function whiteoutReset() {
+    coopRestore();
     G.battle = null; G.state = 'field';
     for (const m of G.party) m.hp = m.maxHp;
     G.active = 0; comp.key = compKey();
@@ -3513,7 +3543,8 @@
     const own = G.party.filter(m => !isOyako(m) && !seigi(m.sp)).concat((G.box || []).slice().reverse().filter(m => !isOyako(m) && !seigi(m.sp)));
     const ownSp = new Set(G.party.concat(G.box || []).map(m => m.sp));
     const wild = Object.keys(SPECIES).filter(k => { const d = SPECIES[k]; return !d.boss && !d.gold && !seigi(k) && !ownSp.has(k) && k !== 'oguri' && has(d.sprite); }).map(k => SPECIES[k].sprite);
-    const humans = ['npc_girl', 'npc_gaki', 'npc_oneesan', 'npc_mushitori', 'npc_karate', 'npc_akira', (G.gender | 0) === 1 ? 'player' : 'hero_girl'].filter(has);
+    add(rivalKey(), 136, 0, 'wave', -1);   // ライバル joins the picnic next to the hero's group
+    const humans = ['npc_girl', 'npc_gaki', 'npc_oneesan', 'npc_mushitori', 'npc_karate', 'npc_akira', (G.gender | 0) === 1 ? 'player' : 'hero_girl'].filter(k => has(k) && k !== rivalKey());
     const acts = ['bob', 'eat', 'walk', 'wave', 'bob', 'eat'];
     let x = 160, ow = 0;
     for (const m of own.slice(0, 8)) { add(memberKey(m), x, 0, acts[ow % acts.length], ow % 2 ? -1 : 1); x += 32; ow++; }
@@ -3822,6 +3853,7 @@
     const s = SPR[player.key] || SPR.player, p = G.mapPos;
     let fr = s; if (s.walk && player.moving) fr = s.walk.frames[Math.floor(G.t * 1000 / s.walk.ms) % s.walk.frames.length];
     g.drawImage(player.face !== s.native ? fr.f : fr.n, Math.round(p.x) - 16, Math.round(p.y) - 33);
+    if (G.talk && G.talk.rival && SPR[rivalKey()]) { const r = SPR[rivalKey()]; g.drawImage(r.native === -1 ? r.n : r.f, 8, 39); }   // ライバル steps in (just under the talk box, left)
     // text box
     rect(3, 72, 154, 17, '#5a3418'); rect(4, 73, 152, 15, '#f4e4b8');
     const n = MAP_NODES[G.mapSel], name = n.stage != null ? STAGES[n.stage].name : n.name;

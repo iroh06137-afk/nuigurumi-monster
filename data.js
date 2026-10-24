@@ -921,9 +921,11 @@ const USAHIME = {
   blow: 'うさひめ「うーしっしっ！ むだむだ～！」',
   blown: 'ふきとばされて しまった…',
   // 2. hint on the world map after the first loss
-  hint: [['{ALLY}「いたた… ぜんぜん', 'きかなかったね…」'], ['うさぎへい「うさひめさまは たたかう まえに', 'かならず でんせつの にんじんを たべるのさ！」'],
-         ['うさぎへい「のこりの 3ぼんは たいちょうたちが', 'だいじに もってるもんね！ …あっ」'], ['うさぎへい「い いまのは', 'ないしょ だからな！」'],
-         ['{ALLY}「…ぜんぶ きこえちゃった」', ''], ['{ALLY}「まち・みち・しろの たいちょうから', 'にんじんを とりかえそう！」'], ['マップの ！の ところで', 'きんいろの たいちょうが まっている']],
+  // ライバル steps in on the map: {RIVAL} = rival name, {g:…|b:…} = rival-gendered wording
+  hint: [['{ALLY}「いたた… ぜんぜん', 'きかなかったね…」'], ['{RIVAL}「{g:…なにやってんのよ！|b:…なにやってんだよ！}', '{g:みてられないわ」|b:みてられないぜ」}'],
+         ['{RIVAL}「{g:うさぎへいが はなしてるのを|b:うさぎへいが はなしてるのを}', '{g:きいちゃったのよ」|b:きいちゃったんだ」}'],
+         ['{RIVAL}「うさひめは たたかう まえに', 'でんせつの にんじんを たべるって」'], ['{RIVAL}「のこりの 3ぼんは', 'たいちょうたちが もってるんだって」'],
+         ['{RIVAL}「まち・みち・しろの たいちょうから', '{g:とりかえしなさいよ！」|b:とりかえして こいよ！」}'], ['{ALLY}「…ありがとう', '{RIVAL}！」'], ['マップの ！の ところで', 'きんいろの たいちょうが まっている']],
   got: 'でんせつの にんじんを とりかえした！',
   all: 'でんせつの にんじんが 3ぼん そろった！ しろの ！が きんいろに なった',
   // 5. rematch with all 3: the crowned オグリおやこ eat the carrot and fight as gold
@@ -953,9 +955,10 @@ const ENDINGS = {
   // assets/ending/end_true.png (sky + field only, PAN.w x 90; until ドット絵作成くん's art arrives: a placeholder made from simple shapes).
   // pan[i] = camera x while talk page i is shown
   true: { title: 'トゥルーエンド', img: 'assets/ending_true_bg.png', low: true, crowd: true, panW: 900,
-    pan: [0, 0, 0, 180, 260, 400, 480, 560, 640, 740, 740],
+    pan: [0, 0, 0, 56, 180, 260, 400, 480, 560, 640, 740, 740],
     talk: [['ぽかぽか ひだまりの にんじんばたけ', 'きょうは みんなで ピクニック！'], ['オグリキャップ「とうさん この にんじん', 'あまくて おいしいね！」'],
-           ['オグリキング「みんなで わけあう にんじんは', 'いちばんの ごちそうだ」'], ['ぬいぐるみの くにの みんなが', 'あつまった！'],
+           ['オグリキング「みんなで わけあう にんじんは', 'いちばんの ごちそうだ」'], 
+           ['{RIVAL}「{g:たのしいね {NAME}！|b:たのしいな {NAME}！}', '{g:…つぎは まけないからね」|b:…つぎは まけないからな」}'], ['ぬいぐるみの くにの みんなが', 'あつまった！'],
            ['{NAME}「みんなで たべると', 'もっと おいしいね！」'], ['ぬいぐるみたちは わらいながら', 'にんじんを わけあった'],
            ['にんげんも ぬいぐるみも', 'みんな なかよし'], ['オグリキング「…にんげんも', 'わるくないのう」'],
            ['ぬいぐるみの くには きょうも', 'へいわで えがおが いっぱい'],
@@ -976,6 +979,25 @@ const CROWN = {
   oyako: { name: 'おやこ おぐり波', partner: 'oguriking', mult: 1.6, artScale: 1.4, fx: 'fire', col: '#ff9aff', fxSp: 'oguriking' },
 };
 // shop items (price in coins). use: heal = HP of the walking companion, healAll = everyone full, recruit = next なかまにする +
+// ---------- ライバル ストーリー (ユイ / ハルト). {g:…|b:…} = girl (ユイ) / boy (ハルト) wording, picked by the rival's gender ----------
+// ambush: one-time rival battle near the start of the first stage of worlds 2-4 (flag rv_<stage id>). ace = キツネン line (last)
+const RIVAL_STORY = {
+  ambush: {
+    mayoi: { x: 120, reward: 150, team: [{ sp: 'usagin', lv: 15, evo: 1 }, { sp: 'risurin', lv: 15 }, { sp: 'kitsunen', lv: 17, evo: 1 }],
+      before: [['{g:まちなさい {NAME}！|b:まてよ {NAME}！}', '{g:もりの くにへ いくの？|b:もりの くにへ いくのか？}'], ['{g:わたしも きたえて きたのよ|b:おれも きたえて きたんだぜ}', '{g:キツネンと しょうぶよ！|b:キツネンと しょうぶだ！}']],
+      after: [['{g:もう！ また まけた…|b:くっそー！ また まけた…}', '{g:もりは まよいやすいから きをつけてね|b:もりで まいごに なるなよ！}']] },
+    jouka: { x: 120, reward: 300, team: [{ sp: 'usagin', lv: 20, evo: 1 }, { sp: 'chouran', lv: 20, evo: 1 }, { sp: 'wolfun', lv: 20 }, { sp: 'kitsunen', lv: 22, evo: 1 }],
+      before: [['{g:{NAME}！ あくの しろに いくなら|b:{NAME}！ あくの しろに いくなら}', '{g:わたしに かってからに して！|b:おれに かってからに しろ！}'], ['{g:こわくなんか ないわ|b:こわくなんか ないぜ}', '{g:いくわよ キツネン！|b:いくぞ キツネン！}']],
+      after: [['{g:…つよく なったね {NAME}|b:…つよく なったな {NAME}}', '{g:しろの なかは ほんとに あぶないの|b:しろの なかは まじで あぶないぞ}'], ['{g:ぜったい かえって きてよね！|b:ぜったい かえって こいよな！}', '']] },
+    seimachi: { x: 120, reward: 500, team: [{ sp: 'usagin', lv: 26, evo: 1 }, { sp: 'chouran', lv: 26, evo: 1 }, { sp: 'toragar', lv: 26 }, { sp: 'kitsunen', lv: 28, evo: 1 }],
+      before: [['{g:{NAME}！ やっぱり きたのね|b:{NAME}！ やっぱり きたな}', '{g:せいぎぐんの まちなんて へんな ところ|b:せいぎぐんの まちか… へんな ところだぜ}'], ['{g:さきに すすむ まえに|b:さきに すすむ まえに}', '{g:さいごの しょうぶよ！|b:さいごの しょうぶだ！}']],
+      after: [['{g:…まけたわ|b:…まけたぜ}', '{g:でも つぎは まけないからね！|b:でも つぎは まけないからな！}'], ['{g:うさひめは つよいって うわさよ|b:うさひめは つよいって うわさだぜ}', '{g:きを つけてね|b:きを つけろよ}']] },
+  },
+  // co-op: at せいぎぐんの みち the rival lends their キツネン for the カメタンク fight (once, flag rvCoop)
+  coop: { stage: 'seimichi', sp: 'kametank', ace: { sp: 'kitsunen', lv: 28, evo: 1 },
+    talk: [['{RIVAL}「{g:まって {NAME}！|b:まてよ {NAME}！}', '{g:ひとりじゃ むりよ！」|b:ひとりじゃ むりだぜ！」}'], ['{RIVAL}「{g:わたしの キツネンも|b:おれの キツネンも}', '{g:いっしょに たたかうわ！」|b:いっしょに たたかうぜ！」}'], ['{RIVAL}「{g:いくわよ！|b:いくぞ！}', '{g:ふたりで やっつけよう！」|b:ふたりで やっつけようぜ！」}']],
+    win: [['{RIVAL}「{g:やったね！|b:やったな！}', '{g:ふたりなら へっちゃらね！」|b:ふたりなら へっちゃらだな！」}'], ['{RIVAL}「{g:にんじん とりかえしたわね|b:にんじん とりかえしたな}', '{g:…つぎは まけないからね」|b:…つぎは まけないからな」}']] },
+};
 // ---------- とくべつ イベント (limited-time). shown at the top of the イベント screen while now < until. reuse for later events ----------
 // coins: every clear / daily: first clear each JST day / once: very first clear ever (flag evonce_<id>)
 const SPECIAL_EVENTS = [
