@@ -312,7 +312,7 @@
   // ---------- sprites ----------
   const SPR = {};
   // art that isn't drawn yet (world 4, うさひめ, endings): only loaded once embedded in assets-img.js, so no 404s
-  const artReady = src => (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src]) || !/(\/w4\/|worldmap4|usahime|\/ending\/)/.test(src);
+  const artReady = src => (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src]) || !/(\/w4\/|worldmap4|usahime|\/ending\/|\/opening\/)/.test(src);
   function loadImg(src) {
     return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('failed to load ' + src)); i.src = (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src]) ? ASSET_DATA[src] : src; });
   }
@@ -478,7 +478,7 @@
   function openSetup() { G.titleScreen = 1; G.titleRow = 0; G.wipeAsk = 0; SFX.blip(); }
   function titleConfirm() {
     if (G.hk) { if (G.state === 'title') hkKey('Enter'); return; }
-    if (G.state !== 'title' || G.nameEdit) return;
+    if (G.state !== 'title' || G.nameEdit || opBlock()) return;
     if (!G.titleScreen) openSetup(); else titleRowAction(G.titleRow | 0);
   }
   function titleRowAction(row) {
@@ -1190,12 +1190,13 @@
   window.addEventListener('blur', () => keys.clear());
 
   function onKey(code) {
+    if (G.op) { opEnd(); return; }
     if (G.hk) { hkKey(code); return; }
     if (G.state === 'title') {
       if (code === 'KeyN') { wipeSave(); startGame(false); return; }
       if (G.nameEdit) return;
       const ok = ['Enter', 'Space', 'NumpadEnter', 'Digit1'].includes(code);
-      if (!G.titleScreen) { if (ok) openSetup(); return; }
+      if (!G.titleScreen) { if (code === 'KeyO') { opStart(); return; } if (ok && !opBlock()) openSetup(); return; }
       if (['Escape', 'KeyX', 'Backspace'].includes(code)) { G.titleScreen = 0; SFX.blip(); return; }
       if (['ArrowUp', 'KeyW'].includes(code)) { G.titleRow = ((G.titleRow | 0) + SETUP_ROWS - 1) % SETUP_ROWS; G.wipeAsk = 0; SFX.blip(); return; }
       if (['ArrowDown', 'KeyS', 'Tab'].includes(code)) { G.titleRow = ((G.titleRow | 0) + 1) % SETUP_ROWS; G.wipeAsk = 0; SFX.blip(); return; }
@@ -1271,6 +1272,7 @@
     view.style.cursor = (active && i >= 0) || G.state === 'title' ? 'pointer' : 'default';
   });
   const titleTarget = e => G.state === 'title' && !G.nameEdit && !G.hk && !nameBox.contains(e.target) && !(e.target.closest && e.target.closest('.ctl'));
+  window.addEventListener('pointerdown', e => { if (G.op) { opEnd(); e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault(); } }, true);   // any tap skips the opening
   window.addEventListener('pointerdown', e => {
     if (!titleTarget(e) || !G.titleScreen) return;
     const [x, y] = logicalPos(e), row = setupRowAt(x, y);
@@ -1282,8 +1284,8 @@
   });
   // other rows act on release (phone keyboards need a finished tap to focus the name box)
   window.addEventListener('pointerup', e => {
-    if (!titleTarget(e)) return;
-    if (!G.titleScreen) { openSetup(); return; }
+    if (!titleTarget(e) || opBlock()) return;
+    if (!G.titleScreen) { const [x, y] = logicalPos(e); if (opChipHit(x, y)) opStart(); else openSetup(); return; }
     const [x, y] = logicalPos(e), row = setupRowAt(x, y);
     if (row >= 0 && row !== ROW.gender && row !== ROW.color) titleRowAction(row);
   });
@@ -1311,6 +1313,7 @@
 
   // ---------- field ----------
   function startGame(fromSave) {
+    G.op = null;
     SFX.start();
     if (G.state !== 'title') return;
     const s = fromSave ? readSave() : null;
@@ -3364,6 +3367,7 @@
   function update(dt) {
     G.t += dt;
     SFX.sync();
+    if (G.op) { G.op.t += dt; if (G.op.t >= OP_END) opEnd(); return; }
     if (G.state === 'field' && G.tutWait > 0 && !G.talk) { G.tutWait -= dt; if (G.tutWait <= 0) startTutorial(); }
     if (G.ending) updateEnding(dt);   // also during the ending talk (true ending pan)
     if (G.battle && G.battle.story && G.battle.w.hp > 0) {   // golden glow while powered up
@@ -4669,12 +4673,107 @@
     rect(x + 1, y + h - 2, w - 2, 1, '#e8d8b0');
     lines.forEach((l, i) => T(l, W / 2, y + 2.5 + i * LH, { al: 'center' }));
   }
+  // ---- opening cutscene (first launch; replay from the title) ----
+  const OP_KEY = 'nm_opening_seen', OPART = {};
+  for (const [k, f] of [['kingdom', 'op_kingdom'], ['run', 'op_run_loop'], ['room', 'op_room'], ['logo', 'title_logo']]) if (artReady('assets/opening/' + f + '.png')) loadImg('assets/opening/' + f + '.png').then(i => { OPART[k] = i; }).catch(() => {});
+  const OP = [
+    { t: 0, kind: 'kingdom', text: ['ぬいぐるみの くにでは', 'ぬいもんたちが へいわに くらしていた'] },
+    { t: 6.5, kind: 'run', text: ['ぬいもんは もりにも のはらにも', 'いたるところに すんでいる'] },
+    { t: 13, kind: 'room', text: ['ある ひ… きみの へやの', 'ぬいぐるみが ひかりだした！'] },
+    { t: 19, kind: 'start' },
+  ], OP_END = 24, OP_CHIP = [2, 82, 34, 7];
+  const opSeen = () => { try { return !!localStorage.getItem(OP_KEY); } catch (e) { return true; } };
+  function opStart() { G.op = { t: 0 }; G.fade = 0; }
+  function opEnd() {
+    if (!G.op) return;
+    G.op = null; G.opSkipAt = performance.now(); G.fade = 0.8; G.fadeSpeed = -2;
+    try { localStorage.setItem(OP_KEY, '1'); } catch (e) {}
+  }
+  const opBlock = () => !!G.op || performance.now() - (G.opSkipAt || 0) < 500;
+  const opChipHit = (x, y) => { const c = OP_CHIP; return x >= c[0] && x < c[0] + c[2] && y >= c[1] && y < c[1] + c[3]; };
+  function opSpr(key, x, foot, faceRight, walking, t) {   // native-size draw, feet on `foot`
+    const s = SPR[key]; if (!s) return;
+    const flip = (faceRight ? 1 : -1) !== s.native, wk = walking && s.walk;
+    const fr = wk ? wk.frames[Math.floor(t * 1000 / wk.ms) % wk.frames.length] : s;
+    const y = Math.round(foot) - 31;
+    g.globalAlpha = 0.3; g.fillStyle = '#000000'; g.fillRect(Math.round(x) + 9, y + 30, 14, 2); g.globalAlpha = 1;
+    g.drawImage(flip ? fr.f : fr.n, Math.round(x), y);
+  }
+  function opBox(lines, a) {   // kana text box at the top (the art keeps floors / feet in the lower half)
+    if (!lines || a <= 0) return;
+    g.globalAlpha = Math.min(1, a);
+    const x = 4, y = 3, w = 152, h = 23;
+    rect(x + 1, y, w - 2, h, '#5a3418'); rect(x, y + 1, w, h - 2, '#5a3418'); rect(x + 1, y + 1, w - 2, h - 2, '#fff8e0'); rect(x + 2, y + h - 3, w - 4, 1, '#e8d8b0');
+    g.globalAlpha = 1;
+    if (a >= 1) { T(lines[0], x + 6, y + 5); T(lines[1] || '', x + 6, y + 12); }
+  }
+  const opPan = st => OPART.kingdom ? Math.round((OPART.kingdom.width - 160) * (0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, st / 6.5)))) : 0;   // slow left→right pan
+  function opBg(img, ox) {   // fallback: plain sky / grass when the art is missing
+    if (img) { g.drawImage(img, -ox, 0); if (img.width - ox < 160) g.drawImage(img, img.width - ox, 0); return; }
+    rect(0, 0, 160, 62, '#9adcff'); rect(0, 62, 160, 28, '#6cc850');
+  }
+  function opLogo(y) {
+    const L = OPART.logo; if (!L) return false;
+    g.drawImage(L, (160 - L.width) >> 1, y); return true;
+  }
+  function drawOpening() {
+    const t = G.op.t;
+    let si = 0; for (let i = 0; i < OP.length; i++) if (t >= OP[i].t) si = i;
+    const S = OP[si], st = t - S.t, nextT = si + 1 < OP.length ? OP[si + 1].t : OP_END, k = S.kind;
+    if (k === 'kingdom') {
+      const pan = opPan(st); opBg(OPART.kingdom, pan);
+      const pals = ['goririn', 'kuuko', 'tsumaguro', 'kitsunen', 'usagin', 'nyankon', 'pengiin', 'wankon'].filter(p => SPR[p]);
+      const span = Math.max(190, (OPART.kingdom ? OPART.kingdom.width : 160) + 30);
+      pals.forEach((p, i) => {   // idle / wander along the ground, in world space so they pan with the town
+        const walk = i % 2 === 0, dir = i % 4 === 0 ? 1 : -1;
+        let x = 8 + i * Math.floor((span - 30) / pals.length); if (walk) x = ((x + dir * st * 10) % span + span) % span - 30;
+        opSpr(p, x - pan, 72 + (i % 3) * 3 - (walk ? 0 : Math.round(Math.abs(Math.sin(st * 3 + i)) * 2)), walk ? dir > 0 : i % 3 !== 0, walk, st + i * 0.13);
+      });
+    } else if (k === 'run') {
+      const off = Math.floor(st * 30), R = OPART.run, w = R ? R.width : 160;
+      opBg(R, off % w);
+      const foot = 67;   // op_run_loop ground line
+      [['kinokon', 190, 1], ['fukuron', 300, -1], ['hakuchon', 420, -1], ['usagin', 520, 1]].forEach(([p, X, f], i) => {   // wild plush idling as we pass
+        if (SPR[p]) opSpr(p, X - off, foot - Math.round(Math.abs(Math.sin(st * 2.5 + i)) * 2), f > 0, false, st);
+      });
+      opSpr('oguri', 62, foot - Math.round(Math.abs(Math.sin(st * 9))), true, true, st);   // oguri-cap.png faces left (native -1) → flipped
+    } else {
+      opBg(OPART.room, 0);
+      const ra = !!OPART.room, rt = t - OP[2].t, glow = rt > 2.2 && rt < 4.4, moving = rt > 4.4;
+      opSpr(SPR.hero ? 'hero' : 'player', 40, 80, true, false, st);
+      // the plush sits on the bookcase's middle shelf (feet y=46) → glows → flash → hops down → walks to the hero
+      const j = moving ? Math.min(1, (rt - 4.4) / 0.7) : 0;
+      const px = (ra ? 110 : 100) - Math.round(j * 14) - (j >= 1 ? Math.min(24, Math.round((rt - 5.1) * 14)) : 0);
+      const foot = Math.round((ra ? 46 : 80) + j * ((ra ? 80 : 80) - (ra ? 46 : 80)) - Math.sin(j * Math.PI) * 12);
+      if (glow) {
+        g.globalAlpha = 0.25 + 0.25 * Math.sin(rt * 14); rect(px + 4, foot - 29, 24, 30, '#fff6b0'); g.globalAlpha = 1;
+        for (let i = 0; i < 5; i++) { const q = (rt * 1.7 + i / 5) % 1, sx = px + 16 + Math.round(Math.sin(i * 2.4 + rt * 3) * 12), sy = Math.round(foot - 4 - q * 30); if (Math.floor(rt * 16 + i) % 2) { rect(sx - 1, sy, 3, 1, '#ffe24a'); rect(sx, sy - 1, 1, 3, '#ffe24a'); } }
+      }
+      opSpr('goririn', px, foot, false, j >= 1, rt);
+      if (rt > 4.3 && rt < 4.6) { g.globalAlpha = 1 - (rt - 4.3) / 0.3; rect(0, 0, 160, 90, '#ffffff'); g.globalAlpha = 1; }   // flash
+    }
+    if (k === 'start') {
+      const a = Math.min(1, st / 0.6);
+      g.globalAlpha = a * 0.45; rect(0, 0, 160, 90, '#14182a'); g.globalAlpha = 1;
+      if (a >= 1) { const lg = opLogo(8); T('ぼうけんの はじまりだ！', 80, lg ? 52 : 38, { size: 8, c: '#ffe24a', ol: '#ffffff', ol2: '#5a2040', al: 'center' }); }
+      const out = t - (OP_END - 1.2); if (out > 0) { g.globalAlpha = Math.min(1, out / 1.2); rect(0, 0, 160, 90, '#ffffff'); g.globalAlpha = 1; }
+    } else {
+      const lines = k === 'room' && t - OP[2].t > 4.6 ? ['…うごいた！？', ''] : S.text;
+      opBox(lines, Math.min(st - 0.4, nextT - t) * 3);
+    }
+    if (si === 0 && st < 0.6) { g.globalAlpha = 1 - st / 0.6; rect(0, 0, 160, 90, '#000000'); g.globalAlpha = 1; }   // fade in
+    if (t > 1) T(TOUCH ? 'タップで スキップ' : 'キーで スキップ', 158, 84, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'right' });
+  }
   function drawTitle() {
     if (G.titleScreen) { drawSetup(); return; }
-    T('ぬいぐるみ', 80, 4, { size: 12, c: '#ff6fa8', ol: '#ffffff', ol2: '#5a2040', al: 'center' });
-    T('モンスター', 80, 17.5, { size: 12, c: '#5ccf3a', ol: '#ffffff', ol2: '#1f4a18', al: 'center' });
-    T('Plush Monsters Adventure', 80, 31, { size: 4, c: '#ffffff', ol: '#2a2a3a', al: 'center' });
-    if ((G.t % 1.2) < 0.85) T(TOUCH ? 'けってい で はじめる' : 'ENTER で はじめる', 80, 38, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
+    { const c = OP_CHIP; rect(c[0], c[1], c[2], c[3], '#5a3418'); rect(c[0] + 1, c[1] + 1, c[2] - 2, c[3] - 2, '#fff8e0'); T('▶オープニング', c[0] + c[2] / 2, c[1] + 1.5, { size: 4, c: '#5a3418', al: 'center' }); }
+    const ly = opLogo(1) ? OPART.logo.height - 28 : 0;   // title_logo.png at native size, centred
+    if (!ly && !OPART.logo) {
+      T('ぬいぐるみ', 80, 4, { size: 12, c: '#ff6fa8', ol: '#ffffff', ol2: '#5a2040', al: 'center' });
+      T('モンスター', 80, 17.5, { size: 12, c: '#5ccf3a', ol: '#ffffff', ol2: '#1f4a18', al: 'center' });
+    }
+    T('Plush Monsters Adventure', 80, 31 + ly, { size: 4, c: '#ffffff', ol: '#2a2a3a', al: 'center' });
+    if ((G.t % 1.2) < 0.85) T(TOUCH ? 'けってい で はじめる' : 'ENTER で はじめる', 80, 38 + ly, { size: 4, c: '#fff6b0', ol: '#4a2c12', al: 'center' });
     if (G.hasSave) {
       const s = readSave();
       const st = STAGES[s && s.stage || 0];
@@ -4744,6 +4843,7 @@
     if (oppSp) blit(oppSp, 136, -1);
   }
   function render() {
+    if (G.op) { drawOpening(); vctx.drawImage(low, 0, 0, W * S, H * S); flushText(); return; }
     if (G.ending) {
       drawEnding(); drawTalk();
       vctx.drawImage(low, 0, 0, W * S, H * S); flushText();
@@ -4926,6 +5026,7 @@
     buildHero();
     if (params.has('tut')) { G.forceTut = true; }
     if (params.has('skiptitle')) startGame(false);
+    else if (!opSeen() && !params.has('noop')) opStart();
     requestAnimationFrame(frame);
   }
   // debug / test hooks
