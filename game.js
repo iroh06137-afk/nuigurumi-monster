@@ -207,7 +207,7 @@
     const up = () => el.classList.remove('on');
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('pointerleave', up);
   }
-  for (const ev of ['touchend', 'pointerup', 'click']) window.addEventListener(ev, () => { if (typeof SFX !== 'undefined') SFX.unlock(); }, { capture: true, passive: true });
+  for (const ev of ['touchend', 'pointerup', 'click', 'keydown']) window.addEventListener(ev, () => { if (typeof SFX !== 'undefined') SFX.unlock(); }, { capture: true, passive: true });
   // no scrolling / zoom / long-press menu / text selection
   for (const ev of ['touchstart', 'touchmove', 'touchend']) document.addEventListener(ev, e => { if (e.target && e.target.closest && e.target.closest('#nameBox')) return; if (e.cancelable) e.preventDefault(); }, { passive: false });
   for (const ev of ['contextmenu', 'gesturestart', 'gesturechange', 'dblclick', 'selectstart']) document.addEventListener(ev, e => e.preventDefault());
@@ -820,7 +820,7 @@
         master = ctx.createGain(); master.gain.value = 0.7; master.connect(ctx.destination);
         bgmGain = ctx.createGain(); bgmGain.gain.value = G.muted ? 0 : 0.22; bgmGain.connect(master);
       }
-      if (ctx.state !== 'running') ctx.resume();
+      if (ctx.state !== 'running') ctx.resume().catch(() => {});
       return ctx;
     }
     function tone(dest, freq, dur, type, vol, slide) {
@@ -977,15 +977,16 @@
       return out;
     }
     let intro = false;
-    function tick() {
-      if (!ticking || !ctx) return;
+    let gen = 0;
+    function tick(my) {
+      if (!ticking || !ctx || my !== gen) return;
       const song = SONGS[theme] || SONGS.field;
       const beat = 60 / song.bpm / 2;
       const part = intro && song.intro ? song.intro : song, len = part.lead.length;
       if (!G.muted && bgmGain) for (const e of stepEvents(theme, song, part, step)) { if (e[0] === 't') tone(bgmGain, e[1], e[2], e[3], e[4], e[5]); else noise(e[1], e[2], e[3]); }
       step++;
       if (step >= len) { step = 0; intro = false; }
-      setTimeout(tick, (song.swing ? beat * (step % 2 ? 1 + song.swing : 1 - song.swing) : beat) * 1000);   // step already advanced: odd = the long on-beat
+      setTimeout(tick, (song.swing ? beat * (step % 2 ? 1 + song.swing : 1 - song.swing) : beat) * 1000, my);   // step already advanced: odd = the long on-beat
     }
     // offline render of a theme (OfflineAudioContext, same graph: BGM bus 0.22 -> master 0.7; drum noise straight to master)
     async function render(name, secs, sr) {
@@ -1016,8 +1017,16 @@
     function start() {
       const c = ac(); if (!c) return;
       applyMute();
-      if (!ticking) { ticking = true; step = 0; tick(); }
+      if (!ticking) { ticking = true; step = 0; tick(gen); }
     }
+    // jump straight to the top of a song (opening: music and pictures start together)
+    function restart(name) {
+      const c = ac(); if (!c) return;
+      applyMute(); theme = name; step = 0; intro = !!(SONGS[name] && SONGS[name].intro);
+      ticking = true; gen++; tick(gen);
+    }
+    // iOS: an 'interrupted' / 'suspended' context (home-screen app sent to the background) may be resumed later
+    function wake() { if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {}); }
     function applyMute() {
       if (!bgmGain || !ctx) return;
       bgmGain.gain.cancelScheduledValues(ctx.currentTime);
@@ -1048,11 +1057,11 @@
     // iOS: (re)start audio inside a real tap; also wakes an 'interrupted' context after the app was in the background
     function unlock() {
       const c = ac(); if (!c) return;
-      if (c.state !== 'running') c.resume();
+      if (c.state !== 'running') c.resume().catch(() => {});
       try { const b = c.createBuffer(1, 1, 22050), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); } catch (e) {}
     }
     return {
-      unlock, render, get theme() { return theme; }, get intro() { return intro; }, songs: SONGS,
+      unlock, restart, wake, get state() { return ctx ? ctx.state : 'none'; }, render, get theme() { return theme; }, get intro() { return intro; }, songs: SONGS,
       start, sync, setMuted: applyMute,
       jump() { beep(520, 0.12, 'square', 0.04, 280); },
       hit(kind) {
@@ -1223,7 +1232,8 @@
   window.addEventListener('blur', () => keys.clear());
 
   function onKey(code) {
-    if (G.op) { opEnd(); return; }
+    if (G.tapGate) { gateGo(); return; }
+    if (G.op) { if (performance.now() - (G.opSkipAt || 0) < 400) return; opEnd(); return; }
     if (G.hk) { hkKey(code); return; }
     if (G.state === 'title') {
       if (code === 'KeyN') { wipeSave(); startGame(false); return; }
@@ -1306,6 +1316,9 @@
     view.style.cursor = (active && i >= 0) || G.state === 'title' ? 'pointer' : 'default';
   });
   const titleTarget = e => G.state === 'title' && !G.nameEdit && !G.hk && !nameBox.contains(e.target) && !(e.target.closest && e.target.closest('.ctl'));
+  // the gate opens on release (iOS only unlocks audio on touchend / click); swallow the press so nothing underneath reacts
+  window.addEventListener('pointerdown', e => { if (G.tapGate) { e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault(); } }, true);
+  for (const ev of ['pointerup', 'touchend', 'click']) window.addEventListener(ev, e => { if (G.tapGate) { SFX.unlock(); gateGo(); e.stopImmediatePropagation(); } }, true);
   window.addEventListener('pointerdown', e => { if (G.op) { opEnd(); e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault(); } }, true);   // any tap skips the opening
   window.addEventListener('pointerdown', e => {
     if (!titleTarget(e) || !G.titleScreen) return;
@@ -1720,6 +1733,7 @@
       else banner('あいてとの つうしんが きれた', 2.5);
     });
   }
+  for (const ev of ['visibilitychange', 'pageshow', 'focus']) window.addEventListener(ev, () => { if (!document.hidden) SFX.wake(); });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden || !G.versus || !G.battle || !G.netRole) return;
     if (!(NET.conn && NET.conn.open) || (NET.peer && NET.peer.disconnected)) netPause();
@@ -3601,6 +3615,7 @@
   function update(dt) {
     G.t += dt;
     SFX.sync();
+    if (G.tapGate) return;
     if (G.op) { G.op.t += dt; if (G.op.t >= OP_END) opEnd(); return; }
     if (G.state === 'field' && G.tutWait > 0 && !G.talk) { G.tutWait -= dt; if (G.tutWait <= 0) startTutorial(); }
     if (G.ending) updateEnding(dt);   // also during the ending talk (true ending pan)
@@ -4475,7 +4490,7 @@
     }
     const i = HUB_BTNS.findIndex(b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
     if (i < 0) return;
-    if (i === H.sel || TOUCH || true) { H.sel = i; hubAct(HUB_BTNS[i].id); }
+    if (i === H.sel || TOUCH) { H.sel = i; hubAct(HUB_BTNS[i].id); }
   }
   function hubFrame(x, y, w, h, fill) {
     rect(x + 1, y, w - 2, h, '#5a3418'); rect(x, y + 1, w, h - 2, '#5a3418'); rect(x + 1, y + 1, w - 2, h - 2, fill);
@@ -4918,7 +4933,22 @@
     { t: 19, kind: 'start' },
   ], OP_END = 24, OP_CHIP = [2, 82, 34, 7];
   const opSeen = () => { try { return !!localStorage.getItem(OP_KEY); } catch (e) { return true; } };
-  function opStart() { G.op = { t: 0 }; G.fade = 0; }
+  function opStart() { G.op = { t: 0 }; G.fade = 0; SFX.unlock(); SFX.restart('opening'); }
+  // first launch: iOS keeps Web Audio silent until a tap, so ask for one before the opening
+  function gateGo() { if (!G.tapGate) return; G.tapGate = false; G.opSkipAt = performance.now(); opStart(); }
+  function drawTapGate() {
+    const t = performance.now() / 1000;
+    opBg(OPART.kingdom, OPART.kingdom ? (OPART.kingdom.width - 160) >> 1 : 0);
+    g.globalAlpha = 0.35; rect(0, 0, 160, 90, '#14161f'); g.globalAlpha = 1;
+    if (!opLogo(6)) { const s = 'ぬいぐるみモンスター'; T(s, Math.round(80 - measure(s) / 2), 14); }
+    opSpr('oguri', 64, 66 + Math.round(-Math.abs(Math.sin(t * 4)) * 3), true, false, t);
+    {
+      const s = 'タップして スタート', w = Math.ceil(measure(s)) + 12, x = 80 - (w >> 1), y = 72;
+      const a = 0.55 + 0.45 * Math.abs(Math.sin(t * 2.4));
+      rect(x + 1, y, w - 2, 11, '#5a3418'); rect(x, y + 1, w, 9, '#5a3418'); rect(x + 1, y + 1, w - 2, 9, '#ffd23a'); rect(x + 2, y + 8, w - 4, 1, '#d8a82a');
+      g.globalAlpha = a; T(s, x + 6, y + 3); g.globalAlpha = 1;
+    }
+  }
   function opEnd() {
     if (!G.op) return;
     G.op = null; G.opSkipAt = performance.now(); G.fade = 0.8; G.fadeSpeed = -2;
@@ -5078,6 +5108,7 @@
     if (oppSp) blit(oppSp, 136, -1);
   }
   function render() {
+    if (G.tapGate) { drawTapGate(); vctx.drawImage(low, 0, 0, W * S, H * S); flushText(); return; }
     if (G.op) { drawOpening(); vctx.drawImage(low, 0, 0, W * S, H * S); flushText(); return; }
     if (G.ending) {
       drawEnding(); drawTalk();
@@ -5265,7 +5296,7 @@
     buildHero();
     if (params.has('tut')) { G.forceTut = true; }
     if (params.has('skiptitle')) startGame(false);
-    else if (!opSeen() && !params.has('noop')) opStart();
+    else if (!opSeen() && !params.has('noop')) G.tapGate = true;
     requestAnimationFrame(frame);
   }
   // debug / test hooks
