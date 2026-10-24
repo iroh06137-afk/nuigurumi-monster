@@ -313,12 +313,14 @@
   // ---------- sprites ----------
   const SPR = {};
   // art that isn't drawn yet (world 4, うさひめ, endings): only loaded once embedded in assets-img.js, so no 404s
-  const artReady = src => (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src]) || !/(\/w4\/|worldmap4|usahime|\/ending\/|\/opening\/|\/story\/)/.test(src);
+  const artReady = src => (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src]) || !/(\/w4\/|worldmap4|usahime|\/ending\/|\/opening\/|\/story\/|\/zukan\/)/.test(src);
   function loadImg(src) {
     return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('failed to load ' + src)); i.src = (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src]) ? ASSET_DATA[src] : src; });
   }
   // versus arena backgrounds (160x90, static): day / night picked per match
   const ARENA = {}, EVBG = {};   // EVBG: painted event-stage panoramas (stage.bgImg), only when embedded
+  const ZART = {};   // ずかん art: habitat panels (48x48) + page frame (160x78), only when embedded
+  for (const k of ['habitat_town', 'habitat_forest', 'habitat_castle', 'habitat_halloween', 'zukan_frame']) if (artReady('assets/zukan/' + k + '.png')) loadImg('assets/zukan/' + k + '.png').then(i => { ZART[k] = i; }).catch(() => {});
   for (const k of ['day', 'night']) loadImg('assets/bg/arena_' + k + '.png').then(i => { ARENA[k] = i; }).catch(() => {});
   function silhouette(src) {
     const [c, x] = mk(32, 32); x.drawImage(src, 0, 0);
@@ -4440,7 +4442,7 @@
     const H = G.hub; SFX.blip();
     if (id === 'quest') { persist(); if (!G.flags.tut) enterStage(0); else { const w = Math.max(0, worldOf(G.stage)); if (w !== (G.world | 0)) setWorld(w); openMap(Math.max(0, MAP_NODES.findIndex(n => n.stage === G.stage))); } return; }
     if (id === 'vs') { persist(); G.state = 'title'; startVersus(); G.hubVs = true; return; }
-    if (id === 'zukan') { H.view = 'zukan'; H.dsel = H.dsel | 0; return; }
+    if (id === 'zukan') { H.view = 'zukan'; H.dsel = H.dsel | 0; H.dd = null; return; }
     if (id === 'items') { H.view = 'items'; H.isel = 0; return; }
     if (id === 'train') { H.view = 'train'; H.tm = Math.min(H.tm | 0, G.party.length - 1); H.tt = H.tt | 0; H.tfx = null; return; }
     if (id === 'gacha') { H.view = 'gacha'; H.gn = H.gn | 0; H.odds = false; H.gres = null; return; }
@@ -4461,6 +4463,9 @@
     if (H.view === 'tgame') { if (ok || code === 'ArrowUp' || code === 'KeyW') tgTap(H); return; }
     if (H.view === 'gacha' && H.gres) { if (ok || back) gachaNext(H); return; }
     if (H.view === 'gacha' && H.odds) { if (ok || back) H.odds = false; return; }
+    if (H.view === 'zukan' && H.dd != null) { if (ok || back) { H.dd = null; SFX.blip(); } else if (dx || dy) dexStep(H, dx || dy); return; }   // けってい / もどる close the page, つぎ flips
+    if (H.view === 'zukan' && ok) { H.dd = H.dsel | 0; SFX.blip(); return; }
+    if (H.view === 'zukan' && code === 'KeyR') { dexClaim(H); return; }
     if (back) { H.view = 'home'; SFX.blip(); return; }
     if (H.view === 'train') { if (dx) H.tm = (H.tm + dx + G.party.length) % G.party.length; if (dy) H.tt = clamp((H.tt | 0) + dy, 0, 2); if (ok) trainBuy(H, H.tt | 0); return; }
     if (H.view === 'gacha') { if (dx || dy) H.gn = H.gn ? 0 : 1; if (ok) gachaPull(H, H.gn ? 10 : 1); if (code === 'KeyO') H.odds = true; return; }
@@ -4475,16 +4480,18 @@
     if (H.view === 'gacha' && H.gres) { gachaNext(H); return; }
     if (H.view === 'gacha' && H.odds) { H.odds = false; return; }
     if (H.view !== 'home') {
-      if (y < 11 && x < 30) { H.view = 'home'; SFX.blip(); return; }   // もどる
+      if (y < 11 && x < 30) { if (H.view === 'zukan' && H.dd != null) H.dd = null; else H.view = 'home'; SFX.blip(); return; }   // もどる (ずかん page -> list first)
       const hit = r => x >= r[0] && x < r[0] + r[2] && y >= r[1] && y < r[1] + r[3];
       if (H.view === 'train') { G.party.forEach((m, i) => { if (hit(TR_CARD(i))) { H.tm = i; SFX.blip(); } }); TR_TIERS.forEach((t, i) => { if (hit(TR_BTN(i))) { H.tt = i; trainBuy(H, i); } }); return; }
       if (H.view === 'gacha') { if (hit(GA_BTN[0])) { H.gn = 0; gachaPull(H, 1); } else if (hit(GA_BTN[1])) { H.gn = 1; gachaPull(H, 10); } else if (hit(GA_BTN[2])) { H.odds = true; SFX.blip(); } return; }
       if (H.view === 'event') { if (evTab(H, x, y)) return; if (hit(EV_BTN)) evStart(H); return; }
+      if (H.view === 'zukan' && H.dd != null) { if (y >= 70 && x >= 120) dexStep(H, x >= 140 ? 1 : -1); return; }
+      if (H.view === 'zukan' && y >= 80 && x >= 116) { dexClaim(H); return; }
       if (H.view === 'zukan') {
         if (x >= 142 && y >= 12 && y < 46) { H.dsel = Math.max(0, (H.dsel | 0) - DEX_PAGE); return; }
         if (x >= 142 && y >= 46 && y < 80) { H.dsel = Math.min(DEX().length - 1, (H.dsel | 0) + DEX_PAGE); return; }
         const c = Math.floor((x - 2) / 35), r = Math.floor((y - 12) / 34);
-        if (c >= 0 && c < DEX_COLS && r >= 0 && r < DEX_ROWS) { const i = Math.floor((H.dsel | 0) / DEX_PAGE) * DEX_PAGE + r * DEX_COLS + c; if (i < DEX().length) H.dsel = i; }
+        if (c >= 0 && c < DEX_COLS && r >= 0 && r < DEX_ROWS) { const i = Math.floor((H.dsel | 0) / DEX_PAGE) * DEX_PAGE + r * DEX_COLS + c; if (i < DEX().length) { H.dsel = i; H.dd = i; SFX.blip(); } }
       }
       if (H.view === 'items') { const i = Math.floor((y - 13) / 9); if (i >= 0 && i < hubItems().length) H.isel = i; }
       return;
@@ -4557,7 +4564,49 @@
     T(`${lb.day}にちめ！ ${lb.coins}コイン もらった！`, 80, 59, { al: 'center', c: '#c0502a', size: 8 });
     T(Math.floor(G.t * 2) % 2 ? 'タップで とじる' : '', 80, 72, { al: 'center', c: '#7a5a30' });
   }
+  // ---- ずかん helpers ----
+  const HAB = { town: 'ぬいぐるみの くに', forest: 'もりの くに', castle: 'あくの しろ', seigi: 'せいぎぐんの くに', halloween: 'ハロウィン' };
+  let dexHabMap = null;
+  function dexHab(k) {   // where a plush first shows up (stage spawns), as a habitat key
+    if (!dexHabMap) {
+      dexHabMap = {};
+      for (const st of STAGES) for (const w of st.spawns || []) {
+        const sp = SPECIES[w.sp] ? w.sp : String(w.sp).replace(/_boss$/, ''); if (dexHabMap[sp]) continue;
+        dexHabMap[sp] = st.event ? 'halloween' : st.world === 3 ? 'seigi' : st.world === 2 ? 'castle' : st.world === 1 || st.theme === 'forest' ? 'forest' : 'town';
+      }
+    }
+    return dexHabMap[k] || (SPECIES[k] && SPECIES[k].limited ? 'halloween' : 'town');
+  }
+  const dexHabArt = h => ZART['habitat_' + (h === 'seigi' ? 'castle' : h)];
+  function dexType(k) {
+    const s = SPECIES[k], v = [['パワー', s.atk], ['ガード', s.def], ['スピード', s.spd], ['タフ', s.hp / 4]];
+    return v.reduce((a, b) => b[1] > a[1] ? b : a)[0];
+  }
+  function dexEvo(k) {   // evolved art shown beside the base form (not for noEvo plush or self-mapped evolutions)
+    const ev = typeof EVOLVE !== 'undefined' && EVOLVE[k], s = SPECIES[k];
+    return ev && !s.noEvo && ev.sprite !== s.sprite && SPR[ev.sprite] ? ev : null;
+  }
+  const dexSpoiler = k => dexHab(k) === 'seigi' || k === 'usahime';   // unseen せいぎぐん plush stay a plain ？ (no silhouette spoiler)
+  const DEX_RW = [[0.25, 100], [0.5, 200], [0.75, 300], [1, 500]];   // ぜんぶの 25/50/75/100% あつめた -> coins (once each, G.flags.dexRw)
+  function dexRwNext() {
+    const list = DEX(), own = ownedSp(), got = list.filter(k => dexCaught(k, own)).length, done = G.flags.dexRw || [];
+    for (let i = 0; i < DEX_RW.length; i++) if (!done.includes(i)) return { i, need: Math.ceil(list.length * DEX_RW[i][0]), coins: DEX_RW[i][1], pct: DEX_RW[i][0] * 100, ok: got >= Math.ceil(list.length * DEX_RW[i][0]) };
+    return null;
+  }
+  function dexClaim(H) {
+    const r = dexRwNext(); if (!r || !r.ok) return;
+    G.flags.dexRw = (G.flags.dexRw || []).concat(r.i); G.coins += r.coins; persist(); SFX.recruit();
+    H.dmsg = { text: `${r.pct}% たっせい！ ${r.coins}コイン もらった！`, t: G.t };
+  }
+  function dexStep(H, d) { const n = DEX().length; H.dd = ((H.dd | 0) + d + n) % n; H.dsel = H.dd; SFX.blip(); }
+  function dexArt(k, x, y, caught, seen) {   // 32x32 at 1x: the art, a code-made silhouette, or ？
+    const sp = SPECIES[k].sprite, s = SPR[sp];
+    if (caught) g.drawImage(s.native === 1 ? s.n : s.f, x, y);
+    else if (seen || !dexSpoiler(k)) { const b = blackOf(sp); if (b) g.drawImage(b, x, y); }
+    else T('?', x + 16, y + 13, { al: 'center', c: '#b0a080' });
+  }
   function drawZukan(H) {
+    if (H.dd != null) return drawZukanPage(H);
     const list = DEX(), own = ownedSp(), seen = list.filter(k => dexSeen(k, own)).length, got = list.filter(k => dexCaught(k, own)).length;
     const page = Math.floor((H.dsel | 0) / DEX_PAGE), pages = Math.ceil(list.length / DEX_PAGE);
     hubTop(`ずかん  ${page + 1}/${pages}`, true);
@@ -4565,17 +4614,44 @@
       const i = page * DEX_PAGE + j, k = list[i]; if (!k) break;
       const x = 2 + (j % DEX_COLS) * 35, y = 12 + Math.floor(j / DEX_COLS) * 34, sel = i === H.dsel;   // 34x33 cells: the 32px art at 1x, never shrunk
       hubFrame(x, y, 34, 33, sel ? '#ffe98a' : '#fff8e0');
-      const sp = SPECIES[k].sprite, s = SPR[sp];
-      if (dexCaught(k, own)) g.drawImage(s.native === 1 ? s.n : s.f, x + 1, y);
-      else if (dexSeen(k, own)) { const b = blackOf(sp); if (b) g.drawImage(b, x + 1, y); }
-      else T('?', x + 17, y + 13, { al: 'center', c: '#b0a080' });
+      dexArt(k, x + 1, y, dexCaught(k, own), dexSeen(k, own));
+      if (SPECIES[k].limited && dexSeen(k, own)) { rect(x + 15, y + 1, 18, 7, '#e0302a'); T('げんてい', x + 24, y + 2, { al: 'center', c: '#ffffff' }); }
     }
     hubFrame(142, 12, 16, 33, '#fff8e0'); hubFrame(142, 46, 16, 33, '#fff8e0');
     T('◀', 150, 25, { al: 'center', c: page > 0 ? '#c0502a' : '#d8c8a8' }); T('▶', 150, 59, { al: 'center', c: page < pages - 1 ? '#c0502a' : '#d8c8a8' });
-    const k = list[H.dsel | 0], c = k && dexCaught(k, own), sn = k && dexSeen(k, own);
-    T(k ? `No.${String((H.dsel | 0) + 1).padStart(3, '0')} ${sn ? SPECIES[k].name : '？？？'}` : '', 3, 81, { c: '#4a2c12' });
-    T(c ? 'なかま' : sn ? 'みつけた' : '', 72, 81, { c: c ? '#2a7a1a' : '#3c6ad8' });
-    T(`みつけた${seen} なかま${got}/${list.length}`, 158, 81, { al: 'right', c: '#7a5a30' });
+    if (H.dmsg && G.t - H.dmsg.t < 2.5) { T(H.dmsg.text, 80, 81, { al: 'center', c: '#c0502a' }); return; }
+    T(`みつけた${seen} / あつめた${got} / ぜんぶ${list.length}`, 3, 81, { c: '#4a2c12' });
+    const r = dexRwNext();
+    if (r && r.ok) { const on = Math.floor(G.t * 3) % 2; hubFrame(117, 80, 41, 10, on ? '#ffd23a' : '#ffe98a'); T('ごほうび！', 137.5, 81, { al: 'center', c: '#c0502a' }); }
+    else if (r) T(`つぎ ${r.need}たい`, 158, 81, { al: 'right', c: '#7a5a30' });
+    else T('コンプリート！', 158, 81, { al: 'right', c: '#2a7a1a' });
+  }
+  function dexBox(k, x, y, sprKey, show) {   // 48x48 habitat panel, plush at (8,6) so the feet sit on the ground line
+    const art = dexHabArt(dexHab(k));
+    if (art) g.drawImage(art, x, y); else { hubFrame(x, y, 48, 48, '#cfeaff'); rect(x + 1, y + 38, 46, 9, '#8ccf6a'); }
+    if (show === 'art') { const s = SPR[sprKey]; g.drawImage(s.native === 1 ? s.n : s.f, x + 8, y + 6); }
+    else dexArt(k, x + 8, y + 6, false, show === 'seen');
+  }
+  function drawZukanPage(H) {
+    const list = DEX(), own = ownedSp(), i = H.dd | 0, k = list[i]; if (!k) { H.dd = null; return; }
+    const S0 = SPECIES[k], c = dexCaught(k, own), sn = dexSeen(k, own), ev = c && dexEvo(k);
+    hubTop(`No.${String(i + 1).padStart(3, '0')} ${sn ? S0.name : '？？？'}`, true);
+    rect(0, 11, 160, 79, '#fff8e0');
+    if (ZART.zukan_frame) g.drawImage(ZART.zukan_frame, 0, 12); else hubFrame(0, 12, 160, 78, '#fff8e0');
+    dexBox(k, 8, 20, S0.sprite, c ? 'art' : sn ? 'seen' : 'none');
+    let cx = 62;
+    if (ev) { T('▶', 58, 40, { al: 'center', c: '#c0502a' }); dexBox(k, 62, 20, ev.sprite, 'art'); cx = 114; }
+    const L = (s, y, col) => T(s, cx, y, { c: col || '#4a2c12' });
+    if (sn) {
+      L(`タイプ ${dexType(k)}`, 20);
+      L('すみか', 28, '#7a5a30'); L(HAB[dexHab(k)], 35);
+      if (S0.limited) { rect(cx, 43, 18, 7, '#e0302a'); T('げんてい', cx + 9, 44, { al: 'center', c: '#ffffff' }); }
+    } else L('？？？', 20);
+    if (c) { const m = movesOf({ sp: k }); L('わざ', 52, '#7a5a30'); L(m.attack.name, 59); L(m.strong.name, 66); }
+    const desc = c ? (typeof ZUKAN_DESC !== 'undefined' && ZUKAN_DESC[k]) || '' : sn ? 'なかまに なると くわしく わかるよ' : 'まだ みつけて いない…';
+    wrapW(desc, 110).slice(0, 2).forEach((ln, j) => T(ln, 8, 71 + j * 7, { c: '#4a2c12' }));
+    hubFrame(121, 72, 17, 12, '#ffe98a'); T('◀', 129.5, 74, { al: 'center', c: '#c0502a' });
+    hubFrame(140, 72, 17, 12, '#ffe98a'); T('▶', 148.5, 74, { al: 'center', c: '#c0502a' });
   }
   function drawHubItems(H) {
     hubTop('アイテム', true);
