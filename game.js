@@ -930,6 +930,18 @@
         harm: [69,0,0,0, 65,0,0,0, 70,0,0,0, 74,0,0,0, 67,0,0,0, 72,0,0,0, 69,0,0,0, 65,0,0,0,
                65,0,0,0, 69,0,0,0, 70,0,0,0, 65,0,0,0, 67,0,0,0, 64,0,0,0, 65,0,0,0, 69,0,0,0],
       },
+      // ハロウィンの よる event: D minor, swung, spooky-but-cute
+      halloween: { bpm: 138, swing: 0.3, leadVol: 0.065, harmType: 'triangle', harmVol: 0.05, harmLen: 1.2, lead: [74,0,77,74,81,0,80,0,79,77,76,0,73,0,69,0,70,0,74,70,77,0,76,74,73,74,76,77,76,0,0,0,74,77,81,77,86,0,85,0,84,82,81,0,79,0,77,0,76,0,73,0,70,0,73,76,74,0,69,0,62,0,0,0], bass: [38,0,45,0,50,0,45,0,33,0,40,0,45,0,40,0,34,0,41,0,46,0,41,0,33,0,40,0,45,0,40,0,38,0,45,0,50,0,45,0,41,0,48,0,53,0,48,0,33,0,40,0,45,0,40,0,38,0,45,0,50,0,45,0], harm: [65,0,0,0,69,0,0,0,61,0,0,0,64,0,0,0,62,0,0,0,65,0,0,0,61,0,0,0,67,0,0,0,65,0,0,0,69,0,0,0,65,0,0,0,69,0,0,0,61,0,0,0,67,0,0,0,62,0,0,0,65,0,0,0] },
+      // first-launch opening: gentle F major intro (64 steps = 19.6 s, rising into 「ぼうけんの はじまりだ！」), then an adventurous loop
+      opening: { bpm: 98, leadVol: 0.065, harmType: 'triangle', harmVol: 0.05, harmLen: 1.8, intro: { lead: [65,0,0,0,69,0,72,0,77,0,0,0,76,0,72,0,74,0,0,0,72,0,70,0,69,0,0,0,0,0,0,0,65,0,69,0,72,0,77,0,79,0,77,0,76,0,74,0,72,0,74,0,76,0,77,0,79,0,81,0,82,0,84,0], bass: [41,0,0,0,48,0,0,0,36,0,0,0,43,0,0,0,34,0,0,0,41,0,0,0,36,0,0,0,43,0,0,0,41,0,0,0,48,0,0,0,38,0,0,0,45,0,0,0,34,0,0,0,41,0,0,0,36,0,0,0,43,0,0,0], harm: [69,0,0,0,72,0,0,0,67,0,0,0,72,0,0,0,65,0,0,0,70,0,0,0,64,0,0,0,67,0,0,0,69,0,0,0,72,0,0,0,65,0,0,0,69,0,0,0,65,0,0,0,70,0,0,0,64,0,0,0,70,0,0,0] }, lead: [77,0,77,79,81,0,77,0,84,0,82,81,79,0,0,0,82,0,81,79,77,0,74,0,76,77,79,76,72,0,0,0], bass: [41,53,48,53,41,53,48,53,38,50,45,50,38,50,45,50,34,46,41,46,34,46,41,46,36,48,43,48,36,48,43,48], harm: [69,0,72,0,69,0,72,0,65,0,69,0,65,0,69,0,65,0,70,0,65,0,70,0,64,0,67,0,64,0,67,0] },
+      // トレーニング: C major workout groove
+      training: { bpm: 140, battle: true, leadType: 'square', leadVol: 0.07, lead: [72,0,72,0,79,0,72,0,76,0,79,0,81,79,76,0,74,0,74,0,79,0,74,0,77,0,79,0,83,81,79,0], bass: [36,48,36,48,36,48,43,48,41,53,41,53,41,53,48,53,43,55,43,55,43,55,50,55,43,55,43,55,43,55,50,55], drum: [1,0,2,0,1,0,2,1,1,0,2,0,1,0,2,1,1,0,2,0,1,0,2,1,1,0,2,0,1,0,2,1], harmType: 'triangle', harmVol: 0.045, harmLen: 1.0, harm: [64,0,67,0,64,0,67,0,65,0,69,0,65,0,69,0,62,0,67,0,62,0,67,0,65,0,71,0,65,0,71,0] },
+      // ガチャ: bouncy G major 16-step loop
+      gacha: { bpm: 150, battle: true, leadType: 'square', leadVol: 0.07, lead: [67,71,74,71,79,0,74,0,69,72,76,72,78,0,74,0], bass: [43,0,55,0,43,0,55,0,45,0,57,0,50,0,62,0], drum: [1,0,2,0,1,2,2,0,1,0,2,0,1,2,2,2], harmType: 'triangle', harmVol: 0.045, harmLen: 1.4, harm: [71,0,0,0,74,0,0,0,72,0,0,0,76,0,0,0] },
+      // ライバル (ユイ/ハルト, ambush, co-op): E minor friendly-rivalry battle, square lead
+      rival: { bpm: 176, battle: true, leadType: 'square', leadVol: 0.075, harmType: 'sawtooth', harmVol: 0.03, harmLen: 1.2, lead: [76,0,79,81,83,0,81,79,78,0,74,0,76,0,0,0,76,0,79,81,83,0,86,0,84,83,81,79,81,0,0,0,79,0,79,0,81,79,78,0,76,0,76,0,78,76,74,0,72,0,74,0,76,0,78,0,79,81,83,86,88,0,0,0], bass: [40,40,52,40,40,52,47,52,35,35,47,35,35,47,42,47,36,36,48,36,36,48,43,48,38,38,50,38,38,50,45,50,40,40,52,40,40,52,47,52,43,43,55,43,43,55,50,55,45,45,57,45,45,57,52,57,38,38,50,38,38,50,45,50,36,36,48,36,36,48,43,48,38,38,50,38,38,50,45,50,35,35,47,35,35,47,42,47,40,40,52,40,40,52,47,52,36,36,48,36,36,48,43,48,38,38,50,38,38,50,45,50,35,35,47,35,35,47,42,47,40,40,52,40,40,52,47,52], drum: [1,0,2,0,1,1,2,0,1,0,2,1,1,0,2,2,1,0,2,0,1,1,2,0,1,0,2,1,1,0,2,2,1,0,2,0,1,1,2,0,1,0,2,1,1,0,2,2,1,0,2,0,1,1,2,0,1,0,2,1,1,0,2,2], harm: [67,0,0,0,71,0,0,0,66,0,0,0,71,0,0,0,67,0,0,0,72,0,0,0,66,0,0,0,69,0,0,0,67,0,0,0,71,0,0,0,67,0,0,0,71,0,0,0,69,0,0,0,72,0,0,0,66,0,0,0,69,0,0,0,67,0,0,0,72,0,0,0,66,0,0,0,69,0,0,0,66,0,0,0,71,0,0,0,67,0,0,0,71,0,0,0,67,0,0,0,72,0,0,0,69,0,0,0,74,0,0,0,66,0,0,0,71,0,0,0,67,0,0,0,71,0,0,0] },
+      // オグリキング: C minor royal march, slow and heavy, brassy harmony, fanfare intro
+      oguriking: { bpm: 120, battle: true, leadType: 'square', leadVol: 0.08, harmType: 'sawtooth', harmVol: 0.035, harmLen: 3.2, intro: { lead: [72,0,72,72,79,0,0,0,75,0,75,75,84,0,0,0], bass: [36,0,36,36,43,0,0,0,32,0,32,32,31,0,31,31], drum: [1,0,1,1,2,0,0,0,1,0,1,1,2,2,2,2], harm: [63,0,0,0,67,0,0,0,63,0,0,0,62,0,0,0] }, lead: [72,0,0,72,75,0,79,0,84,0,0,0,82,0,79,0,80,0,0,80,79,0,77,0,79,0,0,0,0,0,0,0,72,0,0,72,75,0,79,0,84,0,86,0,87,0,84,0,86,0,84,82,80,0,79,77,79,0,0,0,74,0,71,0], bass: [36,0,36,36,48,0,36,43,36,0,36,36,48,0,36,43,32,0,32,32,44,0,32,39,31,0,31,31,43,0,31,38,36,0,36,36,48,0,36,43,32,0,32,32,44,0,32,39,34,0,34,34,46,0,34,41,31,0,31,31,43,0,31,38], drum: [1,0,0,1,2,0,1,0,1,0,0,1,2,0,2,2,1,0,0,1,2,0,1,0,1,0,0,1,2,0,2,2,1,0,0,1,2,0,1,0,1,0,0,1,2,0,2,2,1,0,0,1,2,0,1,0,1,0,0,1,2,0,2,2], harm: [63,0,0,0,67,0,0,0,63,0,0,0,67,0,0,0,63,0,0,0,68,0,0,0,62,0,0,0,67,0,0,0,63,0,0,0,67,0,0,0,63,0,0,0,68,0,0,0,62,0,0,0,65,0,0,0,62,0,0,0,67,0,0,0] },
     };
     // one step of a song as events: ['t', freq, dur, type, vol, slide] = tone on the BGM bus, ['n', dur, vol, hp] = noise (master bus).
     // shared by tick() and the offline renderer (SFX.render) so a render plays exactly what the game plays
@@ -956,7 +968,7 @@
       if (!G.muted && bgmGain) for (const e of stepEvents(theme, song, part, step)) { if (e[0] === 't') tone(bgmGain, e[1], e[2], e[3], e[4], e[5]); else noise(e[1], e[2], e[3]); }
       step++;
       if (step >= len) { step = 0; intro = false; }
-      setTimeout(tick, beat * 1000);
+      setTimeout(tick, (song.swing ? beat * (step % 2 ? 1 + song.swing : 1 - song.swing) : beat) * 1000);   // step already advanced: odd = the long on-beat
     }
     // offline render of a theme (OfflineAudioContext, same graph: BGM bus 0.22 -> master 0.7; drum noise straight to master)
     async function render(name, secs, sr) {
@@ -980,7 +992,7 @@
           }
         }
         st++; if (st >= part.lead.length) { st = 0; inIntro = false; }
-        t = t0 + beat;
+        t = t0 + (song.swing ? beat * (st % 2 ? 1 + song.swing : 1 - song.swing) : beat);
       }
       return (await c.startRendering()).getChannelData(0);
     }
@@ -999,12 +1011,16 @@
     }
     function sync() {
       let name = 'field';
-      if (G.state === 'title' || G.state === 'hub') name = 'title';
+      if (G.op) name = 'opening';
+      else if (G.state === 'hub' && G.hub && (G.hub.view === 'train' || G.hub.view === 'tgame')) name = 'training';
+      else if (G.state === 'hub' && G.hub && G.hub.view === 'gacha') name = 'gacha';
+      else if (G.state === 'title' || G.state === 'hub') name = 'title';
       else if (G.state === 'map') name = 'map';
       else if (G.ending && G.ending.id === 'true') name = 'true_end';   // true ending pan + staff roll
       else if (G.state === 'battle') {
         const sp = G.battle && G.battle.w && SPECIES[G.battle.w.sp];
-        name = G.battle && G.battle.w.sp === 'usahime' ? 'usahime' : sp && sp.boss && sp.gate ? 'seigi_mid' : sp && sp.boss ? 'boss' : 'battle';
+        const B = G.battle, tr = B && B.w && B.w.trainer, rv = B && (B.coop || tr === 'rival' || (tr && String(tr).startsWith('rv_')));   // ライバル: town rival, ambushes, co-op
+        name = B && B.w.sp === 'usahime' ? 'usahime' : B && B.w.sp === 'oguriking' ? 'oguriking' : rv ? 'rival' : sp && sp.boss && sp.gate ? 'seigi_mid' : sp && sp.boss ? 'boss' : 'battle';
       }
       else {
         const th = STAGES[G.stage] && STAGES[G.stage].theme;
