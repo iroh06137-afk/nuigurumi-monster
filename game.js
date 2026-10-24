@@ -819,7 +819,7 @@
         try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
         ctx = new AC();
         master = ctx.createGain(); master.gain.value = 0.7; master.connect(ctx.destination);
-        bgmGain = ctx.createGain(); bgmGain.gain.value = G.muted ? 0 : 0.22; bgmGain.connect(master);
+        bgmGain = ctx.createGain(); bgmGain.gain.value = G.muted ? 0 : 0.4; bgmGain.connect(master);
       }
       if (ctx.state !== 'running') ctx.resume().catch(() => {});
       return ctx;
@@ -993,7 +993,7 @@
     async function render(name, secs, sr) {
       sr = sr || 44100; const song = SONGS[name], c = new OfflineAudioContext(1, Math.ceil(sr * secs), sr);
       const mst = c.createGain(); mst.gain.value = 0.7; mst.connect(c.destination);
-      const bus = c.createGain(); bus.gain.value = 0.22; bus.connect(mst);
+      const bus = c.createGain(); bus.gain.value = 0.4; bus.connect(mst);
       let t = 0, st = 0, inIntro = !!song.intro; const beat = 60 / song.bpm / 2;
       while (t < secs) {
         const part = inIntro ? song.intro : song, t0 = t; t = Math.round(t * sr) / sr;   // sample-aligned like the live clock (else a noise burst can start before its gain envelope)
@@ -1031,7 +1031,7 @@
     function applyMute() {
       if (!bgmGain || !ctx) return;
       bgmGain.gain.cancelScheduledValues(ctx.currentTime);
-      bgmGain.gain.setTargetAtTime(G.muted ? 0 : 0.22, ctx.currentTime, 0.05);
+      bgmGain.gain.setTargetAtTime(G.muted ? 0 : 0.4, ctx.currentTime, 0.05);
     }
     function setTheme(name) {
       if (name && name !== theme) { theme = name; step = 0; intro = !!(SONGS[name] && SONGS[name].intro); }
@@ -1087,7 +1087,7 @@
         if (bgmGain && ctx && !G.muted) {
           bgmGain.gain.cancelScheduledValues(ctx.currentTime);
           bgmGain.gain.setTargetAtTime(0.04, ctx.currentTime, 0.04);
-          setTimeout(() => { if (!G.muted && bgmGain && ctx) bgmGain.gain.setTargetAtTime(0.22, ctx.currentTime, 0.12); }, 1400);
+          setTimeout(() => { if (!G.muted && bgmGain && ctx) bgmGain.gain.setTargetAtTime(0.4, ctx.currentTime, 0.12); }, 1400);
         }
         const line = [
           [0, 523], [110, 659], [220, 784], [330, 1046],
