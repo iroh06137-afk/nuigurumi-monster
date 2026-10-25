@@ -543,6 +543,8 @@
   }
   // player records -> Supabase (players table via save_player RPC; the public key can only write, not read)
   const CLOUD = { url: 'https://acwibplypgkutrfeuejq.supabase.co', key: 'sb_publishable_H9BXr00nglxIaHOvTeVPlw_mJ8C5vhP', t: null, last: 0 };
+  // test browsers (Playwright/webdriver, ?test, localStorage nm_test=1) never write to the real players / saves tables
+  const CLOUD_OFF = (() => { try { return !!navigator.webdriver || /[?&]test\b/.test(location.search) || localStorage.getItem('nm_test') === '1'; } catch (e) { return true; } })();
   function cloudId() {
     try {
       let id = localStorage.getItem('nm_pid');
@@ -564,12 +566,13 @@
   }
   // full save -> saves table (cloud_put creates the row on first call; later only with the matching secret)
   function cloudPut() {
+    if (CLOUD_OFF) return Promise.resolve(false);
     const id = cloudId(), sec = cloudSecret(), d = readSave();
     if (!id || !sec || !d) return Promise.resolve(false);
     return rpc('cloud_put', { p_id: id, p_secret: sec, p_data: d });
   }
   function cloudSave(now) {
-    if (typeof fetch === 'undefined') return;
+    if (typeof fetch === 'undefined' || CLOUD_OFF) return;
     clearTimeout(CLOUD.t);
     const wait = now ? 0 : Math.max(0, 15000 - (Date.now() - CLOUD.last));
     CLOUD.t = setTimeout(() => {
