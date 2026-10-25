@@ -1228,6 +1228,66 @@
     if (JKART[h]) { g.drawImage(JKART[h], x, y); return; }
     rect(x, y, 8, 8, JK_COL[h]); drawPattern(JK_PAT[h], x, y, { '#': '#2a1a10', w: '#fff8e0' });
   }
+
+  // ---------- じゃんけん あいしょう tutorial (3 pages; first eligible battle once, or from the ずかん あいしょう button) ----------
+  const JKT_N = 3;
+  function jkTutArm(B) {
+    if (G.jkTut || G.flags.jkTut || !B || B.final || G.versus || tutOn() || B.phase !== 'input') return;
+    G.jkTut = { p: 0, t: 0, from: 'battle' };
+  }
+  function jkTutOpen() { G.fade = 0; G.jkTut = { p: 0, t: 0, from: 'hub' }; SFX.blip(); }
+  function jkTutStep(d) {
+    const J = G.jkTut; if (!J) return;
+    J.p = Math.max(0, J.p + d); SFX.blip();
+    if (J.p >= JKT_N) { if (J.from === 'battle') { G.flags.jkTut = 1; persist(); } G.jkTut = null; }
+  }
+  function jkTutKey(code) {
+    if (code === 'ArrowLeft' || code === 'KeyA') jkTutStep(-1);
+    else if (['Escape', 'KeyX', 'Backspace'].includes(code) && G.jkTut.p === JKT_N - 1) jkTutStep(1);
+    else if (!['ArrowUp', 'ArrowDown', 'KeyW', 'KeyS'].includes(code)) jkTutStep(1);
+  }
+  function jkBig(h, x, y) {   // badge at 2x (integer nearest-neighbour)
+    if (JKART[h]) { g.drawImage(JKART[h], x, y, 16, 16); return; }
+    rect(x, y, 16, 16, JK_COL[h]); for (let r = 0; r < 8; r++) for (let q = 0; q < 8; q++) { const ch = (JK_PAT[h][r] || '')[q]; if (ch === '#' || ch === 'w') rect(x + q * 2, y + r * 2, 2, 2, ch === '#' ? '#2a1a10' : '#fff8e0'); }
+  }
+  function drawJkTut() {
+    const J = G.jkTut; if (!J) return;
+    textOps.length = 0;   // modal: drop the text underneath
+    g.globalAlpha = 0.55; rect(0, 0, W, H, '#14182a'); g.globalAlpha = 1;
+    const x = 8, y = 4, w = 144, h = 64, inB = G.state === 'battle';
+    rect(x + 1, y, w - 2, h, '#5a3418'); rect(x, y + 1, w, h - 2, '#5a3418'); rect(x + 1, y + 1, w - 2, h - 2, '#fff8e0');
+    rect(x + 1, y + 1, w - 2, 9, '#ffd23a');
+    T('じゃんけん あいしょう', x + 6, y + 3, { c: '#5a3418' });
+    T((J.p + 1) + '/' + JKT_N, x + w - 5, y + 3, { al: 'right', c: '#5a3418' });
+    const bob = Math.floor(J.t * 4) % 2;
+    if (J.p === 0) {
+      T('ぬいもんには グー・チョキ・パー が あるよ', 80, y + 13, { al: 'center' });
+      [['gu', 'グー'], ['choki', 'チョキ'], ['pa', 'パー']].forEach(([k, n], i) => { const bx = 28 + i * 40; jkBig(k, bx, y + 21); T(n, bx + 8, y + 39, { al: 'center', c: '#c0502a' }); });
+      // mock HP bar with its badge
+      const hx = 52, hy = y + 49;
+      rect(hx, hy, 22, 4, '#3a2410'); rect(hx + 1, hy + 1, 16, 2, '#5ad04a'); drawJk('gu', hx + 23, hy - 2);
+      drawPattern(['#...', '##..', '###.', '##..', '#...'], hx + 34, hy - 1 + bob, { '#': '#c0502a' });
+      T('HPバーの よこに でるよ', hx + 40, hy - 1, { c: '#7a5a38' });
+    } else if (J.p === 1) {
+      T('じゃんけんで つよい ほうが かつよ', 80, y + 13, { al: 'center' });
+      const seq = ['gu', 'choki', 'pa', 'gu'];
+      seq.forEach((k, i) => { const bx = 22 + i * 32; jkBig(k, bx, y + 21); if (i < 3) T('▶', bx + 24, y + 25, { al: 'center', c: '#c0502a' }); });
+      T('グー  ▶  チョキ  ▶  パー  ▶  グー', 80, y + 39, { al: 'center', c: '#7a5a38' });
+      T('つよいと ダメージ 1.5ばい！', 80, y + 46, { al: 'center', c: '#e0302a' });
+      T('よわいと はんぶん…', 80, y + 52, { al: 'center', c: '#3c6ad8' });
+    } else {
+      T('わざボタンの しるしを みてね', 80, y + 13, { al: 'center' });
+      [[1, '#e0302a', 'つよい'], [-1, '#3c6ad8', 'よわい']].forEach(([u, col, lab], i) => {
+        const bx = 36 + i * 64, by = y + 17;
+        rect(bx, by, 24, 24, '#3a2410'); rect(bx + 2, by + 2, 20, 20, '#e88a4a');   // a わざボタン at 2x
+        (u > 0 ? ['..#..', '.###.', '#####'] : ['#####', '.###.', '..#..']).forEach((row, r) => [...row].forEach((ch, q) => { if (ch === '#') rect(bx + 12 + q * 2, by + 2 + r * 2, 2, 2, col); }));
+        T((u > 0 ? '▲' : '▼') + ' ' + lab, bx + 12, by + 26, { al: 'center', c: col });
+      });
+      T(inB ? 'したの わざボタンに でるよ' : 'たたかいの わざボタンに でるよ', 80, y + 50, { al: 'center', c: '#7a5a38' });
+      if (inB) { const b = BTN[0]; drawPattern(['#######', '#yyyyy#', '.#yyy#.', '..#y#..', '...#...'], Math.round(b.x + b.w / 2 - 4), 68 + bob, { '#': '#5a1a1a', y: '#ffe24a' }); }
+    }
+    T(J.p < JKT_N - 1 ? (TOUCH ? 'タップ / けってい で つぎへ' : 'Enterで つぎへ') : (TOUCH ? 'タップで とじる' : 'Enterで とじる'), x + w - 5, y + h - 7, { al: 'right', size: 4, c: '#a08a60' });
+  }
   function calcDmg(a, d, mv) { return Math.max(1, Math.round(mv.power * a.atk * (a._buff || 1) / (a.atk + d.def) * (0.85 + rand() * 0.3) * jkMul(a, d))); }
   // move side effects (せいぎぐん): buff = attack up for this battle (ファンファーレ), heal = recover part of max HP (にんじんスープ)
   function afterMove(att, mv) {
@@ -1258,6 +1318,7 @@
   function onKey(code) {
     if (G.tapGate) { gateGo(); return; }
     if (G.op) { if (performance.now() - (G.opSkipAt || 0) < 400) return; opEnd(); return; }
+    if (G.jkTut) { jkTutKey(code); return; }
     if (G.hk) { hkKey(code); return; }
     if (G.state === 'title') {
       if (code === 'KeyN') { wipeSave(); startGame(false); return; }
@@ -1343,6 +1404,7 @@
   // the gate opens on release (iOS only unlocks audio on touchend / click); swallow the press so nothing underneath reacts
   window.addEventListener('pointerdown', e => { if (G.tapGate) { e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault(); } }, true);
   for (const ev of ['pointerup', 'touchend', 'click']) window.addEventListener(ev, e => { if (G.tapGate) { SFX.unlock(); gateGo(); e.stopImmediatePropagation(); } }, true);
+  window.addEventListener('pointerdown', e => { if (G.jkTut && !(e.target.closest && e.target.closest('.ctl'))) { jkTutStep(1); e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault(); } }, true);   // あいしょう pages: tap = next
   window.addEventListener('pointerdown', e => { if (G.op) { opEnd(); e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault(); } }, true);   // any tap skips the opening
   window.addEventListener('pointerdown', e => {
     if (!titleTarget(e) || !G.titleScreen) return;
@@ -2517,7 +2579,7 @@
     const B = G.battle, t = B && B.tut; if (!t || !t.on) return;
     t.i = Math.max(0, t.i + d);
     SFX.blip();
-    if (t.i >= TUT_STEPS.length) { t.on = false; B.sel = 0; G.flags.tut = 1; persist(); return; }
+    if (t.i >= TUT_STEPS.length) { t.on = false; B.sel = 0; G.flags.tut = 1; persist(); jkTutArm(B); return; }
     const st = TUT_STEPS[t.i]; if (st.btn >= 0) B.sel = st.btn;
   }
   const tutOn = () => !!(G.battle && G.battle.tut && G.battle.tut.on);
@@ -3620,7 +3682,7 @@
     if (busy || (waiting && G.waitMode) || (B.tut && B.tut.on)) return;
     if (!waiting) a.st = Math.min(100, a.st + stRate(a) * dt);
     e.st = Math.min(100, e.st + stRate(e) * dt);
-    if (!waiting && a.st >= 100) { B.phase = 'input'; B.who = 'me'; burst(comp.x, GROUND - 30, 'spark', 5, '#ffe24a'); if (B.tutorial && !B.tut) { B.tut = { on: true, i: 0 }; B.sel = 0; } }
+    if (!waiting && a.st >= 100) { B.phase = 'input'; B.who = 'me'; burst(comp.x, GROUND - 30, 'spark', 5, '#ffe24a'); if (B.tutorial && !B.tut) { B.tut = { on: true, i: 0 }; B.sel = 0; } jkTutArm(B); }
     else if (e.st >= 100) {
       if (G.friend) { B.phase = 'input'; B.who = 'opp'; burst(e.x, GROUND - 30, 'spark', 5, '#ff9ac8'); }
       else B.q.push(enemyTurn());
@@ -4494,6 +4556,7 @@
     if (H.view === 'zukan' && H.dd != null) { if (ok || back) { H.dd = null; SFX.blip(); } else if (dx || dy) dexStep(H, dx || dy); return; }   // けってい / もどる close the page, つぎ flips
     if (H.view === 'zukan' && ok) { H.dd = H.dsel | 0; SFX.blip(); return; }
     if (H.view === 'zukan' && code === 'KeyR') { dexClaim(H); return; }
+    if (H.view === 'zukan' && code === 'KeyJ') { jkTutOpen(); return; }
     if (back) { H.view = 'home'; SFX.blip(); return; }
     if (H.view === 'train') { if (dx) H.tm = (H.tm + dx + G.party.length) % G.party.length; if (dy) H.tt = clamp((H.tt | 0) + dy, 0, 2); if (ok) trainBuy(H, H.tt | 0); return; }
     if (H.view === 'gacha') { if (dx || dy) H.gn = H.gn ? 0 : 1; if (ok) gachaPull(H, H.gn ? 10 : 1); if (code === 'KeyO') H.odds = true; return; }
@@ -4508,6 +4571,7 @@
     if (H.view === 'gacha' && H.gres) { gachaNext(H); return; }
     if (H.view === 'gacha' && H.odds) { H.odds = false; return; }
     if (H.view !== 'home') {
+      if (H.view === 'zukan' && H.dd == null && y < 11 && x >= 80 && x < 114) { jkTutOpen(); return; }
       if (y < 11 && x < 30) { if (H.view === 'zukan' && H.dd != null) H.dd = null; else H.view = 'home'; SFX.blip(); return; }   // もどる (ずかん page -> list first)
       const hit = r => x >= r[0] && x < r[0] + r[2] && y >= r[1] && y < r[1] + r[3];
       if (H.view === 'train') { G.party.forEach((m, i) => { if (hit(TR_CARD(i))) { H.tm = i; SFX.blip(); } }); TR_TIERS.forEach((t, i) => { if (hit(TR_BTN(i))) { H.tt = i; trainBuy(H, i); } }); return; }
@@ -4638,6 +4702,7 @@
     const list = DEX(), own = ownedSp(), seen = list.filter(k => dexSeen(k, own)).length, got = list.filter(k => dexCaught(k, own)).length;
     const page = Math.floor((H.dsel | 0) / DEX_PAGE), pages = Math.ceil(list.length / DEX_PAGE);
     hubTop(`ずかん  ${page + 1}/${pages}`, true);
+    hubFrame(80, 1, 34, 9, '#ffe98a'); T('あいしょう', 97, 3, { al: 'center', c: '#c0502a' });
     for (let j = 0; j < DEX_PAGE; j++) {
       const i = page * DEX_PAGE + j, k = list[i]; if (!k) break;
       const x = 2 + (j % DEX_COLS) * 35, y = 12 + Math.floor(j / DEX_COLS) * 34, sel = i === H.dsel;   // 34x33 cells: the 32px art at 1x, never shrunk
@@ -5222,7 +5287,7 @@
       return;
     }
     if (G.state === 'hub') {
-      drawHub(); drawBanner();
+      drawHub(); drawBanner(); drawJkTut();
       vctx.drawImage(low, 0, 0, W * S, H * S); flushText();
       if (G.fade > 0) { vctx.globalAlpha = G.fade; vctx.fillStyle = '#ffffff'; vctx.fillRect(0, 0, view.width, view.height); vctx.globalAlpha = 1; }
       return;
@@ -5308,6 +5373,7 @@
       if (!tutOn()) T(`Lv${m.lv || 1} なかま${G.party.length}/${TUNING.partyMax}`, 158, 1, { size: 4, c: '#ffffff', ol: '#1a3a5a', al: 'right' });
       if (!tutOn()) T(`${G.coins}コイン`, 158, 6, { size: 4, c: '#ffe24a', ol: '#1a3a5a', al: 'right' });
     } else drawTitle();
+    if (G.state === 'battle') drawJkTut();
     drawHk();
     vctx.drawImage(low, 0, 0, W * S, H * S);
     flushText();
@@ -5338,7 +5404,8 @@
   let last = 0;
   function frame(now) {
     const dt = Math.min(0.05, (now - (last || now)) / 1000); last = now; DT = dt || 1 / 60;
-    update(DT); render(); syncControls();
+    if (G.jkTut) { G.jkTut.t += DT; if (G.fade > 0 && G.fadeSpeed < 0) G.fade = Math.max(0, G.fade + G.fadeSpeed * DT); } else update(DT);   // あいしょう pages pause everything
+    render(); syncControls();
     requestAnimationFrame(frame);
   }
   // hand-drawn 16x16 art (assets/icons16): hub menu icons, and optional mini_<sprite id> plush minis. Only embedded files
