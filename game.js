@@ -152,6 +152,7 @@
   let ctlState = '';
   // which job the on-screen buttons do right now
   function ctlMode() {
+    if (G.hk && G.hk.mode === 'nag') return 'title';   // login prompt: つぎ = next row, けってい = pick
     if (G.state === 'field' && G.near) return 'near';
     if (G.state === 'field' || G.state === 'map') return 'field';
     if (G.state === 'talk' || G.state === 'ending') return 'talk';
@@ -201,7 +202,7 @@
   window.addEventListener('pointerup', padEnd);
   window.addEventListener('pointercancel', padEnd);
   for (const [el, code] of [[$jump, 'Space'], [$swap, 'KeyC']]) {
-    el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('on'); const m = ctlMode(); if (G.state === 'hub') onKey(el === $jump ? 'Enter' : 'ArrowRight');   // menu: けってい opens the picked item, つぎ steps to the next
+    el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('on'); const m = ctlMode(); if (G.hk && G.hk.mode === 'nag') onKey(el === $jump ? 'Enter' : 'ArrowDown'); else if (G.state === 'hub') onKey(el === $jump ? 'Enter' : 'ArrowRight');   // menu: けってい opens the picked item, つぎ steps to the next
       else if (m === 'title') { if (el === $swap) onKey('ArrowDown'); } else if (m === 'cmd' || m === 'back') onKey(ctlKey(el === $jump ? 'A' : 'B')); else if (m === 'talk') onKey('Enter'); else if (m === 'near' && el === $jump) onKey('Enter'); else onKey(code); });
     // title けってい fires on release: opening the name box needs a finished tap for the phone keyboard
     el.addEventListener('pointerup', () => { if (G.state === 'title' && el === $jump && el.classList.contains('on')) titleConfirm(); });
@@ -616,7 +617,7 @@
         AUTH.user = u;
         if (ev === 'SIGNED_IN' || ev === 'INITIAL_SESSION') setTimeout(() => acctCheck(u), 0);
       });
-      AUTH.sb.auth.getSession().then(({ data }) => { const u = data && data.session && data.session.user; if (u) acctCheck(u); }).catch(() => {});
+      AUTH.sb.auth.getSession().then(({ data }) => { AUTH.ready = true; const u = data && data.session && data.session.user; if (u) acctCheck(u); }).catch(() => {});
     } catch (e) {}
   }
   function hkLogin() {
@@ -628,6 +629,25 @@
       .then(({ error }) => { if (error) throw error; }).catch(() => { if (G.hk) hkMsg(['ログイン できなかった']); });
     cloudPut().then(ok => { if (!ok) throw new Error('put'); return go(); })
       .catch(e => { if (G.hk) hkMsg(e && e.message === 'put' ? ['クラウドに おけなかった', 'もういちど ためしてね'] : [hkErr(e)]); });
+  }
+  // soft Google-login prompt: after the first boss stage is cleared or a plush hits Lv10; shown at most 3 times, 3+ days apart
+  const NAG_GAP = 3 * 864e5, NAG_MAX = 3;
+  let nagHold = 0;
+  function nagArmed() {
+    const fb = STAGES.findIndex(st => (st.spawns || []).some(w => SPECIES[w.sp] && SPECIES[w.sp].boss));
+    return (fb >= 0 && (G.cleared || []).includes(fb)) || G.party.some(m => (m.lv | 0) >= 10);
+  }
+  function nagTick(dt) {
+    const calm = !G.hk && !G.jkTut && !G.op && !G.tapGate && !G.ending && !G.cs && !G.battle && !G.versus && !(G.fade > 0)
+      && (G.state === 'field' || G.state === 'map' || (G.state === 'hub' && G.hub && G.hub.view === 'home' && !G.hub.lb));
+    if (!calm) { nagHold = 0; return; }
+    if ((nagHold += dt) < 1.2) return;
+    nagHold = 0;   // cheap check, ~once a second
+    if (!AUTH.sb || !AUTH.ready || AUTH.user || navigator.onLine === false || !nagArmed()) return;
+    const N = G.flags.glNag || { n: 0, t: 0 };
+    if (N.n >= NAG_MAX || (N.n > 0 && Date.now() - N.t < NAG_GAP)) return;
+    G.flags.glNag = { n: N.n + 1, t: Date.now() }; persist();
+    openHk(); G.hk.mode = 'nag'; G.hk.sel = 0;
   }
   function hkLogout() {
     const h = G.hk; h.mode = 'busy'; h.lines = ['ログアウトちゅう…'];
@@ -650,12 +670,13 @@
     const h = G.hk;
     if (h.mode === 'menu') return ['issue', 'enter', AUTH.user ? 'logout' : 'login', 'close'];
     if (h.mode === 'acct') return ['ause', 'akeep'];
+    if (h.mode === 'nag') return ['nlogin', 'later'];
     if (h.mode === 'ask') return ['yes', 'no'];
     if (h.mode === 'busy') return [];
     return ['close'];
   }
   const HK_LAB = { issue: 'コードを はっこう', enter: 'コードを いれる', close: 'とじる', yes: 'はい うわがき する', no: 'やめる',
-    login: 'Googleで ログイン', logout: 'ログアウト', ause: 'アカウントの データで あそぶ', akeep: 'いまの データを つかう' };
+    login: 'Googleで ログイン', logout: 'ログアウト', ause: 'アカウントの データで あそぶ', akeep: 'いまの データを つかう', later: 'あとで', nlogin: 'ログイン' };
   const hkErr = e => (e && /http/.test(e.message || '')) ? 'サーバーで エラーが でた' : 'つうしん できない…';
   function hkMsg(lines) { G.hk = Object.assign(G.hk || {}, { mode: 'msg', sel: 0, lines }); }
   function hkIssue() {
@@ -700,11 +721,11 @@
   function hkPick() {
     const h = G.hk, k = hkRows()[h.sel];
     if (!k) return;
-    if (k === 'close') { closeHk(); return; }
+    if (k === 'close' || k === 'later') { closeHk(); return; }
     if (k === 'issue') { SFX.blip(); hkIssue(); return; }
     if (k === 'enter') { SFX.blip(); hkEnter(); return; }
     if (k === 'yes') { hkApply(); return; }
-    if (k === 'login') { SFX.blip(); hkLogin(); return; }
+    if (k === 'login' || k === 'nlogin') { SFX.blip(); hkLogin(); return; }
     if (k === 'logout') { SFX.blip(); hkLogout(); return; }
     if (k === 'ause') { hkApply('よみこみちゅう…'); return; }
     if (k === 'akeep') { SFX.blip(); hkMsg(['いまの データで あそぶよ', 'アカウントの データは', 'そのまま のこるよ']); return; }
@@ -715,7 +736,7 @@
     if (h.mode === 'busy') return;
     if (['ArrowUp', 'KeyW', 'ArrowLeft', 'KeyA'].includes(code) && rows.length) { h.sel = (h.sel + rows.length - 1) % rows.length; SFX.blip(); }
     else if (['ArrowDown', 'KeyS', 'Tab', 'ArrowRight', 'KeyD', 'KeyC'].includes(code) && rows.length) { h.sel = (h.sel + 1) % rows.length; SFX.blip(); }
-    else if (['Escape', 'KeyX', 'Backspace'].includes(code)) { if (h.mode === 'ask') { h.mode = 'menu'; h.sel = 1; } else if (h.mode === 'acct') { h.sel = 1; hkPick(); } else if (h.mode === 'menu') closeHk(); else { h.mode = 'menu'; h.sel = 0; } }
+    else if (['Escape', 'KeyX', 'Backspace'].includes(code)) { if (h.mode === 'ask') { h.mode = 'menu'; h.sel = 1; } else if (h.mode === 'acct' || h.mode === 'nag') { h.sel = 1; hkPick(); } else if (h.mode === 'menu') closeHk(); else { h.mode = 'menu'; h.sel = 0; } }
     else if (['Enter', 'NumpadEnter', 'Space', 'KeyE', 'Digit1'].includes(code)) hkPick();
   }
   const hkRow0 = () => Math.min(HK.row0, HK.y + HK.h - 1 - hkRows().length * HK.rh);
@@ -741,7 +762,7 @@
     g.globalAlpha = 0.5; rect(0, 0, W, H, '#14182a'); g.globalAlpha = 1;
     rect(x + 1, y, w - 2, hh, '#5a3418'); rect(x, y + 1, w, hh - 2, '#5a3418');
     rect(x + 1, y + 1, w - 2, hh - 2, '#fff8e0');
-    T('ひきつぎ', x + 5, y + 4, { c: '#c0502a' });
+    T(h.mode === 'nag' ? 'データを まもろう！' : 'ひきつぎ', x + 5, y + 4, { c: '#c0502a' });
     rect(x + 3, y + 10, w - 6, 1, '#e8d8b0');
     const cx = x + w / 2;
     if (h.mode === 'menu') {
@@ -753,6 +774,10 @@
         T('コードで クラウドに セーブした', cx, y + 22, { al: 'center', c: '#7a5a30' });
         T('データを はこぶよ', cx, y + 29, { al: 'center', c: '#7a5a30' });
       }
+    } else if (h.mode === 'nag') {
+      T('Googleで ログインすると、', cx, y + 15, { al: 'center' });
+      T('スマホを かえても', cx, y + 22, { al: 'center' });
+      T('つづきから あそべるよ', cx, y + 29, { al: 'center', c: '#2a8a3a' });
     } else if (h.mode === 'code') {
       T(h.code, cx, y + 14, { size: 8, c: '#3c6ad8', al: 'center' });
       T('7にち いない・1かいだけ つかえる', cx, y + 28, { al: 'center' });
@@ -774,7 +799,7 @@
       const yy = row0 + i * rh, sel = i === h.sel;
       if (sel) rect(x + 3, yy - 1, w - 6, rh - 1, '#ffe98a');
       if (sel && Math.floor(G.t * 4) % 2) drawPattern(['#..', '##.', '###', '##.', '#..'], x + 5, yy, { '#': '#c0502a' });
-      T(HK_LAB[k], x + 10, yy, { c: k === 'yes' ? '#d0302a' : k === 'login' || k === 'ause' ? '#2a8a3a' : k === 'issue' || k === 'enter' ? '#3c6ad8' : '#4a2c12' });
+      T(HK_LAB[k], x + 10, yy, { c: k === 'yes' ? '#d0302a' : k === 'login' || k === 'nlogin' || k === 'ause' ? '#2a8a3a' : k === 'issue' || k === 'enter' ? '#3c6ad8' : '#4a2c12' });
     });
   }
   function readSave() {
@@ -5287,13 +5312,13 @@
       return;
     }
     if (G.state === 'hub') {
-      drawHub(); drawBanner(); drawJkTut();
+      drawHub(); drawBanner(); drawJkTut(); drawHk();
       vctx.drawImage(low, 0, 0, W * S, H * S); flushText();
       if (G.fade > 0) { vctx.globalAlpha = G.fade; vctx.fillStyle = '#ffffff'; vctx.fillRect(0, 0, view.width, view.height); vctx.globalAlpha = 1; }
       return;
     }
     if (G.state === 'map' || (G.state === 'talk' && G.talk && G.talk.onMap)) {
-      drawMap(); drawMapHomeChip(); drawBanner(); if (G.state === 'talk') drawTalk();
+      drawMap(); drawMapHomeChip(); drawBanner(); if (G.state === 'talk') drawTalk(); drawHk();
       vctx.drawImage(low, 0, 0, W * S, H * S); flushText();
       if (G.fade > 0) { vctx.globalAlpha = G.fade; vctx.fillStyle = '#ffffff'; vctx.fillRect(0, 0, view.width, view.height); vctx.globalAlpha = 1; }
       return;
@@ -5404,6 +5429,7 @@
   let last = 0;
   function frame(now) {
     const dt = Math.min(0.05, (now - (last || now)) / 1000); last = now; DT = dt || 1 / 60;
+    nagTick(DT);
     if (G.jkTut) { G.jkTut.t += DT; if (G.fade > 0 && G.fadeSpeed < 0) G.fade = Math.max(0, G.fade + G.fadeSpeed * DT); } else update(DT);   // あいしょう pages pause everything
     render(); syncControls();
     requestAnimationFrame(frame);
