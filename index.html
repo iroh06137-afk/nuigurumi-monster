@@ -29,6 +29,7 @@
   #nameBox .row { display: flex; gap: 8px; justify-content: flex-end; }
   #nameBox button { font: 18px 'Misaki', sans-serif; padding: 6px 14px; border: 3px solid #5a3418; background: #ffd23a; color: #5a3418; }
   #nameBox button[type=button] { background: #fff8e0; }
+  #nameBox .inv { display: none; align-items: center; font-size: 15px; } #nameBox.code .inv { display: flex; } #nameBox .inv button { white-space: nowrap; } #nameBox .inv b { font-size: 20px; letter-spacing: 2px; color: #c0502a; }
   #err { position: fixed; top: 8px; left: 8px; color: #f88; font: 14px monospace; white-space: pre; pointer-events: none; z-index: 9; }
   .ctl { position: absolute; display: none; z-index: 5; touch-action: none; }
   body.touch .ctl { display: block; }
@@ -64,14 +65,14 @@
   <div class="btn round" id="swap">いれかえ</div>
   <div class="btn round" id="jump">ジャンプ</div>
 </div>
-<div id="nameBox"><form><label id="nameLab">なまえ（6もじまで）</label><input id="nameIn" maxlength="6" autocomplete="off"><div class="row"><button type="button" id="nameNo">やめる</button><button type="submit">けってい</button></div></form></div>
+<div id="nameBox"><form><label id="nameLab">なまえ（6もじまで）</label><input id="nameIn" maxlength="6" autocomplete="off" spellcheck="false" autocorrect="off"><div id="invRow" class="row inv"><span>あなたの しょうかいコード <b id="invCode">…</b></span><button type="button" id="invCopy">コピー</button></div><div class="row"><button type="button" id="nameNo">やめる</button><button type="submit">けってい</button></div></form></div>
 <div id="err"></div>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="assets-img.js?v=49"></script>
-<script src="data.js?v=83"></script>
+<script src="data.js?v=85"></script>
 <script src="bg.js?v=10"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="game.js?v=151"></script>
+<script src="game.js?v=154"></script>
 <script>if ('serviceWorker' in navigator && location.protocol !== 'file:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>
 </body>
 </html>

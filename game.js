@@ -465,6 +465,14 @@
   const nameBox = document.getElementById('nameBox'), nameIn = document.getElementById('nameIn');
   function openName(which) {
     G.nameEdit = which;
+    if (which === 'code') {   // campaign code: same overlay, wider input
+      document.getElementById('nameLab').textContent = 'コードを いれてね';
+      nameIn.maxLength = 24; nameIn.value = ''; nameIn.placeholder = 'コード'; nameIn.setAttribute('autocapitalize', 'characters');
+      nameBox.classList.add('code'); invShow();
+      G.nameOpenT = performance.now(); nameBox.classList.add('on'); nameIn.focus(); return;
+    }
+    nameBox.classList.remove('code');
+    nameIn.maxLength = 6; nameIn.setAttribute('autocapitalize', 'off');
     document.getElementById('nameLab').textContent = (which === 'r' ? 'ライバルの なまえ' : 'あなたの なまえ') + '（6もじまで）';
     nameIn.value = which === 'r' ? (G.rname || '') : (G.pname || '');
     nameIn.placeholder = which === 'r' ? rName() : 'なまえ';
@@ -472,7 +480,9 @@
   }
   function closeName(ok) {
     if (!G.nameEdit) return;
-    if (ok) { const v = nameIn.value.replace(/\s+/g, '').slice(0, 6); if (G.nameEdit === 'r') G.rname = v; else G.pname = v; saveHero(); SFX.blip(); }
+    if (G.nameEdit === 'code') nameBox.classList.remove('code');
+    if (ok && G.nameEdit === 'code') redeemCode(nameIn.value);
+    else if (ok) { const v = nameIn.value.replace(/\s+/g, '').slice(0, 6); if (G.nameEdit === 'r') G.rname = v; else G.pname = v; saveHero(); SFX.blip(); }
     G.nameEdit = null; nameBox.classList.remove('on'); nameIn.blur(); view.focus();
   }
   nameBox.querySelector('form').addEventListener('submit', e => { e.preventDefault(); if (performance.now() - (G.nameOpenT || 0) > 250) closeName(true); });
@@ -545,6 +555,12 @@
   const CLOUD = { url: 'https://acwibplypgkutrfeuejq.supabase.co', key: 'sb_publishable_H9BXr00nglxIaHOvTeVPlw_mJ8C5vhP', t: null, last: 0 };
   // test browsers (Playwright/webdriver, ?test, localStorage nm_test=1) never write to the real players / saves tables
   const CLOUD_OFF = (() => { try { return !!navigator.webdriver || /[?&]test\b/.test(location.search) || localStorage.getItem('nm_test') === '1'; } catch (e) { return true; } })();
+  // しょうかい (referral) RPCs: real fetch normally; in test browsers only an injected window.NM_RPC(name, args) transport
+  function invRpc(name, args) {
+    if (typeof window.NM_RPC === 'function') return Promise.resolve(window.NM_RPC(name, args));
+    if (CLOUD_OFF || typeof fetch === 'undefined') return Promise.reject(new Error('off'));
+    return rpc(name, args);
+  }
   function cloudId() {
     try {
       let id = localStorage.getItem('nm_pid');
@@ -1479,6 +1495,7 @@
     SFX.start();
     if (G.state !== 'title') return;
     const s = fromSave ? readSave() : null;
+    setTimeout(invClaim, 1500);   // しょうかい rewards waiting for us (after the save is loaded)
     G.box = [];
     if (s && Array.isArray(s.party) && s.party.length) {
       G.party = s.party.filter(m => SPECIES[m.sp]).map(m => newMember(m.sp, m.hp, {
@@ -4556,6 +4573,68 @@
   }
   const DEX_COLS = 4, DEX_ROWS = 2, DEX_PAGE = DEX_COLS * DEX_ROWS;
   const hubItems = () => Object.keys(ITEMS);
+  // ---------- コードにゅうりょく (campaign codes from data.js CODES; once per save via G.flags.codes) ----------
+  const normCode = v => String(v || '').normalize('NFKC').replace(/\s+/g, '').toUpperCase();
+  function redeemCode(raw) {
+    const c = normCode(raw); if (!c) return;
+    const d = (typeof CODES !== 'undefined' ? CODES : []).find(e => normCode(e.code) === c);
+    const say = (t, ok) => { banner(t, 2.4); if (ok) SFX.level(); else SFX.miss(); };
+    if (!d && /^[A-HJ-NP-Z2-9]{6}$/.test(c)) { redeemInvite(c, say); return; }
+    if (!d || !ITEMS[d.reward.item]) { say('コードが ちがうみたい'); return; }
+    G.flags.codes = G.flags.codes || {};
+    if (G.flags.codes[c]) { say('この コードは もう つかったよ'); return; }
+    if (d.until && jstDay() > d.until) { say('この コードは きげんぎれ'); return; }
+    const n = Math.max(1, d.reward.n | 0);
+    G.flags.codes[c] = 1; G.items[d.reward.item] = (G.items[d.reward.item] | 0) + n;
+    persist();
+    say(`${ITEMS[d.reward.item].name}${n > 1 ? ' ×' + n : ''} を もらった！`, true);
+  }
+  const CODE_CHIP = [58, 1, 58, 9];
+  function giveReward(r, times) {
+    const n = Math.max(1, r.n | 0) * (times || 1);
+    G.items[r.item] = (G.items[r.item] | 0) + n; persist();
+    return `${ITEMS[r.item].name}${n > 1 ? ' ×' + n : ''} を もらった！`;
+  }
+  // own invite code (6 chars A-Z2-9 minus I/O/0/1): registered on the server, cached in G.flags.inv
+  function invGet() {
+    if (G.flags.inv) return Promise.resolve(G.flags.inv);
+    const up = CLOUD_OFF && typeof window.NM_RPC !== 'function' ? Promise.resolve(true) : cloudPut().catch(() => false);   // the saves row authenticates us
+    return up.then(() => invRpc('register_invite', { p_id: cloudId(), p_secret: cloudSecret() })).then(c => {
+      if (typeof c === 'string' && /^[A-HJ-NP-Z2-9]{6}$/.test(c)) { G.flags.inv = c; persist(); }
+      return G.flags.inv || null;
+    });
+  }
+  function invShow() {
+    const el = document.getElementById('invCode'); el.textContent = G.flags.inv || '…';
+    invGet().then(c => { el.textContent = c || 'つうしんが ひつよう'; }).catch(() => { el.textContent = 'つうしんが ひつよう'; });
+  }
+  document.getElementById('invCopy').addEventListener('click', () => {
+    const c = G.flags.inv; if (!c) return;
+    const done = () => { document.getElementById('invCopy').textContent = 'コピーした！'; setTimeout(() => { document.getElementById('invCopy').textContent = 'コピー'; }, 1500); };
+    (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(c) : Promise.reject()).then(done).catch(() => {
+      try { const t = document.createElement('textarea'); t.value = c; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); done(); } catch (e) {}
+    });
+    nameIn.focus();
+  });
+  function redeemInvite(c, say) {
+    if (G.flags.invUsed) { say('しょうかいコードは もう つかったよ'); return; }
+    if (G.flags.inv === c) { say('じぶんの コードは つかえないよ'); return; }
+    banner('つうしんちゅう…', 3);
+    const up = CLOUD_OFF && typeof window.NM_RPC !== 'function' ? Promise.resolve(true) : cloudPut().catch(() => false);
+    up.then(() => invRpc('redeem_invite', { p_id: cloudId(), p_secret: cloudSecret(), p_code: c })).then(r => {
+      if (r === 'ok') { G.flags.invUsed = 1; say(giveReward(INVITE_REWARD), true); }
+      else if (r === 'self') say('じぶんの コードは つかえないよ');
+      else if (r === 'used') { G.flags.invUsed = 1; persist(); say('しょうかいコードは もう つかったよ'); }
+      else say('コードが ちがうみたい');
+    }).catch(() => say('つうしん できなかった'));
+  }
+  // referrer side: friends who used our code -> candy, collected when the game opens
+  function invClaim() {
+    if (!G.flags.inv) return;
+    invRpc('claim_referral_rewards', { p_id: cloudId(), p_secret: cloudSecret() }).then(n => {
+      n = n | 0; if (n > 0) abanner('ともだちが きてくれた！ ' + giveReward(INVITE_REWARD, n), 3);
+    }).catch(() => {});
+  }
   function hubAct(id) {
     const H = G.hub; SFX.blip();
     if (id === 'quest') { persist(); if (!G.flags.tut) enterStage(0); else { const w = Math.max(0, worldOf(G.stage)); if (w !== (G.world | 0)) setWorld(w); openMap(Math.max(0, MAP_NODES.findIndex(n => n.stage === G.stage))); } return; }
@@ -4576,6 +4655,7 @@
       if (dx || dy) { const n = HUB_BTNS.length; H.sel = dy ? (H.sel < 3 ? Math.min(n - 1, H.sel + 3) : Math.max(0, H.sel - 3)) : (H.sel + dx + n) % n; SFX.blip(); }
       if (ok) hubAct(HUB_BTNS[H.sel].id);
       if (back) { G.state = 'title'; G.titleScreen = 0; persist(); }
+      if (code === 'KeyK') { SFX.blip(); openName('code'); }
       return;
     }
     if (H.view === 'tgame') { if (ok || code === 'ArrowUp' || code === 'KeyW') tgTap(H); return; }
@@ -4616,6 +4696,7 @@
       if (H.view === 'items') { const i = Math.floor((y - 13) / 9); if (i >= 0 && i < hubItems().length) H.isel = i; }
       return;
     }
+    if (y < 11 && x >= CODE_CHIP[0] && x < CODE_CHIP[0] + CODE_CHIP[2]) { SFX.blip(); openName('code'); return; }
     const i = HUB_BTNS.findIndex(b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
     if (i < 0) return;
     if (i === H.sel || TOUCH) { H.sel = i; hubAct(HUB_BTNS[i].id); }
@@ -4642,6 +4723,7 @@
     if (H.view === 'gacha') return drawGacha(H);
     if (H.view === 'event') return drawEvent(H);
     hubTop(`ホーム  ${pName()}`, false);
+    if (!H.lb) { hubFrame(...CODE_CHIP, '#ffe98a'); T('コードにゅうりょく', CODE_CHIP[0] + CODE_CHIP[2] / 2, 3, { al: 'center', c: '#c0502a' }); }
     if (!H.lb) HUB_BTNS.forEach((b, i) => {
       const sel = i === H.sel, bob = sel ? (Math.floor(G.t * 3) % 2) : 0;
       hubFrame(b.x, b.y - bob, b.w, b.h, sel ? '#ffe98a' : '#fff8e0');

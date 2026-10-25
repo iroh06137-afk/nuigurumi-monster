@@ -1204,3 +1204,12 @@ const JANKEN = {
   kuuko: 'pa', usagin: 'pa', kaerun: 'pa', tanukin: 'pa', mokomon: 'pa', kinokon: 'pa', chouran: 'pa', hakuchon: 'pa', kujakun: 'pa', shouko: 'pa',
   hotarun: 'pa', hiyokorappa: 'pa', arupakacook: 'pa', usahime: 'pa', hoshi_boss: 'pa', jackn: 'pa', obaken: 'pa', miiran: 'pa', majoneko: 'pa',
 };
+
+// campaign codes (コードにゅうりょく): code is matched case-insensitive, trimmed, full-width -> half-width.
+// reward: { item: ITEMS id, n: count }; until: last valid day 'YYYY-MM-DD' (Japan time), optional. Each code works once per save.
+const CODES = [
+  { code: 'NUIMON', reward: { item: 'candy', n: 5 } },
+];
+
+// friend referral (しょうかいコード): both players get this
+const INVITE_REWARD = { item: 'candy', n: 5 };
