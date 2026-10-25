@@ -313,12 +313,14 @@
   // ---------- sprites ----------
   const SPR = {};
   // art that isn't drawn yet (world 4, うさひめ, endings): only loaded once embedded in assets-img.js, so no 404s
-  const artReady = src => (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src]) || !/(\/w4\/|worldmap4|usahime|\/ending\/|\/opening\/|\/story\/|\/zukan\/)/.test(src);
+  const artReady = src => (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src]) || !/(\/w4\/|worldmap4|usahime|\/ending\/|\/opening\/|\/story\/|\/zukan\/|\/janken\/)/.test(src);
   function loadImg(src) {
     return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('failed to load ' + src)); i.src = (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[src]) ? ASSET_DATA[src] : src; });
   }
   // versus arena backgrounds (160x90, static): day / night picked per match
   const ARENA = {}, EVBG = {};   // EVBG: painted event-stage panoramas (stage.bgImg), only when embedded
+  const JKART = {};   // じゃんけん hand icons (8x8); the in-code pixel icons are used until these are embedded
+  for (const k of ['gu', 'choki', 'pa']) if (artReady('assets/janken/' + k + '.png')) loadImg('assets/janken/' + k + '.png').then(i => { JKART[k] = i; }).catch(() => {});
   const ZART = {};   // ずかん art: habitat panels (48x48) + page frame (160x78), only when embedded
   for (const k of ['habitat_town', 'habitat_forest', 'habitat_castle', 'habitat_halloween', 'zukan_frame']) if (artReady('assets/zukan/' + k + '.png')) loadImg('assets/zukan/' + k + '.png').then(i => { ZART[k] = i; }).catch(() => {});
   for (const k of ['day', 'night']) loadImg('assets/bg/arena_' + k + '.png').then(i => { ARENA[k] = i; }).catch(() => {});
@@ -1207,7 +1209,26 @@
     return { name: 'きずなの ' + st.name, power: Math.round(st.power * 1.9), acc: 1 };
   }
   const stRate = u => (TUNING.stBase + u.spd * TUNING.stPerSpd) * (u.crown && typeof CROWN !== 'undefined' ? CROWN.stMult : 1);   // crown perk: faster stamina
-  function calcDmg(a, d, mv) { return Math.max(1, Math.round(mv.power * a.atk * (a._buff || 1) / (a.atk + d.def) * (0.85 + rand() * 0.3))); }
+  // じゃんけん: グー > チョキ > パー > グー (x1.5 / x0.5), every move incl. ひっさつ, both sides, versus too
+  const JK_BEATS = { gu: 'choki', choki: 'pa', pa: 'gu' };
+  const handOf = m => { const k = m && String(m.sp || '').replace(/_(boss|gold)$/, ''); return (typeof JANKEN !== 'undefined' && (JANKEN[m && m.sp] || JANKEN[k])) || 'gu'; };
+  const jkMul = (a, d) => { if (G.battle && G.battle.final) return 1;   // final うさひめ fight stays neutral (balance)
+    const x = handOf(a), y = handOf(d); return JK_BEATS[x] === y ? 1.5 : JK_BEATS[y] === x ? 0.5 : 1; };
+  function jkPop(att, def, defA) {   // once per move (multi-hit specials land several times)
+    const m = jkMul(att, def); if (m === 1 || G.t - (G.jkT || -9) < 0.6) return; G.jkT = G.t;
+    G.pops.push({ x: defA.x, y: GROUND - 50, text: m > 1 ? 'こうかばつぐん！' : 'いまひとつ…', col: m > 1 ? '#ff9a3a' : '#c8d8f0', life: 1.2, kana: true });
+  }
+  const JK_PAT = {
+    gu:    ['..####..', '.#wwww#.', '#wwwwww#', '#w#w#w##', '#wwwwww#', '#wwwwww#', '.#wwww#.', '..####..'],
+    choki: ['.#...#..', '#w#.#w#.', '#w#.#w#.', '.#w#w#..', '.#wwww#.', '#wwwwww#', '#wwwww#.', '.#####..'],
+    pa:    ['.#.#.#..', '#w#w#w#.', '#w#w#w##', '#w#w#ww#', '#wwwww#.', '#wwwww#.', '.#www#..', '..###...'],
+  };
+  const JK_COL = { gu: '#f45a5a', choki: '#3c6ad8', pa: '#47a83a' };
+  function drawJk(h, x, y) {
+    if (JKART[h]) { g.drawImage(JKART[h], x, y); return; }
+    rect(x, y, 8, 8, JK_COL[h]); drawPattern(JK_PAT[h], x, y, { '#': '#2a1a10', w: '#fff8e0' });
+  }
+  function calcDmg(a, d, mv) { return Math.max(1, Math.round(mv.power * a.atk * (a._buff || 1) / (a.atk + d.def) * (0.85 + rand() * 0.3) * jkMul(a, d))); }
   // move side effects (せいぎぐん): buff = attack up for this battle (ファンファーレ), heal = recover part of max HP (にんじんスープ)
   function afterMove(att, mv) {
     if (!att || !mv || att.hp <= 0 || !G.battle) return;
@@ -2956,7 +2977,7 @@
       if (crit) dmg = Math.round(dmg * 1.5);
       const guarded = !!def.guard;
       if (guarded) { dmg = Math.max(1, Math.ceil(dmg / 2)); def.guard = false; }
-      dmg = storyDmg(def, dmg);
+      dmg = storyDmg(def, dmg); jkPop(att, def, defA);
       def.hp = Math.max(0, def.hp - dmg);
       defA.flash = 0.3; defA.shake = crit || kind === 'special' ? 0.5 : 0.3;
       pop(defA.x, GROUND - 38, dmg, crit ? '#ff6a3a' : big ? '#ffdf3a' : '#ffffff');
@@ -2988,7 +3009,7 @@
       let dmg = hits > 1 ? Math.max(1, Math.round(total / hits)) : total;
       const guarded = !!def.guard;
       if (guarded) { dmg = Math.max(1, Math.ceil(dmg / 2)); if (h === hits - 1) def.guard = false; }
-      dmg = storyDmg(def, dmg);
+      dmg = storyDmg(def, dmg); jkPop(att, def, defA);
       def.hp = Math.max(0, def.hp - dmg);
       defA.flash = 0.3; defA.shake = 0.5;
       pop(defA.x, GROUND - 38 - h * 5, dmg, '#ffdf3a');
@@ -3020,7 +3041,7 @@
       let dmg = hits > 1 ? Math.max(1, Math.round(total / hits)) : total;
       const guarded = !!def.guard;
       if (guarded) { dmg = Math.max(1, Math.ceil(dmg / 2)); if (landed === hits) def.guard = false; }
-      dmg = storyDmg(def, dmg);
+      dmg = storyDmg(def, dmg); jkPop(att, def, defA);
       def.hp = Math.max(0, def.hp - dmg);
       defA.flash = 0.3; defA.shake = 0.5;
       pop(defA.x, GROUND - 38 - (landed - 1) * 5, dmg, '#ffdf3a');
@@ -3966,6 +3987,7 @@
     rect(x + 1, t + 4, 20, 1, '#3a4a5a');
     const full = unit.st >= 100;
     rect(x + 1, t + 4, Math.floor(20 * unit.st / 100), 1, full ? (Math.floor(G.t * 6) % 2 ? '#ffe24a' : '#fff6b0') : '#48b8f0');
+    drawJk(handOf(unit), x + 23, t - 1);
     const VB = G.versus && G.battle && G.battle.oppTeam;
     if (VB) {
       const list = unit === G.battle.w ? swapList({ opp: true }) : G.party;
@@ -4258,6 +4280,11 @@
       rect(b.x + 1, b.y + 1 + oy, b.w - 2, 1, 'rgba(255,255,255,0.35)');
       rect(b.x + 1, b.y + b.h - 2, b.w - 2, 1, c.dark);
       drawPattern(ICONS[c.icon], b.x + 2, b.y + 2 + oy, { w: '#ffffff', y: '#ffe24a' });
+      if (B && !swapping && ['attack', 'strong', 'special'].includes(c.kind)) {   // じゃんけん vs the current target
+        const jm = B.who === 'opp' ? jkMul(B.w, a) : jkMul(a, B.w);
+        if (jm > 1) drawPattern(['..#..', '.###.', '#####'], b.x + b.w - 6, b.y + 1 + oy, { '#': '#ff4a2a' });
+        else if (jm < 1) drawPattern(['#####', '.###.', '..#..'], b.x + b.w - 6, b.y + 1 + oy, { '#': '#3a6ae0' });
+      }
       tiny(String(slot + 1), b.x + 1, b.y + 1 + oy, '#ffffff', c.dark);
       if (!usable) { g.globalAlpha = 0.5; rect(b.x, b.y, b.w, b.h, '#8a8070'); g.globalAlpha = 1; }
       if (sel && Math.floor(G.t * 4) % 2) {
@@ -4282,6 +4309,7 @@
     else if (B.phase === 'input') {
       const c = COMMANDS[B.sel];
       l1 = (B.who === 'opp' ? 'あいて ' : '') + `${c.label}`;
+      if (['attack', 'strong', 'special'].includes(c.kind)) { const jm = B.who === 'opp' ? jkMul(B.w, a) : jkMul(a, B.w); if (jm !== 1) l1 += jm > 1 ? ' ↑つよい' : ' ↓よわい'; }
       if (B.who === 'opp') { const om = c.kind === 'special' ? (sideBond() >= 100 ? specialOf(B.w) : { name: `きずな ${sideBond()}%` }) : c.kind === 'guard' ? { name: 'ダメージ はんぶん' } : movesOf(B.w)[c.kind]; l2 = om ? om.name : ''; }
       else if (c.kind === 'recruit') l2 = B.w.trainer ? 'ひとの こは だめ' : SPECIES[B.w.sp].boss ? 'ボスは なかまに できない' : `せいこう ${Math.round(recruitChance(B.w) * 100)}%` + (G.cookie ? '♪' : '');
       else if (c.kind === 'run' && (SPECIES[B.w.sp].boss || B.w.trainer)) l2 = B.w.trainer ? 'にげられない' : 'ボスからは にげられない';
@@ -4615,6 +4643,7 @@
       const x = 2 + (j % DEX_COLS) * 35, y = 12 + Math.floor(j / DEX_COLS) * 34, sel = i === H.dsel;   // 34x33 cells: the 32px art at 1x, never shrunk
       hubFrame(x, y, 34, 33, sel ? '#ffe98a' : '#fff8e0');
       dexArt(k, x + 1, y, dexCaught(k, own), dexSeen(k, own));
+      if (dexSeen(k, own)) drawJk(handOf({ sp: k }), x + 25, y + 24);
       if (SPECIES[k].limited && dexSeen(k, own)) { rect(x + 15, y + 1, 18, 7, '#e0302a'); T('げんてい', x + 24, y + 2, { al: 'center', c: '#ffffff' }); }
     }
     hubFrame(142, 12, 16, 33, '#fff8e0'); hubFrame(142, 46, 16, 33, '#fff8e0');
@@ -4643,7 +4672,7 @@
     if (ev) { T('▶', 58, 40, { al: 'center', c: '#c0502a' }); dexBox(k, 62, 20, ev.sprite, 'art'); cx = 114; }
     const L = (s, y, col) => T(s, cx, y, { c: col || '#4a2c12' });
     if (sn) {
-      L(`タイプ ${dexType(k)}`, 20);
+      L(`タイプ ${dexType(k)}`, 20); drawJk(handOf({ sp: k }), Math.min(150, cx + Math.ceil(measure(`タイプ ${dexType(k)}`)) + 3), 19);
       L('すみか', 28, '#7a5a30'); L(HAB[dexHab(k)], 35);
       if (S0.limited) { rect(cx, 43, 18, 7, '#e0302a'); T('げんてい', cx + 9, 44, { al: 'center', c: '#ffffff' }); }
     } else L('？？？', 20);

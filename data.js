@@ -1191,3 +1191,16 @@ const ZUKAN_DESC = {
   majoneko: 'まほうを つかう ねこの まじょ。ほうきで ハロウィンの そらを とぶ。',
   oguri: 'ふしぎな ちからを もつ うまの ぬいぐるみ。はしるのが だいすき。',
 };
+
+// じゃんけん: one hand per plush (evolved forms keep it). グー > チョキ > パー > グー
+const JANKEN = {
+  // グー: punchy / strong / hard
+  goririn: 'gu', kangarun: 'gu', pandan: 'gu', wankon: 'gu', ressan: 'gu', pengiin: 'gu', tenton: 'gu', risurin: 'gu', shikanon: 'gu',
+  kaido_boss: 'gu', oguriking: 'gu', oguri: 'gu', hamuranger: 'gu', paoon: 'gu', kametank: 'gu', saiguard: 'gu', goremun: 'gu', mori_boss: 'gu',
+  // チョキ: claws / fangs / sharp
+  tsumaguro: 'choki', kitsunen: 'choki', fukuron: 'choki', nyankon: 'choki', haririn: 'choki', koumon: 'choki', naiton: 'choki', usagihei: 'choki',
+  poppon: 'choki', mogurakouhei: 'choki', usaknight: 'choki', lioneru: 'choki', wolfun: 'choki', eaglan: 'choki', wanigard: 'choki', toragar: 'choki',
+  // パー: wrapping / magic / soft
+  kuuko: 'pa', usagin: 'pa', kaerun: 'pa', tanukin: 'pa', mokomon: 'pa', kinokon: 'pa', chouran: 'pa', hakuchon: 'pa', kujakun: 'pa', shouko: 'pa',
+  hotarun: 'pa', hiyokorappa: 'pa', arupakacook: 'pa', usahime: 'pa', hoshi_boss: 'pa', jackn: 'pa', obaken: 'pa', miiran: 'pa', majoneko: 'pa',
+};
